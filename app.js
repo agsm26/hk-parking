@@ -1,0 +1,658 @@
+// app.js — the screen. Everything that decides is in core.js; this file fetches,
+// stores and draws. Plain DOM, no framework, so it stays readable and small.
+import * as C from "./core.js";
+
+// ---------------------------------------------------------------- config ----
+const FEEDS = {
+  info: (lang) => `https://api.data.gov.hk/v1/carpark-info-vacancy?data=info&lang=${lang === "en" ? "en_US" : "zh_TW"}`,
+  vacancy: "https://api.data.gov.hk/v1/carpark-info-vacancy?data=vacancy",
+  meterInfo: "https://resource.data.one.gov.hk/td/psiparkingspaces/spaceinfo/parkingspaces.csv",
+  meterOcc: "https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv",
+};
+const REFRESH = { info: 6 * 3600e3, meters: 24 * 3600e3, vacancy: 60e3, meterVac: 120e3 };
+const qs = new URLSearchParams(location.search);
+
+// ------------------------------------------------------------- storage ----
+const LS = {
+  get(k, fb) { try { const v = localStorage.getItem("chk_" + k); return v == null ? fb : JSON.parse(v); } catch { return fb; } },
+  set(k, v) { try { localStorage.setItem("chk_" + k, JSON.stringify(v)); } catch {} },
+};
+// IndexedDB key-value for the big feed payloads (localStorage is too small).
+const IDB = (() => {
+  let dbp = null;
+  const open = () => dbp ||= new Promise((res, rej) => {
+    if (!("indexedDB" in self)) return rej(new Error("no idb"));
+    const r = indexedDB.open("carparkhk", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("kv");
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+  return {
+    async get(k) { try { const db = await open(); return await new Promise((res, rej) => { const t = db.transaction("kv").objectStore("kv").get(k); t.onsuccess = () => res(t.result); t.onerror = () => rej(t.error); }); } catch { return undefined; } },
+    async set(k, v) { try { const db = await open(); await new Promise((res, rej) => { const t = db.transaction("kv", "readwrite"); t.objectStore("kv").put(v, k); t.oncomplete = res; t.onerror = () => rej(t.error); }); } catch {} },
+    async clear() { try { const db = await open(); await new Promise((res) => { const t = db.transaction("kv", "readwrite"); t.objectStore("kv").clear(); t.oncomplete = res; t.onerror = res; }); } catch {} },
+  };
+})();
+
+// --------------------------------------------------------------- state ----
+const S = {
+  lang: qs.get("lang") || LS.get("lang", null) || (/^(zh|yue)/i.test(navigator.language) ? "tc" : "en"),
+  tab: qs.get("tab") || "find",
+  origin: LS.get("origin", { type: "current" }),            // {type:'current'} | {type:'place', place}
+  filter: { ...C.DEFAULT_FILTER(), ...LS.get("filter", {}) },
+  sort: LS.get("sort", "bestMatch"),
+  vehicles: LS.get("vehicles", []), activeVehicleId: LS.get("activeVehicleId", null),
+  favs: LS.get("favs", []), recents: LS.get("recents", []), places: LS.get("places", []), searches: LS.get("searches", []),
+  session: LS.get("session", null), lastSession: LS.get("lastSession", null), reports: LS.get("reports", []),
+  alerts: LS.get("alerts", false), navApp: LS.get("navApp", "apple"),
+  static: null,            // {osm, entrances, curated}
+  feed: [],                // normalised one-stop car parks
+  meters: { zones: [], index: {} },
+  carparks: [],            // merged list
+  vac: {}, vacAt: null, vacFromCache: false, infoAt: null, metersAt: null,
+  ranked: [], all: [], lastError: null, phase: "idle", busy: false,
+  geo: { pos: null, status: "unknown", error: null },
+  now: Date.now(), fixed: null,
+};
+if (qs.get("lat") && qs.get("lng")) S.fixed = { lat: parseFloat(qs.get("lat")), lng: parseFloat(qs.get("lng")) };
+const vehicle = () => S.vehicles.find(v => v.id === S.activeVehicleId) || S.vehicles[0] || null;
+const L_ = (en, tc) => C.pick(S.lang, en, tc);
+const T_ = (lt) => C.t(S.lang, lt);
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const save = (k) => LS.set(k, S[k]);
+let toastT;
+function toast(msg) { const el = $("toast"); el.textContent = msg; el.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("on"), 2200); }
+
+// ---------------------------------------------------------- origin -------
+function originPoint() {
+  if (S.origin.type === "place") { const c = S.origin.place?.coordinate; return c && C.inHK(c) ? c : null; }
+  const p = S.fixed || S.geo.pos; return p && C.inHK(p) ? p : null;
+}
+const outsideHK = () => S.origin.type === "current" && !!(S.fixed || S.geo.pos) && !C.inHK(S.fixed || S.geo.pos);
+function originLabel() { return S.origin.type === "place" ? S.origin.place.title : L_("Current location", "而家位置"); }
+
+let geoWatch = null;
+function startGeo() {
+  if (S.fixed || !("geolocation" in navigator) || geoWatch != null) return;
+  S.geo.status = "asking";
+  geoWatch = navigator.geolocation.watchPosition(p => {
+    S.geo.pos = { lat: p.coords.latitude, lng: p.coords.longitude }; S.geo.status = "ok"; S.geo.error = null; rerank(); render();
+  }, e => {
+    S.geo.status = e.code === 1 ? "denied" : "error"; S.geo.error = e.message; render();
+  }, { enableHighAccuracy: true, maximumAge: 60e3, timeout: 15e3 });
+}
+
+// ------------------------------------------------------------ loading ----
+async function fetchJSON(url) { const r = await fetch(url, { cache: "no-store" }); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }
+async function fetchText(url) { const r = await fetch(url, { cache: "no-store" }); if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); }
+
+async function loadStatic() {
+  if (S.static) return;
+  const [osm, entrances, curated] = await Promise.all([fetchJSON("data/osm_carparks.json"), fetchJSON("data/osm_entrances.json"), fetchJSON("data/curated_carparks.json")]);
+  S.static = { osm: C.osmCarParks(osm), entrances, curated };
+}
+
+function rebuildCarParks() {
+  let list = [...S.feed];
+  const ids = new Set(list.map(c => c.id));
+  for (const z of S.meters.zones) if (!ids.has(z.id)) list.push(z);
+  if (S.static) { list = C.dedupe(list, S.static.osm); list = C.applyCurated(list, S.static.curated); list = C.attachEntrances(list, S.static.entrances); }
+  S.carparks = list;
+}
+
+async function loadInfo(force) {
+  const cached = await IDB.get("info");
+  if (cached && !S.feed.length) { S.feed = cached.carparks; S.infoAt = cached.at; }
+  if (!force && S.infoAt && Date.now() - S.infoAt < REFRESH.info && S.feed.length) return;
+  try {
+    const [en, tc] = await Promise.all([fetchJSON(FEEDS.info("en")), fetchJSON(FEEDS.info("tc"))]);
+    const parks = C.normalizeInfo(en.results || [], tc.results || []);
+    if (!parks.length) throw new Error(L_("feed returned no car parks", "資料庫冇停車場"));
+    S.feed = parks; S.infoAt = Date.now(); S.lastError = null;
+    await IDB.set("info", { carparks: parks, at: S.infoAt });
+  } catch (e) { S.lastError = e.message; }
+}
+
+async function loadMeters(force) {
+  const cached = await IDB.get("meters");
+  if (cached && !S.meters.zones.length) { S.meters = { zones: cached.zones, index: cached.index }; S.metersAt = cached.at; }
+  if (!force && S.metersAt && Date.now() - S.metersAt < REFRESH.meters && S.meters.zones.length) return;
+  try {
+    const text = await fetchText(FEEDS.meterInfo);
+    const m = C.meterZones(text);
+    if (m.zones.length) { S.meters = m; S.metersAt = Date.now(); await IDB.set("meters", { ...m, at: S.metersAt }); }
+  } catch (e) { /* meters are optional; car parks still work */ }
+}
+
+let lastMeterVac = 0;
+async function loadVacancy(force) {
+  const cached = await IDB.get("vac");
+  if (cached && !Object.keys(S.vac).length) { S.vac = cached.vac; S.vacAt = cached.at; S.vacFromCache = true; }
+  if (!force && S.vacAt && Date.now() - S.vacAt < REFRESH.vacancy && Object.keys(S.vac).length) return;
+  let ok = false; const merged = { ...S.vac };
+  try { const j = await fetchJSON(FEEDS.vacancy); Object.assign(merged, C.normalizeVacancy(j.results || [])); ok = true; } catch (e) { S.lastError = e.message; }
+  if (Object.keys(S.meters.index).length && (force || Date.now() - lastMeterVac > REFRESH.meterVac)) {
+    try { const t = await fetchText(FEEDS.meterOcc); Object.assign(merged, C.meterReadings(t, S.meters.index, Date.now())); lastMeterVac = Date.now(); ok = true; } catch {}
+  }
+  if (ok) { S.vac = merged; S.vacAt = Date.now(); S.vacFromCache = false; if (!S.lastError || ok) S.lastError = null; await IDB.set("vac", { vac: merged, at: S.vacAt }); }
+}
+
+async function refresh(force = false) {
+  if (S.busy) return; S.busy = true;
+  if (!S.carparks.length) S.phase = "loading";
+  render();
+  try {
+    await loadStatic();
+    await loadInfo(force);
+    rebuildCarParks(); rerank(); render();
+    await loadMeters(force);
+    rebuildCarParks();
+    await loadVacancy(force);
+  } finally {
+    S.busy = false; S.now = Date.now();
+    S.phase = S.carparks.length ? "loaded" : (S.lastError ? "failed" : "loaded");
+    rerank(); render(); checkWatches();
+  }
+}
+
+// ------------------------------------------------------------ ranking ----
+function rerank() {
+  S.now = Date.now();
+  const records = S.carparks.map(cp => ({ cp, vac: S.vac[cp.id] || {} }));
+  const ctx = { origin: originPoint(), now: S.now, vehicle: vehicle() };
+  S.all = C.rank(records, ctx, S.sort);
+  S.ranked = ctx.origin ? C.applyFilter(S.filter, S.all) : [];
+}
+const recommended = () => S.ranked.find(r => r.score > 0 && (r.level === "available" || r.level === "limited")) || S.ranked.find(r => r.score > 0) || null;
+const mapItems = () => originPoint() ? S.ranked : C.applyFilter({ ...S.filter, maxDistanceMetres: null }, S.all);
+const rec = (id) => S.all.find(r => r.id === id) || null;
+function alternatives(id, n = 2) {
+  const target = rec(id); if (!target) return [];
+  return S.all.filter(r => r.id !== id && (r.level === "available" || r.level === "limited") && r.score > 0)
+    .sort((a, b) => C.distM(a.cp, target.cp) - C.distM(b.cp, target.cp)).slice(0, n);
+}
+function emptyReason() {
+  if (S.ranked.length) return null;
+  if (!S.carparks.length) return S.lastError ? "offline" : (S.phase === "loading" ? "loading" : "feedEmpty");
+  if (outsideHK()) return "outsideHK";
+  if (!originPoint() && S.origin.type === "current") return S.geo.status === "denied" ? "denied" : "noLocation";
+  if (S.filter.onlyCompatible && C.filterActiveCount(S.filter) === 1) return "noCompatible";
+  return "noMatches";
+}
+function lastUpdatedText() {
+  if (!S.vacAt) return L_("No data yet", "未有資料");
+  const s = Math.max(0, Math.round((S.now - S.vacAt) / 1000));
+  const pre = S.vacFromCache ? L_("Cached data from", "快取資料，") : L_("Live data updated", "即時資料更新於");
+  if (s < 60) return `${pre} ${s} ${L_("sec ago", "秒前")}`;
+  if (s < 3600) return `${pre} ${Math.floor(s / 60)} ${L_("min ago", "分鐘前")}`;
+  return `${pre} ${Math.floor(s / 3600)} ${L_("h ago", "小時前")}`;
+}
+
+// ------------------------------------------------------------- render ----
+const LEVEL_ICON = { available: "✓", limited: "!", full: "✕", unknown: "?" };
+function badge(r, large = false) {
+  const lv = r.level, c = r.reading?.count, en = S.lang === "en";
+  const head = (lv === "available" || lv === "limited") ? (c != null ? c : L_("Spaces", "有位")) : lv === "full" ? L_("Full", "爆滿") : "—";
+  const cap = lv === "available" ? (c == null ? L_("available", "有位") : L_("spaces", "個位")) : lv === "limited" ? L_("left", "剩餘") : lv === "full" ? L_("no spaces", "冇位") : L_("no live data", "冇即時資料");
+  return `<div class="badge${large ? " large" : ""} lv-${lv}" aria-label="${esc(T_(C.LEVEL_LABEL[lv]))}"><b><span aria-hidden="true">${LEVEL_ICON[lv]}</span>${esc(head)}</b><small>${esc(cap)}</small></div>`;
+}
+function freshHTML(r) { return `<span class="fresh ${r.fresh}">${r.fresh === "live" ? "●" : "◔"} ${esc(C.freshnessText(r.fresh, r.reading?.updatedAt, S.now, S.lang))}</span>`; }
+function cardHTML(r, extra = "") {
+  const cp = r.cp, fav = S.favs.some(f => f.id === cp.id);
+  const tags = [];
+  if (cp.kind === "onStreetMeter") tags.push(`<span class="tag">P ${esc(L_(`Street meters · ${cp.bayCount} bays`, `路邊咪錶 · ${cp.bayCount} 個位`))}</span>`);
+  else if (r.fit.kind !== "notConfirmed" || cp.height.metres != null) tags.push(`<span class="tag ${r.fit.kind === "fits" ? "ok" : r.fit.kind === "tight" ? "warn" : r.fit.kind === "doesNotFit" ? "full" : ""}">↕ ${esc(C.heightText(cp.height, S.lang))}</span>`);
+  if (r.estHourly != null) tags.push(`<span class="tag">$ ${esc(fmtHourly(r.estHourly, r.hourlyIsEstimate))}</span>`);
+  if (cp.facilities.includes("evCharger")) tags.push(`<span class="tag">⚡ ${esc(L_("EV", "充電"))}</span>`);
+  if (cp.isMall) tags.push(`<span class="tag">🛍 ${esc(L_("Mall", "商場"))}</span>`);
+  if (C.isInfoOnly(cp)) tags.push(`<span class="tag">📄 ${esc(L_("Info only", "只有資料"))}</span>`);
+  if (r.isOpen === false) tags.push(`<span class="tag full">${esc(L_("Closed", "閂咗"))}</span>`);
+  if (!C.hasEntrance(cp)) tags.push(`<span class="tag">📍 ${esc(L_("Location approximate", "位置為約略"))}</span>`);
+  return `<button class="card ${extra}" data-cp="${esc(cp.id)}">
+    <div class="card-top"><div class="card-name"><h2>${fav ? "★ " : ""}${esc(T_(cp.name))}</h2><p>${esc(T_(cp.address))}</p>
+      <div class="meta">${r.dist != null ? `<span>➤ ${esc(C.fmtDist(r.dist, S.lang))}</span>` : ""}${freshHTML(r)}</div></div>${badge(r)}</div>
+    <div class="tags">${tags.join("")}</div></button>`;
+}
+const fmtHourly = (hkd, est) => { const v = Number.isInteger(hkd) ? `$${hkd}` : `$${hkd.toFixed(1)}`; const b = L_(`${v}/hr`, `${v}/小時`); return est ? L_(`${b} est.`, `約 ${b}`) : b; };
+
+function chipsHTML(ids) {
+  return `<div class="chips" role="group">${ids.map(id => { const c = C.CHIPS.find(x => x.id === id); const on = C.chipIsOn(id, S.filter, S.sort);
+    return `<button class="chip" data-chip="${id}" aria-pressed="${on}"><span aria-hidden="true">${c.icon}</span>${esc(T_(c.label))}</button>`; }).join("")}</div>`;
+}
+
+function renderFind() {
+  const el = $("panel-find");
+  const o = originPoint(), reason = emptyReason(), r0 = recommended();
+  let body = "";
+  if (reason === "loading") body = `<div class="state"><div class="ic">⏳</div><p>${esc(L_("Loading live car park data…", "載入緊即時車位資料…"))}</p></div>`;
+  else if (reason) body = emptyStateHTML(reason);
+  else {
+    const place = S.origin.type === "place" ? S.origin.place : null;
+    const nearest = Math.min(...S.all.map(r => r.dist ?? Infinity));
+    if (place && place.kind === "maps" && nearest > 250) body += `<p class="note">ⓘ ${esc(L_(`${place.title} itself does not publish parking data. Nearest listed car parks:`, `${place.title} 本身冇提供泊車資料，以下係最近有資料嘅停車場：`))}</p>`;
+    if (r0) body += `<div class="sect"><span class="accent">✦ ${esc(L_("Recommended now", "而家最推薦"))}</span></div>${cardHTML(r0, "rec")}
+      <p class="reasons">${esc(r0.reasons.slice(0, 4).map(x => C.reasonText(x, S.lang)).join(" · "))}</p>
+      <div class="row2"><button class="primary" data-nav="${esc(r0.id)}">➤ ${esc(L_("Navigate", "導航"))}</button><button class="secondary" data-cp="${esc(r0.id)}">ⓘ ${esc(L_("Details", "詳情"))}</button></div>`;
+    const rest = S.ranked.filter(r => r.id !== r0?.id);
+    body += `<div class="sect"><span>${esc(L_(`Nearby, ranked by ${T_(C.SORT_LABEL[S.sort]).toLowerCase()}`, `附近 · 按${T_(C.SORT_LABEL[S.sort])}排序`))}</span><small>${rest.length}</small></div>`;
+    body += rest.slice(0, S.limit || 20).map(r => cardHTML(r)).join("");
+    if (rest.length > (S.limit || 20)) body += `<button class="more" id="more">${esc(L_(`Show ${Math.min(20, rest.length - (S.limit || 20))} more`, `睇多 ${Math.min(20, rest.length - (S.limit || 20))} 個`))}</button>`;
+  }
+  el.innerHTML = `<h1 id="h-find">${esc(L_("Find Parking", "搵車位"))}</h1>
+    <button class="searchbox" id="open-search"><span aria-hidden="true">🔍</span>${S.origin.type === "place" ? `<span class="val">${esc(originLabel())}</span><span class="loc" id="use-loc" role="button" aria-label="${esc(L_("Use current location", "用而家位置"))}">➤</span>` : `<span class="ph">${esc(L_("Where are you going?", "你去邊度？"))}</span>`}</button>
+    ${chipsHTML(C.CHIPS.map(c => c.id))}
+    <button class="primary" id="find-now">Ⓟ ${esc(L_("Find Parking Now", "即刻搵位"))}</button>
+    <div class="status"><span>${S.vacFromCache ? "💾" : "●"} ${esc(lastUpdatedText())}</span><span><button data-sort-menu>⇅ ${esc(T_(C.SORT_LABEL[S.sort]))}</button> · <button data-tab="map">🗺 ${esc(L_("Map", "地圖"))}</button></span></div>
+    ${body}
+    <footer class="attr">${esc(L_("Live data: Transport Department via DATA.GOV.HK · Map & other car parks © OpenStreetMap contributors · Estimates only, verify on site.", "即時資料：運輸署（資料一線通）· 地圖及其他停車場 © OpenStreetMap 貢獻者 · 只供參考，以現場為準。"))}</footer>`;
+}
+
+function emptyStateHTML(reason) {
+  const st = (ic, h, p, btn, act) => `<div class="card"><div class="state"><div class="ic" aria-hidden="true">${ic}</div><h3>${esc(h)}</h3><p>${esc(p)}</p>${btn ? `<button class="primary" data-act="${act}">${esc(btn)}</button>` : ""}</div></div>`;
+  switch (reason) {
+    case "outsideHK": return st("🌏", L_("You're outside Hong Kong", "你唔喺香港"), L_("This app covers Hong Kong car parks only. Search a Hong Kong destination to plan ahead.", "呢個 app 只涵蓋香港停車場。可以搜尋香港目的地預先計劃。"), L_("Search a destination", "搜尋目的地"), "search");
+    case "denied": return st("📍", L_("Location not available", "攞唔到位置"), L_("Location is off for this app. Search a destination, or allow location in your browser settings.", "定位已關閉。可以搜尋目的地，或者喺瀏覽器設定允許定位。"), L_("Search a destination", "搜尋目的地"), "search");
+    case "noLocation": return st("📍", L_("Where are you?", "你喺邊？"), L_("Allow location to see car parks near you, or search a destination.", "允許定位以顯示附近車位，或者搜尋目的地。"), L_("Allow location", "允許定位"), "locate");
+    case "offline": return st("📡", L_("Can't reach the parking feed", "連唔到車位資料"), L_("Check your connection and try again. Nothing is cached yet.", "請檢查網絡再試。暫時未有快取資料。"), L_("Try again", "再試一次"), "retry");
+    case "feedEmpty": return st("📭", L_("No car parks in the feed", "資料庫暫時冇停車場"), L_("The government feed returned nothing. Try again in a minute.", "政府資料暫時冇內容，請稍後再試。"), L_("Try again", "再試一次"), "retry");
+    case "noCompatible": return st("🚐", L_("Nothing compatible nearby", "附近冇啱你車嘅車位"), L_("No car park here confirms it fits your vehicle. Show all and check the height yourself?", "附近冇停車場確認啱你架車，可以顯示全部再自己核對限高。"), L_("Show all", "顯示全部"), "resetFilters");
+    default: { const n = C.filterActiveCount(S.filter); return st("⚙︎", L_("No car parks match", "冇符合嘅停車場"), n ? L_(`${n} filters are on. Loosen them or widen the distance.`, `開咗 ${n} 個篩選，試下放寬或者加大範圍。`) : L_("Nothing within range. Try a destination.", "範圍內冇車位，試下搜尋目的地。"), n ? L_("Clear filters", "清除篩選") : null, "resetFilters"); }
+  }
+}
+
+// ------------------------------------------------------------- detail ----
+let sheetFor = null, miniMap = null;
+function openDetail(id) {
+  const r = rec(id); if (!r) return;
+  sheetFor = id;
+  const cp = r.cp, v = vehicle(), fav = S.favs.some(f => f.id === id);
+  const other = (lt) => { const a = S.lang === "en" ? lt.tc : lt.en; return a && a !== T_(lt) ? `<p class="sub">${esc(a)}</p>` : ""; };
+  const alts = (r.level === "full" || r.level === "unknown") ? alternatives(id) : [];
+  const types = C.VEHICLE_TYPES.filter(k => r.rec.vac?.[k] || (cp.capacity?.[k]?.total ?? 0) > 0);
+  const fee = cp.fees?.[v?.type || "privateCar"] || cp.fees?.privateCar;
+  const facts = [];
+  facts.push([L_("Status", "狀態"), r.isOpen === true ? L_("Open now", "開放中") : r.isOpen === false ? L_("Closed now", "已關閉") : L_("Hours not confirmed", "開放時間未確認")]);
+  if (cp.openingHours.length) facts.push([L_("Hours", "開放時間"), cp.openingHours.map(w => C.windowText(w, S.lang)).join("\n")]);
+  if (cp.operatorName) facts.push([L_("Operator", "營運商"), T_(cp.operatorName)]);
+  facts.push([L_("Height limit", "限高"), cp.kind === "onStreetMeter" ? L_("On-street, no height limit", "路邊，冇高度限制") : C.heightText(cp.height, S.lang) + (cp.height.note ? "\n" + cp.height.note : "")]);
+  if (cp.carParkType) facts.push([L_("Type", "類型"), cp.carParkType + (cp.nature ? " · " + cp.nature : "")]);
+  if (cp.facilities.length) facts.push([L_("Facilities", "設施"), cp.facilities.map(f => ({ evCharger: L_("EV charging", "電動車充電"), disabilities: L_("Accessible parking", "傷健人士車位"), unloading: L_("Loading / unloading", "上落貨"), washing: L_("Car wash", "洗車") })[f] || f).join(", ")]);
+  if (cp.paymentMethods.length) facts.push([L_("Payment", "付款方式"), cp.paymentMethods.join(", ")]);
+  if (cp.infoNote && !C.isInfoOnly(cp)) facts.push([L_("Notes", "備註"), T_(cp.infoNote)]);
+  const d = C.districtById(cp.district); if (d) facts.push([L_("District", "地區"), T_(d.name) + " · " + T_(C.REGIONS[d.region])]);
+  if (cp.contact) facts.push([L_("Phone", "電話"), `<a href="tel:${esc(cp.contact.replace(/[^0-9+]/g, ""))}">${esc(cp.contact)}</a>`, true]);
+  if (cp.website) facts.push([L_("Website", "網站"), `<a href="${esc(cp.website)}" target="_blank" rel="noopener">${esc(cp.website.replace(/^https?:\/\//, "").split("/")[0])}</a>`, true]);
+  const adv = v ? C.sizeAdvice(v, S.lang) : null;
+  const navLabel = cp.kind === "onStreetMeter" ? L_("Navigate to the bays", "導航去咪錶位") : C.hasEntrance(cp) ? L_("Navigate to Entrance", "導航去入口") : L_("Navigate (location approximate)", "導航（位置為約略）");
+
+  $("sheet").innerHTML = `
+    <div class="sheet-head"><span class="grab"></span><button class="quiet" data-close>${esc(L_("Close", "關閉"))}</button><h2>${esc(T_(cp.name))}</h2><button class="quiet" data-share="${esc(id)}">⇪</button></div>
+    <div class="card-top"><div class="card-name"><h1>${esc(T_(cp.name))}</h1>${other(cp.name)}<p class="sub">${esc(T_(cp.address))}</p>${other(cp.address)}
+      <div class="meta">${freshHTML(r)}${r.dist != null ? `<span>➤ ${esc(C.fmtDist(r.dist, S.lang))} · ${esc(L_("straight line", "直線"))}</span>` : ""}</div></div>${badge(r, true)}</div>
+    <div style="height:12px"></div>
+    <button class="primary" data-nav="${esc(id)}">➤ ${esc(navLabel)}</button>
+    <div class="row2" style="margin-top:8px"><button class="secondary" data-fav="${esc(id)}" aria-pressed="${fav}">${fav ? "★ " + esc(L_("Saved", "已儲存")) : "☆ " + esc(L_("Save", "儲存"))}</button><button class="secondary" data-park="${esc(id)}">Ⓟ ${esc(L_("I parked here", "我泊咗喺度"))}</button></div>
+    <p style="text-align:center;margin:10px 0 0"><button data-report="${esc(id)}" style="color:var(--accent);font-weight:600;min-height:40px">⚑ ${esc(L_("Report an issue", "報告問題"))}</button></p>
+    ${alts.length ? `<div class="sect"><span>${esc(r.level === "full" ? L_("This car park is full. Nearby alternatives:", "呢個停車場爆滿，附近另有：") : L_("No live data here. Nearby with spaces:", "呢度冇即時資料，附近有位嘅："))}</span></div>${alts.map(a => cardHTML(a)).join("")}` : ""}
+    <div class="section"><h3>🚗 ${esc(L_("Availability by vehicle", "各類車位空置"))}</h3>
+      ${C.isInfoOnly(cp) ? `<p class="note">${esc(L_("This operator does not publish live availability. The location and facts here come from OpenStreetMap and the operator's own page; check signage on arrival.", "呢個營運商冇公開即時空位。位置同資料來自 OpenStreetMap 及營運商網頁，到場請留意指示牌。"))}</p>${cp.infoNote ? `<p class="note">${esc(T_(cp.infoNote))}</p>` : ""}` : ""}
+      ${!C.isInfoOnly(cp) && !types.length ? `<p class="note">${esc(L_("No live vacancy feed for this car park.", "呢個停車場冇即時空位資料。"))}</p>` : ""}
+      ${cp.kind === "onStreetMeter" ? `<p class="note">${esc(L_(`${cp.bayCount} metered bays along this section. The count is bays whose sensor reports vacant; pay at the meter or by the HKeMeter app.`, `呢段路共 ${cp.bayCount} 個咪錶位。數字係感應器報「吉」嘅泊位數，可喺咪錶或 HKeMeter app 付款。`))}</p>` : ""}
+      ${types.map(k => { const rd = r.rec.vac?.[k]; const rr = { level: C.level(rd, S.now), reading: rd }; const cap = cp.capacity?.[k]?.total;
+        return `<div class="dl"><div><dt>${esc(T_(C.VEHICLE_NAME[k]))}</dt><dd style="display:flex;justify-content:flex-end;align-items:center;gap:10px">${cap ? `<small style="color:var(--ink-soft)">${esc(L_(`of ${cap}`, `／${cap}`))}</small>` : ""}${badge(rr)}</dd></div></div>`; }).join("")}
+    </div>
+    <div class="section"><h3>↕ ${esc(L_("Will my vehicle fit?", "我架車入唔入到？"))}</h3>
+      ${v ? `<div style="display:flex;justify-content:space-between;gap:10px"><b>${esc(v.nickname)}</b><span style="color:var(--ink-soft)">${esc(C.dimensionsText(v) || "")}</span></div><p class="fit ${r.fit.kind}">${esc(C.fitText(r.fit, S.lang))}</p>
+        ${r.fit.kind === "doesNotFit" ? `<p class="note" style="color:var(--full)">${esc(L_("Do not enter. The posted clearance is lower than your vehicle.", "唔好入。標示限高低過你架車。"))}</p>` : ""}
+        ${r.fit.kind === "notConfirmed" ? `<p class="note">${esc(v.heightMetres ? L_("The feed does not confirm a height for this car park. Check the sign at the entrance.", "資料未有確認限高，請留意入口標示。") : L_("Add your vehicle height in Vehicle to check.", "喺「車輛」加入車高就可以核對。"))}</p>` : ""}
+        ${adv ? `<p class="advice ${adv.level}">📏 ${esc(adv.text)}</p>` : ""}
+        ${r.supports === false ? `<p class="note" style="color:var(--warn)">${esc(L_("No spaces listed for this vehicle type.", "未列出呢類車嘅車位。"))}</p>` : ""}`
+        : `<p class="note">${esc(L_("Add a vehicle profile to check height and spaces for your vehicle type.", "加入車輛資料就可以核對限高同車位類別。"))}</p><p>${esc(C.heightText(cp.height, S.lang))}</p>`}
+    </div>
+    <div class="section"><h3>⤵ ${esc(L_("Entrance", "入口"))}</h3><div class="minimap" id="minimap"></div>
+      ${cp.kind === "onStreetMeter" ? `<p class="note">${esc(L_("On-street bays. The pin is the middle of the section; bays run along the kerb.", "路邊泊位。圖釘係路段中間，泊位沿路邊分佈。"))}</p>`
+        : cp.entrance ? `<p class="note">${cp.entrance.lat.toFixed(5)}, ${cp.entrance.lng.toFixed(5)}${cp.entrance.note && !C.isEmptyLT(cp.entrance.note) ? " · " + esc(T_(cp.entrance.note)) : ""}<br>${esc(L_("Entrance from: ", "入口資料來源："))}${esc(T_(C.SOURCE_ATTRIBUTION[cp.entrance.source]))}</p>`
+        : `<p class="note">📍 ${esc(L_("Location approximate. The feed gives the building position, not the vehicle entrance.", "位置為約略。資料只有建築物位置，並非車輛入口。"))}</p>`}
+    </div>
+    <div class="section"><h3>ⓘ ${esc(L_("Details", "詳細"))}</h3><dl class="dl">${facts.map(([k, val, html]) => `<div><dt>${esc(k)}</dt><dd>${html ? val : esc(val)}</dd></div>`).join("")}</dl>
+      ${cp.photoURL ? `<img src="${esc(cp.photoURL)}" alt="" loading="lazy" style="width:100%;height:140px;object-fit:cover;border-radius:10px;margin-top:10px">` : ""}</div>
+    <div class="section"><h3>$ ${esc(L_("Fees", "收費"))}</h3>${feesHTML(fee)}<p class="note">${esc(L_("Fees vary and change. Confirm at the entrance before parking.", "收費或有變動，泊車前請以入口標示為準。"))}</p></div>
+    <div class="section"><h3>✓ ${esc(L_("Data sources", "資料來源"))}</h3>${cp.sources.map(s => `<p class="note">${C.providesLive(s) ? "●" : "📄"} ${esc(T_(C.SOURCE_ATTRIBUTION[s] || C.lt(s, s)))}</p>`).join("")}
+      ${cp.factsProvenance ? `<p class="note">${esc(L_("Height, fees and hours as published by ", "限高、收費及時間由 "))}${esc(T_(cp.factsProvenance.publisher))}${cp.factsProvenance.checkedOn ? esc(L_(`, checked ${cp.factsProvenance.checkedOn}`, `公佈，核對日期 ${cp.factsProvenance.checkedOn}`)) : ""}${cp.factsProvenance.sourceURL ? ` · <a href="${esc(cp.factsProvenance.sourceURL)}" target="_blank" rel="noopener">${esc(new URL(cp.factsProvenance.sourceURL).hostname)}</a>` : ""}</p>` : ""}
+      ${cp.isEnriched ? `<p class="note">${esc(L_("Live availability, fees and facilities are operator-provided through the government feed.", "空位、收費同設施由營運商經政府平台提供。"))}</p>` : ""}</div>`;
+  $("sheet").hidden = false; requestAnimationFrame(() => { $("sheet").classList.add("on"); $("scrim").classList.add("on"); });
+  $("sheet").scrollTop = 0;
+  setTimeout(() => {
+    if (miniMap) { miniMap.remove(); miniMap = null; }
+    const p = C.navPoint(cp);
+    miniMap = L.map("minimap", { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, touchZoom: false, doubleClickZoom: false }).setView([p.lat, p.lng], 17);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(miniMap);
+    L.circleMarker([cp.lat, cp.lng], { radius: 7, color: "#fff", weight: 2, fillColor: "#6b7379", fillOpacity: 1 }).addTo(miniMap);
+    if (cp.entrance) L.circleMarker([cp.entrance.lat, cp.entrance.lng], { radius: 8, color: "#fff", weight: 2, fillColor: "#1f70eb", fillOpacity: 1 }).addTo(miniMap);
+  }, 60);
+  location.hash = "#cp/" + encodeURIComponent(id);
+}
+function feesHTML(fee) {
+  if (!fee || C.feeIsEmpty(fee)) return `<p class="note">${esc(L_("No fee information in the feed. Check the sign at the entrance.", "資料未有收費資料，請留意入口標示。"))}</p>`;
+  const kind = { dayPark: L_("Day parking", "日泊"), nightPark: L_("Night parking", "夜泊"), twentyFourHours: L_("24-hour", "24 小時"), monthly: L_("Monthly", "月租"), other: L_("Flat rate", "定額") };
+  let h = fee.hourly.map(r => `<div class="dl"><div><dt>${esc(C.windowText(r.window, S.lang))}<br><small>${esc(C.weekdaysText(r.window, S.lang))}</small></dt><dd style="text-align:right"><b>$${r.price}${r.unitMinutes === 30 ? L_("/30 min", "/半小時") : L_("/hr", "/小時")}${r.isEstimate ? L_(" est.", "（估計）") : ""}</b>${r.remark ? `<br><small style="color:var(--ink-soft)">${esc(r.remark)}</small>` : ""}</dd></div></div>`).join("");
+  h += fee.flat.map(r => `<div class="dl"><div><dt>${esc(kind[r.kind] || r.kind)}${r.window ? `<br><small>${esc(C.windowText(r.window, S.lang))}</small>` : ""}</dt><dd style="text-align:right"><b>$${r.price}</b></dd></div></div>`).join("");
+  h += fee.privileges.map(p => `<p class="note">🎁 ${esc(p)}</p>`).join("");
+  if (fee.note) h += `<p class="details-text" style="font-size:14px">${esc(fee.note)}</p>`;
+  return h;
+}
+function closeSheet() { $("sheet").classList.remove("on"); $("scrim").classList.remove("on"); setTimeout(() => { $("sheet").hidden = true; if (miniMap) { miniMap.remove(); miniMap = null; } }, 220); sheetFor = null; if (location.hash.startsWith("#cp/")) history.replaceState(null, "", "#" + S.tab); }
+
+// ---------------------------------------------------------- actions ------
+function navigateTo(id) {
+  const r = rec(id); if (!r) return; const p = C.navPoint(r.cp), name = T_(r.cp.name);
+  noteRecent(r.cp);
+  const url = S.navApp === "google" ? `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=driving`
+    : S.navApp === "waze" ? `https://waze.com/ul?ll=${p.lat},${p.lng}&navigate=yes`
+    : `https://maps.apple.com/?daddr=${p.lat},${p.lng}&dirflg=d&q=${encodeURIComponent(name)}`;
+  window.open(url, "_blank", "noopener");
+}
+function noteRecent(cp) { S.recents = [{ id: cp.id, name: cp.name, at: Date.now() }, ...S.recents.filter(x => x.id !== cp.id)].slice(0, 20); save("recents"); }
+function toggleFav(id) { const r = rec(id); if (!r) return; if (S.favs.some(f => f.id === id)) { S.favs = S.favs.filter(f => f.id !== id); toast(L_("Removed from saved", "已由常用移除")); } else { S.favs.push({ id, name: r.cp.name, pinned: false, watch: false, at: Date.now() }); toast(L_("Saved", "已加入常用")); } save("favs"); }
+async function shareCP(id) { const r = rec(id); if (!r) return; const p = C.navPoint(r.cp); const text = `${T_(r.cp.name)}\n${T_(r.cp.address)}\nhttps://maps.apple.com/?daddr=${p.lat},${p.lng}&dirflg=d`;
+  if (navigator.share) { try { await navigator.share({ title: T_(r.cp.name), text }); } catch {} } else { try { await navigator.clipboard.writeText(text); toast(L_("Copied", "已複製")); } catch {} } }
+let reminderTimer = null;
+function startSession(id, floor, reminderHours) {
+  const r = rec(id); if (!r) return;
+  S.session = { id, name: r.cp.name, lat: r.cp.lat, lng: r.cp.lng, startedAt: Date.now(), floor: floor || null, reminderAt: reminderHours > 0 ? Date.now() + reminderHours * 3600e3 - 600e3 : null };
+  save("session"); noteRecent(r.cp); scheduleReminder(); toast(L_("Parking session started", "已開始泊車紀錄"));
+}
+function endSession() { if (S.session) { S.lastSession = { ...S.session, endedAt: Date.now() }; save("lastSession"); } S.session = null; save("session"); clearTimeout(reminderTimer); }
+function scheduleReminder() {
+  clearTimeout(reminderTimer); if (!S.session?.reminderAt) return;
+  const fire = () => { const n = T_(S.session.name); toast(L_(`Parking at ${n} ends soon`, `${n} 嘅泊車時段快完`)); if ("Notification" in window && Notification.permission === "granted") new Notification(L_("Parking time is nearly up", "泊車時間快到"), { body: n }); };
+  const delay = S.session.reminderAt - Date.now(); if (delay <= 0) return; reminderTimer = setTimeout(fire, Math.min(delay, 2 ** 31 - 1));
+  if ("Notification" in window && Notification.permission === "default") Notification.requestPermission().catch(() => {});
+}
+function checkWatches() {
+  if (!S.alerts || !("Notification" in window) || Notification.permission !== "granted") return;
+  for (const f of S.favs.filter(f => f.watch)) { const r = rec(f.id); if (r?.level === "available" && (!f.lastNotified || Date.now() - f.lastNotified > 30 * 60e3)) { f.lastNotified = Date.now(); new Notification(L_("Spaces available", "有位喇"), { body: `${T_(r.cp.name)}: ${r.reading?.count ?? ""}` }); } }
+  save("favs");
+}
+
+// ------------------------------------------------------------ search -----
+let searchMode = null; // 'dest' | {pick: fn}
+let suggestT = null, mapsResults = [];
+function openSearch(mode = "dest") {
+  searchMode = mode; mapsResults = [];
+  const el = $("search"); el.classList.add("on");
+  el.innerHTML = `<div class="bar"><input id="q" type="search" placeholder="${esc(L_("Place, mall, district or car park", "地點、商場、地區或停車場"))}" autocomplete="off" enterkeyhint="search" aria-label="${esc(L_("Search", "搜尋"))}"><button class="quiet" id="q-cancel">${esc(L_("Cancel", "取消"))}</button></div><div class="list" id="q-list"></div>`;
+  renderSearchList(""); setTimeout(() => $("q").focus(), 50);
+  $("q").addEventListener("input", e => { const q = e.target.value; renderSearchList(q); clearTimeout(suggestT); if (q.trim().length >= 3) suggestT = setTimeout(() => nominatim(q), 350); });
+  $("q").addEventListener("keydown", e => { if (e.key === "Enter") { const first = $("q-list").querySelector("[data-pick]"); if (first) first.click(); } });
+  $("q-cancel").onclick = closeSearch;
+}
+function closeSearch() { $("search").classList.remove("on"); searchMode = null; }
+function renderSearchList(q) {
+  const list = $("q-list"); if (!list) return; const opt = (ic, title, sub, data) => `<button class="opt" ${data}><span class="ic">${ic}</span><span class="txt">${esc(title)}${sub ? `<small>${esc(sub)}</small>` : ""}</span></button>`;
+  let h = "";
+  if (!q.trim()) {
+    h += opt("➤", L_("Current location", "而家位置"), "", `data-pick="current"`);
+    for (const p of S.places) h += opt(p.role === "home" ? "🏠" : p.role === "work" ? "💼" : "★", p.label, "", `data-pick="place:${esc(p.id)}"`);
+    if (S.searches.length) { h += `<div class="sect"><span>${esc(L_("Recent", "最近"))}</span></div>`; for (const s of S.searches) h += opt("⟲", s.title, s.subtitle, `data-pick="search:${esc(s.key)}"`); }
+    h += `<div class="sect"><span>${esc(L_("Browse by district", "按地區瀏覽"))}</span></div>`;
+    for (const [rid, rn] of Object.entries(C.REGIONS)) h += `<details><summary style="min-height:44px;display:flex;align-items:center;font-weight:600">${esc(T_(rn))}</summary>${C.DISTRICTS.filter(d => d.region === rid).map(d => opt("▢", T_(d.name), "", `data-pick="district:${d.id}"`)).join("")}</details>`;
+  } else {
+    const ds = C.districtsMatching(q); if (ds.length) { h += `<div class="sect"><span>${esc(L_("Districts", "地區"))}</span></div>`; for (const d of ds) h += opt("▢", T_(d.name), T_(C.REGIONS[d.region]), `data-pick="district:${d.id}"`); }
+    const cps = C.searchCarParks(q, S.carparks, 6); if (cps.length) { h += `<div class="sect"><span>${esc(L_("Car parks", "停車場"))}</span></div>`; for (const x of cps) h += opt("Ⓟ", T_(x.cp.name), T_(x.cp.address), `data-pick="cp:${esc(x.cp.id)}"`); }
+    if (mapsResults.length) { h += `<div class="sect"><span>${esc(L_("Places", "地點"))}</span></div>`; mapsResults.forEach((m, i) => { h += opt("📍", m.title, m.subtitle, `data-pick="maps:${i}"`); }); }
+    if (!ds.length && !cps.length && !mapsResults.length && q.length >= 2) h += `<p class="note">${esc(L_("No matches yet. Try a street, mall or district name.", "未有結果，試下街名、商場或者地區。"))}</p>`;
+  }
+  list.innerHTML = h;
+}
+async function nominatim(q) {
+  const tries = [q, C.toTrad(q) + " 香港", q + " Hong Kong"];
+  for (const s of [...new Set(tries)]) {
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=hk&accept-language=${S.lang === "en" ? "en" : "zh-TW"}&q=${encodeURIComponent(s)}`, { headers: { Accept: "application/json" } });
+      const j = await r.json();
+      const res = (j || []).map(x => ({ title: (x.display_name || q).split(",")[0], subtitle: (x.display_name || "").split(",").slice(1, 3).join(",").trim(), coordinate: { lat: +x.lat, lng: +x.lon }, kind: "maps" })).filter(x => C.inHK(x.coordinate));
+      if (res.length) { mapsResults = res; if ($("q")?.value === q) renderSearchList(q); return; }
+    } catch {}
+  }
+}
+function pickSearch(v) {
+  const done = (place) => {
+    if (!place.coordinate || !C.inHK(place.coordinate)) { alert(L_(`${place.title} is not in Hong Kong. This app covers Hong Kong car parks only.`, `${place.title}唔喺香港。呢個 app 只涵蓋香港停車場。`)); return; }
+    if (searchMode && searchMode.pick) { searchMode.pick(place); closeSearch(); return; }
+    S.origin = { type: "place", place }; save("origin");
+    if (place.kind !== "district") { const key = place.title + "|" + (place.subtitle || ""); S.searches = [{ key, title: place.title, subtitle: place.subtitle || "", coordinate: place.coordinate, kind: place.kind }, ...S.searches.filter(s => s.key !== key)].slice(0, 8); save("searches"); }
+    closeSearch(); rerank(); render(); if (S.tab === "map") mapCentreOn(place.coordinate);
+  };
+  if (v === "current") { S.origin = { type: "current" }; save("origin"); startGeo(); closeSearch(); rerank(); render(); return; }
+  const [kind, rest] = [v.slice(0, v.indexOf(":")), v.slice(v.indexOf(":") + 1)];
+  if (kind === "cp") { const cp = S.carparks.find(c => c.id === rest); if (cp) done({ title: T_(cp.name), subtitle: T_(cp.address), coordinate: { lat: cp.lat, lng: cp.lng }, kind: "carPark", id: cp.id }); }
+  else if (kind === "district") { const d = C.districtById(rest); const pts = S.carparks.filter(c => c.district === rest); const c = pts.length ? { lat: pts.reduce((a, p) => a + p.lat, 0) / pts.length, lng: pts.reduce((a, p) => a + p.lng, 0) / pts.length } : C.HK.centre;
+    if (!(searchMode && searchMode.pick)) { S.filter = { ...S.filter, districts: [rest], maxDistanceMetres: null }; save("filter"); } done({ title: T_(d.name), subtitle: T_(C.REGIONS[d.region]), coordinate: c, kind: "district" }); }
+  else if (kind === "place") { const p = S.places.find(x => x.id === rest); if (p) done({ title: p.label, subtitle: "", coordinate: p.coordinate, kind: "saved" }); }
+  else if (kind === "search") { const s = S.searches.find(x => x.key === rest); if (s) done({ title: s.title, subtitle: s.subtitle, coordinate: s.coordinate, kind: s.kind || "recent" }); }
+  else if (kind === "maps") { const m = mapsResults[+rest]; if (m) done(m); }
+}
+
+// --------------------------------------------------------------- map -----
+let map = null, markerLayer = null, meLayer = null, mapSpan = 0.03, mapCentred = false;
+function ensureMap() {
+  if (map) return;
+  const b = L.latLngBounds([C.HK.minLat, C.HK.minLng], [C.HK.maxLat, C.HK.maxLng]);
+  map = L.map("map", { preferCanvas: true, zoomControl: false, maxBounds: b, maxBoundsViscosity: 1.0, minZoom: 10, maxZoom: 19 }).setView([C.HK.centre.lat, C.HK.centre.lng], 11);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
+  markerLayer = L.layerGroup().addTo(map); meLayer = L.layerGroup().addTo(map);
+  let t; map.on("moveend zoomend", () => { clearTimeout(t); t = setTimeout(paintMarkers, 150); });
+}
+function mapCentreOn(p, zoom = 16) { if (!map) return; map.setView([p.lat, p.lng], zoom); mapCentred = true; }
+function paintMarkers() {
+  if (!map || S.tab !== "map") return;
+  const bounds = map.getBounds(), span = bounds.getNorth() - bounds.getSouth();
+  const items = mapItems().filter(r => bounds.contains([r.cp.lat, r.cp.lng]));
+  markerLayer.clearLayers();
+  const clusters = clusterize(items, span);
+  for (const c of clusters) {
+    if (c.items.length === 1) { const r = c.items[0]; const label = (r.level === "available" || r.level === "limited") ? (r.reading?.count ?? "P") : r.level === "full" ? "0" : "?";
+      const icon = L.divIcon({ className: "", html: `<div class="pin ${r.level}"><div class="b"><span>${LEVEL_ICON[r.level]}</span><span>${esc(label)}</span></div><div class="t"></div></div>`, iconSize: [40, 30], iconAnchor: [20, 30] });
+      L.marker([r.cp.lat, r.cp.lng], { icon, title: T_(r.cp.name) }).on("click", () => openDetail(r.id)).addTo(markerLayer); }
+    else { const free = c.items.filter(r => r.level === "available" || r.level === "limited").length;
+      const icon = L.divIcon({ className: "", html: `<div class="cluster ${c.level}"><b>${c.items.length}</b><small>${free}✓</small></div>`, iconSize: [40, 40], iconAnchor: [20, 20] });
+      L.marker([c.lat, c.lng], { icon }).on("click", () => map.setView([c.lat, c.lng], Math.min(19, map.getZoom() + 2))).addTo(markerLayer); }
+  }
+  meLayer.clearLayers(); const o = originPoint();
+  if (o) { L.circleMarker([o.lat, o.lng], { radius: 7, color: "#fff", weight: 2, fillColor: "#1f70eb", fillOpacity: 1 }).addTo(meLayer); }
+  const mt = $("map-top"); if (mt) { const cnt = mt.querySelector("[data-count]"); if (cnt) cnt.textContent = L_(`${items.length} in view`, `畫面內 ${items.length} 個`); }
+}
+function clusterize(items, span) {
+  if (span <= 0.015) return items.map(r => ({ lat: r.cp.lat, lng: r.cp.lng, items: [r], level: r.level }));
+  const cell = span / 7, buckets = new Map();
+  for (const r of items) { const k = `${Math.floor(r.cp.lat / cell)}_${Math.floor(r.cp.lng / cell)}`; if (!buckets.has(k)) buckets.set(k, []); buckets.get(k).push(r); }
+  return [...buckets.values()].map(g => ({ lat: g.reduce((a, r) => a + r.cp.lat, 0) / g.length, lng: g.reduce((a, r) => a + r.cp.lng, 0) / g.length, items: g,
+    level: g.some(r => r.level === "available") ? "available" : g.some(r => r.level === "limited") ? "limited" : g.some(r => r.level === "full") ? "full" : "unknown" }));
+}
+function renderMap() {
+  ensureMap();
+  $("map-top").innerHTML = `<button class="searchbox" id="map-search"><span aria-hidden="true">🔍</span><span class="${S.origin.type === "place" ? "val" : "ph"}">${esc(S.origin.type === "place" ? originLabel() : L_("Search destination", "搜尋目的地"))}</span><span class="loc" data-tab="find" role="button" aria-label="${esc(L_("Show list", "顯示清單"))}">☰</span></button>
+    ${chipsHTML(["nearMe", "mostSpaces", "streetMeters", "evCharging", "heightFits", "openNow"])}
+    <div class="status"><span>${esc(lastUpdatedText())}</span><span data-count></span></div>`;
+  $("map-here").textContent = L_("Search this area", "喺呢區搵位");
+  setTimeout(() => { map.invalidateSize(); const o = originPoint(); if (o && !mapCentred) mapCentreOn(o, 16); paintMarkers(); }, 50);
+}
+
+// ------------------------------------------------------------- saved -----
+let tick = null;
+function renderSaved() {
+  const el = $("panel-saved"); let h = `<h1>${esc(L_("Saved", "已儲存"))}</h1>`;
+  if (S.session) { const s = S.session, el2 = Date.now() - s.startedAt;
+    h += `<div class="card"><div class="sect" style="margin-top:0"><span class="accent">Ⓟ ${esc(L_("Parked now", "而家泊咗"))}</span></div><h2 style="margin:0 0 4px">${esc(T_(s.name))}</h2>
+      <div class="timer" id="timer">${fmtDur(el2)}</div><p class="note">${esc(L_("Since", "由"))} ${new Date(s.startedAt).toLocaleTimeString(S.lang === "en" ? "en-HK" : "zh-HK", { hour: "2-digit", minute: "2-digit" })}${s.floor ? " · " + esc(L_("Floor", "樓層")) + " " + esc(s.floor) : ""}${s.reminderAt ? " · 🔔 " + new Date(s.reminderAt).toLocaleTimeString(S.lang === "en" ? "en-HK" : "zh-HK", { hour: "2-digit", minute: "2-digit" }) : ""}</p>
+      <div class="row2"><a class="primary" href="https://maps.apple.com/?daddr=${s.lat},${s.lng}&dirflg=w" target="_blank" rel="noopener">🚶 ${esc(L_("Take me back to my car", "帶我返去架車度"))}</a><button class="secondary" data-act="endSession">■ ${esc(L_("End", "結束"))}</button></div>
+      <p style="margin:8px 0 0"><button data-cp="${esc(s.id)}" style="color:var(--accent);font-weight:600;min-height:40px">${esc(L_("Car park details", "停車場詳情"))}</button></p></div>`;
+    clearInterval(tick); tick = setInterval(() => { const t = $("timer"); if (t && S.session) t.textContent = fmtDur(Date.now() - S.session.startedAt); else clearInterval(tick); }, 1000);
+  } else if (S.lastSession) h += `<div class="sect"><span>${esc(L_("Last parked", "上次泊車"))}</span></div><button class="list-item" data-cp="${esc(S.lastSession.id)}"><span>Ⓟ</span><span class="txt">${esc(T_(S.lastSession.name))}<small>${new Date(S.lastSession.startedAt).toLocaleString(S.lang === "en" ? "en-HK" : "zh-HK")}</small></span></button>`;
+  h += `<div class="sect"><span>★ ${esc(L_("Favourite car parks", "常用停車場"))}</span></div>`;
+  const favs = [...S.favs].sort((a, b) => (b.pinned - a.pinned) || (b.at - a.at));
+  if (!favs.length) h += `<p class="note">${esc(L_("Tap the star on any car park to keep it here.", "喺任何停車場撳星星就會存喺度。"))}</p>`;
+  for (const f of favs) { const r = rec(f.id);
+    h += `<div class="list-item"><button class="txt" data-cp="${esc(f.id)}" style="text-align:left">${f.pinned ? "📌 " : ""}${esc(T_(f.name))}<small>${r ? esc((r.dist != null ? C.fmtDist(r.dist, S.lang) + " · " : "") + C.freshnessText(r.fresh, r.reading?.updatedAt, S.now, S.lang)) : esc(L_("Not in the current feed", "目前資料未有此停車場"))}${f.watch ? " · 🔔" : ""}</small></button>${r ? badge(r) : ""}
+      <div class="act"><button data-pin="${esc(f.id)}" aria-label="${esc(L_("Pin", "置頂"))}" aria-pressed="${f.pinned}">📌</button><button data-watch="${esc(f.id)}" aria-label="${esc(L_("Alert when spaces free up", "有位時提醒"))}" aria-pressed="${f.watch}">🔔</button><button data-unfav="${esc(f.id)}" aria-label="${esc(L_("Remove", "移除"))}">✕</button></div></div>`; }
+  h += `<div class="sect"><span>⟲ ${esc(L_("Recent car parks", "最近去過"))}</span></div>`;
+  if (!S.recents.length) h += `<p class="note">${esc(L_("Car parks you navigate to appear here.", "你導航過嘅停車場會顯示喺度。"))}</p>`;
+  for (const x of S.recents.slice(0, 10)) h += `<button class="list-item" data-cp="${esc(x.id)}"><span>⟲</span><span class="txt">${esc(T_(x.name))}<small>${new Date(x.at).toLocaleString(S.lang === "en" ? "en-HK" : "zh-HK")}</small></span></button>`;
+  h += `<div class="sect"><span>📍 ${esc(L_("Saved places", "已儲存地點"))}</span></div>`;
+  for (const role of ["home", "work"]) { const p = S.places.find(x => x.role === role);
+    h += p ? `<div class="list-item"><button class="txt" data-goplace="${esc(p.id)}" style="text-align:left">${role === "home" ? "🏠" : "💼"} ${esc(p.label)}</button><div class="act"><button data-delplace="${esc(p.id)}" aria-label="${esc(L_("Delete", "刪除"))}">✕</button></div></div>`
+             : `<button class="list-item" data-addplace="${role}"><span>＋</span><span class="txt">${esc(role === "home" ? L_("Add Home", "加入屋企") : L_("Add Work", "加入公司"))}</span></button>`; }
+  for (const p of S.places.filter(x => x.role === "custom")) h += `<div class="list-item"><button class="txt" data-goplace="${esc(p.id)}" style="text-align:left">★ ${esc(p.label)}</button><div class="act"><button data-delplace="${esc(p.id)}" aria-label="${esc(L_("Delete", "刪除"))}">✕</button></div></div>`;
+  h += `<button class="list-item" data-addplace="custom"><span>＋</span><span class="txt">${esc(L_("Add another place", "加入其他地點"))}</span></button>`;
+  if (S.searches.length) { h += `<div class="sect"><span>🔍 ${esc(L_("Recent searches", "最近搜尋"))}</span><small><button data-act="clearSearches" style="color:var(--accent)">${esc(L_("Clear", "清除"))}</button></small></div>`; for (const s of S.searches) h += `<button class="list-item" data-gosearch="${esc(s.key)}"><span>🔍</span><span class="txt">${esc(s.title)}<small>${esc(s.subtitle)}</small></span></button>`; }
+  el.innerHTML = h;
+}
+const fmtDur = (ms) => { const s = Math.floor(ms / 1000); return `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor(s / 60) % 60).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
+
+// ----------------------------------------------------------- vehicle -----
+function renderVehicle() {
+  const el = $("panel-vehicle"); let h = `<h1>${esc(L_("Vehicle", "車輛"))}</h1>`;
+  if (!S.vehicles.length) h += `<div class="card"><h2 style="margin:0 0 6px;font-size:17px">${esc(L_("Add your vehicle", "加入你架車"))}</h2><p class="note">${esc(L_("Height and type are used to warn about low clearances and hide car parks with no spaces for your vehicle. Stored on this device only.", "車高同車種用嚟提醒限高，同隱藏冇你車種車位嘅停車場。只會存喺呢部機。"))}</p><button class="primary" data-act="addVehicle">＋ ${esc(L_("Add vehicle", "加入車輛"))}</button></div>`;
+  for (const v of S.vehicles) { const active = v.id === (vehicle()?.id);
+    h += `<div class="list-item"><button class="txt" data-editveh="${esc(v.id)}" style="text-align:left"><b>${esc(v.nickname)}</b>${active ? ` <span style="color:var(--accent);font-size:12px;font-weight:600">${esc(L_("Active", "使用中"))}</span>` : ""}<small>${esc([T_(C.VEHICLE_NAME[v.type]), C.dimensionsText(v), v.needsEVCharging ? L_("EV", "電動車") : null, v.maxHourlyRateHKD ? L_(`≤ $${v.maxHourlyRateHKD}/hr`, `≤ $${v.maxHourlyRateHKD}/小時`) : null].filter(Boolean).join(" · "))}</small></button>
+      <div class="act">${active ? "" : `<button data-useveh="${esc(v.id)}">${esc(L_("Use", "使用"))}</button>`}<button data-delveh="${esc(v.id)}" aria-label="${esc(L_("Delete", "刪除"))}">✕</button></div></div>`; }
+  if (S.vehicles.length) h += `<button class="list-item" data-act="addVehicle"><span>＋</span><span class="txt">${esc(L_("Add another vehicle", "加入另一架車"))}</span></button>`;
+  h += `<p class="note">${esc(L_("Car parks with missing height or fee data are never hidden automatically. They show as \"Not confirmed\" so you can decide. Length and width are compared with the standard Hong Kong bay (5.0 × 2.5 m).", "限高或收費資料缺失嘅停車場唔會自動隱藏，會顯示「未確認」由你決定。車長車闊會同香港標準車位（5.0 × 2.5 米）比較。"))}</p>`;
+  el.innerHTML = h;
+}
+function openVehicleEditor(v) {
+  const isNew = !v; v = v || { id: "v" + Date.now(), nickname: L_("My car", "我架車"), type: "privateCar", heightMetres: null, lengthMetres: null, widthMetres: null, needsEVCharging: false, prefersAccessible: false, maxHourlyRateHKD: null, avoidNoLiveData: false, preferredDistricts: [] };
+  const sw = (k, label) => `<div class="field"><label>${esc(label)}</label><button class="switch" role="switch" aria-checked="${!!v[k]}" data-sw="${k}"></button></div>`;
+  $("sheet").innerHTML = `<div class="sheet-head"><span class="grab"></span><button class="quiet" data-close>${esc(L_("Cancel", "取消"))}</button><h2>${esc(isNew ? L_("New vehicle", "新車輛") : L_("Edit vehicle", "編輯車輛"))}</h2><button class="quiet" id="veh-save" style="color:var(--accent)">${esc(L_("Save", "儲存"))}</button></div>
+    <form class="form" id="veh-form" onsubmit="return false">
+      <div class="section"><div class="field"><label for="v-name">${esc(L_("Nickname", "暱稱"))}</label><input id="v-name" type="text" value="${esc(v.nickname)}" placeholder="MIFA 9"></div>
+        <div class="field"><label for="v-type">${esc(L_("Type", "車種"))}</label><select id="v-type">${C.VEHICLE_TYPES.map(k => `<option value="${k}" ${v.type === k ? "selected" : ""}>${esc(T_(C.VEHICLE_NAME[k]))}</option>`).join("")}</select></div>
+        <div class="field"><label for="v-h">${esc(L_("Height (m)", "車高（米）"))}</label><input id="v-h" type="number" step="0.01" inputmode="decimal" placeholder="1.84" value="${v.heightMetres ?? ""}"></div>
+        <div class="field"><label for="v-l">${esc(L_("Length (m)", "車長（米）"))}</label><input id="v-l" type="number" step="0.01" inputmode="decimal" placeholder="5.27" value="${v.lengthMetres ?? ""}"></div>
+        <div class="field"><label for="v-w">${esc(L_("Width (m)", "車闊（米）"))}</label><input id="v-w" type="number" step="0.01" inputmode="decimal" placeholder="2.00" value="${v.widthMetres ?? ""}"></div>
+        <p class="note">${esc(L_("Overall height including roof box or antenna. Leave blank if unsure. Length and width give a bay-size note only; height is the hard limit.", "包括車頂箱或天線嘅總高度，唔肯定可留空。車長車闊只作車位尺寸提示，限高係硬性限制。"))}</p></div>
+      <div class="section">${sw("needsEVCharging", L_("Needs EV charging", "需要電動車充電"))}${sw("prefersAccessible", L_("Prefer accessible parking", "優先傷健車位"))}
+        <div class="field"><label for="v-rate">${esc(L_("Max hourly rate (HK$)", "每小時上限（港元）"))}</label><input id="v-rate" type="number" inputmode="numeric" placeholder="${esc(L_("Any", "不限"))}" value="${v.maxHourlyRateHKD ?? ""}"></div>
+        ${sw("avoidNoLiveData", L_("Rank car parks without live data lower", "冇即時資料嘅停車場排後啲"))}</div>
+      <div class="section"><h3>${esc(L_("Frequent districts", "常去地區"))}</h3>${Object.entries(C.REGIONS).map(([rid, rn]) => `<details><summary style="min-height:40px;display:flex;align-items:center">${esc(T_(rn))}</summary>${C.DISTRICTS.filter(d => d.region === rid).map(d => `<div class="field"><label>${esc(T_(d.name))}</label><button class="switch" role="switch" aria-checked="${v.preferredDistricts.includes(d.id)}" data-dist="${d.id}"></button></div>`).join("")}</details>`).join("")}</div>
+    </form>`;
+  $("sheet").hidden = false; requestAnimationFrame(() => { $("sheet").classList.add("on"); $("scrim").classList.add("on"); });
+  $("veh-save").onclick = () => {
+    const n = (id, lo, hi) => { const x = parseFloat($(id).value.replace(",", ".")); return Number.isFinite(x) && x >= lo && x <= hi ? x : null; };
+    const nv = { ...v, nickname: $("v-name").value.trim() || v.nickname, type: $("v-type").value, heightMetres: n("v-h", 0.5, 6), lengthMetres: n("v-l", 1, 20), widthMetres: n("v-w", 0.5, 4), maxHourlyRateHKD: n("v-rate", 1, 999) };
+    for (const b of $("veh-form").querySelectorAll("[data-sw]")) nv[b.dataset.sw] = b.getAttribute("aria-checked") === "true";
+    nv.preferredDistricts = [...$("veh-form").querySelectorAll("[data-dist][aria-checked='true']")].map(b => b.dataset.dist);
+    const i = S.vehicles.findIndex(x => x.id === nv.id); if (i >= 0) S.vehicles[i] = nv; else S.vehicles.push(nv);
+    if (isNew || !S.activeVehicleId) S.activeVehicleId = nv.id; save("vehicles"); save("activeVehicleId");
+    S.filter.vehicleType = vehicle()?.type || "privateCar"; save("filter");
+    closeSheet(); rerank(); render(); toast(L_("Vehicle saved", "已儲存車輛"));
+  };
+}
+
+// -------------------------------------------------------------- more -----
+function renderMore() {
+  const el = $("panel-more"); const installed = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  el.innerHTML = `<h1>${esc(L_("More", "更多"))}</h1>
+    ${installed ? "" : `<div class="card"><h2 style="margin:0 0 6px;font-size:17px">📲 ${esc(L_("Add to your Home Screen", "加到主畫面"))}</h2><p class="note">${esc(/iPhone|iPad/.test(navigator.userAgent) ? L_("In Safari tap the Share button, then \"Add to Home Screen\". The app then opens full screen and works offline.", "喺 Safari 撳分享按鈕，再揀「加入主畫面」。之後會全屏開啟，離線亦可用。") : L_("In Chrome tap the menu, then \"Install app\" or \"Add to Home screen\".", "喺 Chrome 撳選單，再揀「安裝應用程式」或「加到主畫面」。"))}</p></div>`}
+    <div class="section form"><div class="field"><label>${esc(L_("Language", "語言"))}</label><select id="m-lang"><option value="en" ${S.lang === "en" ? "selected" : ""}>English</option><option value="tc" ${S.lang === "tc" ? "selected" : ""}>繁體中文</option></select></div>
+      <div class="field"><label>${esc(L_("Navigate with", "導航 app"))}</label><select id="m-nav"><option value="apple" ${S.navApp === "apple" ? "selected" : ""}>Apple Maps</option><option value="google" ${S.navApp === "google" ? "selected" : ""}>Google Maps</option><option value="waze" ${S.navApp === "waze" ? "selected" : ""}>Waze</option></select></div>
+      <div class="field"><label>${esc(L_("Alert when a watched car park has spaces (while open)", "常用停車場有位時提醒（開啟時）"))}</label><button class="switch" role="switch" aria-checked="${S.alerts}" id="m-alerts"></button></div></div>
+    <div class="section"><h3>${esc(L_("About the data", "關於資料"))}</h3>
+      <p class="note"><b>${esc(T_(C.SOURCE_ATTRIBUTION.transportDepartmentOneStop))}</b><br>${esc(L_("Live spaces for participating car parks. Coverage depends on operators; counts may be delayed or inconsistent, and a reading older than an hour is shown as no live data.", "參與停車場嘅即時空位。覆蓋範圍視乎營運商；數字或有延遲或不一致，超過一小時嘅讀數顯示為冇即時資料。"))}</p>
+      <p class="note"><b>${esc(T_(C.SOURCE_ATTRIBUTION.transportDepartmentMeters))}</b><br>${esc(L_("Every private-car meter bay, grouped by street section; the count is bays whose sensor reports vacant.", "所有私家車咪錶位，按路段分組；數字係感應器報「吉」嘅泊位數。"))}</p>
+      <p class="note"><b>${esc(T_(C.SOURCE_ATTRIBUTION.openStreetMap))}</b> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">openstreetmap.org/copyright</a><br>${esc(L_("Car parks and mall car parks no feed covers (Harbour City, Times Square, IFC, Pacific Place, Festival Walk and hundreds more), plus mapped vehicle entrances and the map itself.", "所有資料來源未涵蓋嘅停車場及商場停車場（海港城、時代廣場、國金、太古廣場、又一城等數百個），以及入口點同地圖本身。"))}</p>
+      <p class="note"><b>${esc(L_("Operator-published facts", "營運商公佈資料"))}</b><br>${esc(L_("Tariffs, hours and phone numbers read from operators' own parking pages, stored with the page address and the date checked, shown on each detail.", "收費、時間及電話由營運商官方泊車網頁抄錄，記錄網址同核對日期，詳情頁會顯示。"))}</p>
+      <p class="note"><b>${esc(L_("Place search", "地點搜尋"))}</b><br>${esc(L_("Nominatim (OpenStreetMap). Only Hong Kong results are accepted.", "Nominatim（OpenStreetMap）。只接受香港結果。"))}</p></div>
+    <div class="section"><h3>${esc(L_("Privacy", "私隱"))}</h3><p class="note">${esc(L_("Location is used only while the app is open, only to show nearby car parks and distances, and is never uploaded. Favourites, vehicles, parking sessions and reports stay in this browser. The app talks to DATA.GOV.HK, OpenStreetMap tiles and Nominatim. No account, no analytics, no ads.", "定位只會喺 app 開啟時使用，用嚟顯示附近停車場同距離，唔會上傳。常用、車輛、泊車紀錄同報告只存喺呢個瀏覽器。本 app 只連接資料一線通、OpenStreetMap 地圖及 Nominatim。唔使登入、冇分析追蹤、冇廣告。"))}</p></div>
+    <div class="section"><h3>${esc(L_("Known limitations", "已知限制"))}</h3><p class="note">${esc(L_("Live counts exist only where the operator publishes. Swire, Wharf and Hongkong Land malls do not; they are information only. Fees change; verify on site. Distances are straight-line. The parking reminder fires only while the app is open. Length and width warnings use the standard 5.0 × 2.5 m bay because no car park publishes bay sizes.", "即時空位只限有向平台提供資料嘅營運商；太古、九倉、置地商場冇提供，只作參考。收費會變，請以現場為準。距離為直線。泊車提醒只會喺 app 開啟時發出。車長車闊提示以標準 5.0 × 2.5 米車位為準。"))}</p></div>
+    <div class="section"><h3>${esc(L_("My issue reports", "我嘅問題報告"))}</h3>${S.reports.length ? S.reports.map(r => `<p class="note"><b>${esc(r.kind)}</b> · ${esc(r.id)} · ${new Date(r.at).toLocaleString()}<br>${esc(r.details)}</p>`).join("") : `<p class="note">${esc(L_("None yet. Reports stay on this device.", "未有。報告只存喺本機。"))}</p>`}
+      ${S.reports.length ? `<button class="secondary" data-act="shareReports">⇪ ${esc(L_("Share reports", "分享報告"))}</button>` : ""}</div>
+    <div class="section"><h3>${esc(L_("Licence", "使用條款"))}</h3><p class="note">${esc(L_("Free for personal, non-commercial use. Selling this app, running it as a service or using it to promote a business is not permitted without written permission. Provided as is; always check the signs at the car park.", "只限個人非商業用途。未經書面許可，不得出售本 app、作為服務營運或用於推廣業務。按現狀提供；請以停車場現場標示為準。"))} <a href="https://github.com/agsm26/hk-parking/blob/main/LICENSE.md" target="_blank" rel="noopener">LICENSE.md</a></p></div>
+    <div class="section"><button class="secondary" data-act="clearCache">${esc(L_("Clear cached feed data", "清除快取資料"))}</button></div>
+    <p class="note" style="text-align:center">搵車位 · Car Park HK · v1 web · ${esc(L_("Data snapshots 5 Sep 2026", "資料快照 2026-09-05"))}</p>`;
+  $("m-lang").onchange = e => { S.lang = e.target.value; save("lang"); document.documentElement.lang = S.lang === "en" ? "en-HK" : "zh-HK"; render(); };
+  $("m-nav").onchange = e => { S.navApp = e.target.value; save("navApp"); };
+  $("m-alerts").onclick = async () => { S.alerts = !S.alerts; if (S.alerts && "Notification" in window && Notification.permission === "default") await Notification.requestPermission().catch(() => {}); save("alerts"); renderMore(); };
+}
+
+// ------------------------------------------------------------- shell -----
+const TABS = [["find", "Ⓟ", ["Find Parking", "搵車位"]], ["map", "🗺", ["Map", "地圖"]], ["saved", "★", ["Saved", "已儲存"]], ["vehicle", "🚗", ["車輛", "車輛"]], ["more", "⋯", ["More", "更多"]]];
+function renderTabs() {
+  $("tabs").innerHTML = TABS.map(([id, ic, [en, tc]]) => `<button data-tab="${id}" aria-current="${S.tab === id ? "page" : "false"}"><span class="ic" aria-hidden="true">${ic}</span>${esc(id === "vehicle" ? L_("Vehicle", "車輛") : L_(en, tc))}</button>`).join("");
+}
+function setTab(id) { S.tab = id; for (const p of document.querySelectorAll(".panel")) p.classList.toggle("on", p.id === "panel-" + id); history.replaceState(null, "", "#" + id); render(); if (id === "map") setTimeout(() => { map && map.invalidateSize(); paintMarkers(); }, 60); }
+function render() {
+  renderTabs();
+  if (S.tab === "find") renderFind(); else if (S.tab === "map") renderMap(); else if (S.tab === "saved") renderSaved(); else if (S.tab === "vehicle") renderVehicle(); else renderMore();
+  if (sheetFor && !$("sheet").hidden && rec(sheetFor)) { /* keep the sheet; badges refresh on next open */ }
+}
+
+// ------------------------------------------------------------ events -----
+document.addEventListener("click", (e) => {
+  const b = (sel) => e.target.closest(sel);
+  let x;
+  if ((x = b("[data-tab]"))) { e.preventDefault(); setTab(x.dataset.tab); return; }
+  if ((x = b("[data-chip]"))) { const on = !C.chipIsOn(x.dataset.chip, S.filter, S.sort); const r = C.applyChip(x.dataset.chip, S.filter, S.sort, on); S.filter = r.f; S.sort = r.sort; save("filter"); save("sort"); rerank(); render(); return; }
+  if ((x = b("[data-sort-menu]"))) { const i = C.SORTS.indexOf(S.sort); S.sort = C.SORTS[(i + 1) % C.SORTS.length]; save("sort"); rerank(); render(); toast(T_(C.SORT_LABEL[S.sort])); return; }
+  if ((x = b("#use-loc"))) { e.stopPropagation(); S.origin = { type: "current" }; save("origin"); startGeo(); rerank(); render(); return; }
+  if ((x = b("#open-search, #map-search"))) { openSearch("dest"); return; }
+  if ((x = b("#find-now"))) { if (S.origin.type === "current" && S.geo.status !== "ok" && !S.fixed) startGeo(); refresh(true).then(() => { const r0 = recommended(); if (r0) openDetail(r0.id); }); return; }
+  if ((x = b("#more"))) { S.limit = (S.limit || 20) + 20; render(); return; }
+  if ((x = b("[data-nav]"))) { navigateTo(x.dataset.nav); return; }
+  if ((x = b("[data-fav]"))) { toggleFav(x.dataset.fav); const id = x.dataset.fav; openDetail(id); return; }
+  if ((x = b("[data-share]"))) { shareCP(x.dataset.share); return; }
+  if ((x = b("[data-park]"))) { const floor = prompt(L_("Floor / zone / spot (optional)", "樓層／區域／車位（可選）")) ; if (floor === null) return; const hrs = parseFloat(prompt(L_("Remind me before paid time ends? Hours (blank = no reminder)", "收費時間完結前提醒？小時數（留空 = 唔提醒）"), "") || "0") || 0; startSession(x.dataset.park, floor, hrs); closeSheet(); setTab("saved"); return; }
+  if ((x = b("[data-report]"))) { const kind = prompt(L_("What is wrong? 1 availability · 2 entrance · 3 price · 4 closed · 5 other", "有咩問題？1 空位 · 2 入口 · 3 收費 · 4 已關閉 · 5 其他"), "1"); if (kind === null) return; const details = prompt(L_("Details (optional)", "詳情（可選）"), "") || "";
+    S.reports.unshift({ id: x.dataset.report, kind: ({ 1: "availability", 2: "entrance", 3: "price", 4: "closed" })[kind] || "other", details, at: Date.now() }); save("reports"); toast(L_("Saved on this device", "已存喺本機")); return; }
+  if ((x = b("[data-close]"))) { closeSheet(); return; }
+  if ((x = b("[data-cp]"))) { openDetail(x.dataset.cp); return; }
+  if ((x = b("[data-pick]"))) { pickSearch(x.dataset.pick); return; }
+  if ((x = b("[data-act]"))) { const a = x.dataset.act;
+    if (a === "search") openSearch("dest"); else if (a === "locate") startGeo(); else if (a === "retry") refresh(true);
+    else if (a === "resetFilters") { S.filter = { ...C.DEFAULT_FILTER(), vehicleType: S.filter.vehicleType }; S.sort = "bestMatch"; save("filter"); save("sort"); rerank(); render(); }
+    else if (a === "endSession") { if (confirm(L_("End parking session?", "結束泊車紀錄？"))) { endSession(); render(); } }
+    else if (a === "clearSearches") { S.searches = []; save("searches"); render(); }
+    else if (a === "addVehicle") openVehicleEditor(null);
+    else if (a === "clearCache") { IDB.clear().then(() => { toast(L_("Cache cleared", "已清除快取")); }); }
+    else if (a === "shareReports") { const text = S.reports.map(r => `${r.kind} · ${r.id} · ${new Date(r.at).toISOString()}\n${r.details}`).join("\n\n"); if (navigator.share) navigator.share({ text }).catch(() => {}); else navigator.clipboard?.writeText(text).then(() => toast(L_("Copied", "已複製"))); }
+    return; }
+  if ((x = b("[data-pin]"))) { const f = S.favs.find(f => f.id === x.dataset.pin); if (f) { f.pinned = !f.pinned; save("favs"); render(); } return; }
+  if ((x = b("[data-watch]"))) { const f = S.favs.find(f => f.id === x.dataset.watch); if (f) { f.watch = !f.watch; if (f.watch && !S.alerts) { S.alerts = true; save("alerts"); if ("Notification" in window) Notification.requestPermission().catch(() => {}); } save("favs"); render(); } return; }
+  if ((x = b("[data-unfav]"))) { S.favs = S.favs.filter(f => f.id !== x.dataset.unfav); save("favs"); render(); return; }
+  if ((x = b("[data-goplace]"))) { const p = S.places.find(y => y.id === x.dataset.goplace); if (p) { S.origin = { type: "place", place: { title: p.label, subtitle: "", coordinate: p.coordinate, kind: "saved" } }; save("origin"); rerank(); setTab("find"); } return; }
+  if ((x = b("[data-delplace]"))) { S.places = S.places.filter(p => p.id !== x.dataset.delplace); save("places"); render(); return; }
+  if ((x = b("[data-addplace]"))) { const role = x.dataset.addplace; openSearch({ pick: (place) => { const label = role === "home" ? L_("Home", "屋企") : role === "work" ? L_("Work", "公司") : place.title; S.places = S.places.filter(p => role === "custom" || p.role !== role); S.places.push({ id: "p" + Date.now(), label, role, coordinate: place.coordinate }); save("places"); render(); } }); return; }
+  if ((x = b("[data-gosearch]"))) { pickSearch("search:" + x.dataset.gosearch); return; }
+  if ((x = b("[data-editveh]"))) { openVehicleEditor(S.vehicles.find(v => v.id === x.dataset.editveh)); return; }
+  if ((x = b("[data-useveh]"))) { S.activeVehicleId = x.dataset.useveh; save("activeVehicleId"); S.filter.vehicleType = vehicle().type; save("filter"); rerank(); render(); return; }
+  if ((x = b("[data-delveh]"))) { if (!confirm(L_("Delete this vehicle?", "刪除呢架車？"))) return; S.vehicles = S.vehicles.filter(v => v.id !== x.dataset.delveh); if (S.activeVehicleId === x.dataset.delveh) S.activeVehicleId = S.vehicles[0]?.id || null; save("vehicles"); save("activeVehicleId"); rerank(); render(); return; }
+  if ((x = b(".switch"))) { x.setAttribute("aria-checked", x.getAttribute("aria-checked") !== "true"); return; }
+  if ((x = b("#scrim"))) { closeSheet(); return; }
+  if ((x = b("#map-here"))) { if (map) { const c = map.getCenter(); S.origin = { type: "place", place: { title: L_("Map area", "地圖呢一區"), subtitle: "", coordinate: C.clampHK({ lat: c.lat, lng: c.lng }), kind: "mapArea" } }; save("origin"); rerank(); render(); toast(L_("Using the map centre as start", "已經用地圖中心做起點")); } return; }
+  if ((x = b("#map-locate"))) { const o = originPoint(); if (o && map) mapCentreOn(o, 16); else startGeo(); return; }
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") { if ($("search").classList.contains("on")) closeSearch(); else if (!$("sheet").hidden) closeSheet(); } });
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { S.now = Date.now(); refresh(false); } });
+window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (h.startsWith("cp/")) openDetail(decodeURIComponent(h.slice(3))); else if (TABS.some(t => t[0] === h) && h !== S.tab) setTab(h); });
+
+// -------------------------------------------------------------- boot -----
+(async function init() {
+  document.documentElement.lang = S.lang === "en" ? "en-HK" : "zh-HK";
+  const h = location.hash.slice(1);
+  if (TABS.some(t => t[0] === h)) S.tab = h;
+  for (const p of document.querySelectorAll(".panel")) p.classList.toggle("on", p.id === "panel-" + S.tab);
+  render();
+  if (S.origin.type === "current" && !S.fixed) startGeo();
+  if (S.session) scheduleReminder();
+  await refresh(false);
+  if (h.startsWith("cp/")) openDetail(decodeURIComponent(h.slice(3)));
+  else if (qs.get("cp")) openDetail(qs.get("cp"));
+  setInterval(() => { if (!document.hidden) refresh(false); }, REFRESH.vacancy);
+  setInterval(() => { if (!document.hidden && S.tab === "find" && $("sheet").hidden) { S.now = Date.now(); rerank(); render(); } }, 30e3);
+  if ("serviceWorker" in navigator && location.protocol !== "file:") {
+    navigator.serviceWorker.register("sw.js").then(reg => {
+      reg.addEventListener("updatefound", () => { const w = reg.installing; w && w.addEventListener("statechange", () => { if (w.state === "installed" && navigator.serviceWorker.controller) { toast(L_("Update ready. Reopen the app to use it.", "有更新，重開 app 即可使用。")); } }); });
+    }).catch(() => {});
+  }
+})();
