@@ -1,0 +1,595 @@
+{
+ "results": [
+  {
+   "park_Id": "12",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancyEV": 2,
+     "vacancyDIS": 3,
+     "vacancy": 138,
+     "lastupdate": "2026-08-31 16:37:16"
+    }
+   ],
+   "LGV": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 0,
+     "lastupdate": "2026-08-31 16:37:16"
+    }
+   ],
+   "HGV": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 0,
+     "lastupdate": "2026-08-31 16:37:16"
+    }
+   ],
+   "motorCycle": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 0,
+     "lastupdate": "2026-08-31 16:37:16"
+    }
+   ]
+  },
+  {
+   "park_Id": "27",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancyDIS": 1,
+     "vacancy": 2,
+     "lastupdate": "2026-09-04 09:05:00"
+    }
+   ],
+   "motorCycle": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 2,
+     "lastupdate": "2026-09-04 09:05:00"
+    }
+   ]
+  },
+  {
+   "park_Id": "30",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 34,
+     "lastupdate": "2026-09-05 10:03:30"
+    }
+   ]
+  },
+  {
+   "park_Id": "31",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 49,
+     "lastupdate": "2026-09-05 10:03:30"
+    }
+   ]
+  },
+  {
+   "park_Id": "32",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 81,
+     "lastupdate": "2026-09-05 10:02:30"
+    }
+   ]
+  },
+  {
+   "park_Id": "37",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 43,
+     "lastupdate": "2026-09-05 09:54:13"
+    }
+   ]
+  },
+  {
+   "park_Id": "38",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancyEV": 0,
+     "vacancyDIS": 3,
+     "vacancy": 137,
+     "lastupdate": "2026-09-05 09:33:44"
+    }
+   ],
+   "HGV": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 28,
+     "lastupdate": "2026-09-05 09:33:44"
+    }
+   ]
+  },
+  {
+   "park_Id": "39",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 0,
+     "lastupdate": "2026-09-05 09:51:59"
+    }
+   ]
+  },
+  {
+   "park_Id": "75",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 48,
+     "lastupdate": "2026-09-05 10:04:03"
+    }
+   ]
+  },
+  {
+   "park_Id": "77",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancyEV": 0,
+     "vacancy": 80,
+     "lastupdate": "2026-09-05 10:00:30"
+    }
+   ]
+  },
+  {
+   "park_Id": "78",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancyEV": 2,
+     "vacancy": 8,
+     "lastupdate": "2026-09-04 17:24:11"
+    }
+   ],
+   "HGV": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 1,
+     "lastupdate": "2026-09-04 17:24:11"
+    }
+   ]
+  },
+  {
+   "park_Id": "79",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancyDIS": 3,
+     "vacancy": 39,
+     "lastupdate": "2026-09-05 10:02:46"
+    }
+   ],
+   "HGV": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 0,
+     "lastupdate": "2026-09-05 10:02:46"
+    }
+   ]
+  },
+  {
+   "park_Id": "81",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancyEV": 0,
+     "vacancyDIS": 3,
+     "vacancy": 70,
+     "lastupdate": "2026-08-31 09:18:12"
+    }
+   ],
+   "LGV": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 5,
+     "lastupdate": "2026-08-31 09:18:12"
+    }
+   ],
+   "HGV": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 4,
+     "lastupdate": "2026-08-31 09:18:12"
+    }
+   ],
+   "motorCycle": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 3,
+     "lastupdate": "2026-08-31 09:18:12"
+    }
+   ]
+  },
+  {
+   "park_Id": "88",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancyEV": 16,
+     "vacancyDIS": 1,
+     "vacancy": 122,
+     "lastupdate": "2026-09-03 09:46:42"
+    }
+   ],
+   "LGV": [
+    {
+     "vacancy_type": "A",
+     "vacancyEV": 2,
+     "vacancy": 24,
+     "lastupdate": "2026-09-03 09:46:42"
+    }
+   ],
+   "HGV": [
+    {
+     "vacancy_type": "A",
+     "vacancyEV": 0,
+     "vacancy": 23,
+     "lastupdate": "2026-09-03 09:46:42"
+    }
+   ]
+  },
+  {
+   "park_Id": "93",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancyDIS": 0,
+     "vacancy": 0,
+     "lastupdate": "2026-09-05 09:28:50"
+    }
+   ]
+  },
+  {
+   "park_Id": "100",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 23,
+     "lastupdate": "2026-09-05 10:02:20"
+    }
+   ]
+  },
+  {
+   "park_Id": "101",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 59,
+     "lastupdate": "2026-09-05 10:01:30"
+    }
+   ]
+  },
+  {
+   "park_Id": "102",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 150,
+     "lastupdate": "2026-09-04 21:46:30"
+    }
+   ]
+  },
+  {
+   "park_Id": "103",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 36,
+     "lastupdate": "2026-09-05 09:56:50"
+    }
+   ]
+  },
+  {
+   "park_Id": "104",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancyEV": 0,
+     "vacancyDIS": 0,
+     "vacancy": 645,
+     "lastupdate": "2026-09-05 10:03:50"
+    }
+   ],
+   "motorCycle": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 75,
+     "lastupdate": "2026-09-05 10:03:50"
+    }
+   ]
+  },
+  {
+   "park_Id": "117",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancyDIS": 0,
+     "vacancy": 12,
+     "lastupdate": "2026-09-05 09:36:30"
+    }
+   ]
+  },
+  {
+   "park_Id": "118",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancyEV": 0,
+     "vacancy": 1,
+     "lastupdate": "2026-09-05 09:44:50"
+    }
+   ]
+  },
+  {
+   "park_Id": "120",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 5,
+     "lastupdate": "2026-09-05 09:40:30"
+    }
+   ]
+  },
+  {
+   "park_Id": "121",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancyDIS": 0,
+     "vacancy": 14,
+     "lastupdate": "2026-09-05 10:00:30"
+    }
+   ]
+  },
+  {
+   "park_Id": "123",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancyEV": 0,
+     "vacancyDIS": 2,
+     "vacancy": 51,
+     "lastupdate": "2026-09-05 09:58:40"
+    }
+   ]
+  },
+  {
+   "park_Id": "124",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancyEV": 248,
+     "vacancyDIS": 7,
+     "vacancy": 322,
+     "lastupdate": "2026-09-04 22:57:30"
+    }
+   ],
+   "motorCycle": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 34,
+     "lastupdate": "2026-09-04 22:57:30"
+    }
+   ]
+  },
+  {
+   "park_Id": "125",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancyEV": 88,
+     "vacancyDIS": 8,
+     "vacancy": 137,
+     "lastupdate": "2026-09-05 10:04:01"
+    }
+   ],
+   "motorCycle": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 13,
+     "lastupdate": "2026-09-05 10:04:01"
+    }
+   ]
+  },
+  {
+   "park_Id": "128",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 34,
+     "lastupdate": "2026-09-05 10:02:51"
+    }
+   ]
+  },
+  {
+   "park_Id": "tdc166p1",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 0,
+     "lastupdate": "2026-09-05 10:05:05",
+     "category": "HOURLY"
+    }
+   ]
+  },
+  {
+   "park_Id": "tdc6p11",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 3,
+     "lastupdate": "2026-09-05 09:29:22",
+     "category": "HOURLY"
+    }
+   ]
+  },
+  {
+   "park_Id": "tdc245p1",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 15,
+     "lastupdate": "2026-09-05 09:57:03",
+     "category": "HOURLY"
+    }
+   ]
+  },
+  {
+   "park_Id": "tdc6p8",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 4,
+     "lastupdate": "2026-09-05 10:01:04",
+     "category": "HOURLY"
+    }
+   ]
+  },
+  {
+   "park_Id": "tdc6p9",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 0,
+     "lastupdate": "2026-09-05 09:41:11",
+     "category": "HOURLY"
+    }
+   ]
+  },
+  {
+   "park_Id": "tdc8p3",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 180,
+     "lastupdate": "2026-09-05 10:05:20",
+     "category": "HOURLY"
+    }
+   ]
+  },
+  {
+   "park_Id": "tdcp10",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 20,
+     "lastupdate": "2026-09-05 10:05:17",
+     "category": "HOURLY"
+    }
+   ],
+   "motorCycle": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 3,
+     "lastupdate": "2026-09-05 10:05:17",
+     "category": "HOURLY"
+    }
+   ]
+  },
+  {
+   "park_Id": "tdcp11",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 133,
+     "lastupdate": "2026-09-05 10:05:17",
+     "category": "HOURLY"
+    }
+   ],
+   "motorCycle": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 3,
+     "lastupdate": "2026-09-05 10:05:17",
+     "category": "HOURLY"
+    }
+   ]
+  },
+  {
+   "park_Id": "tdcp12",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 35,
+     "lastupdate": "2026-09-05 10:05:17",
+     "category": "HOURLY"
+    }
+   ],
+   "motorCycle": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 2,
+     "lastupdate": "2026-09-05 10:05:17",
+     "category": "HOURLY"
+    }
+   ]
+  },
+  {
+   "park_Id": "tdcp2",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 398,
+     "lastupdate": "2026-09-05 10:05:17",
+     "category": "HOURLY"
+    }
+   ],
+   "motorCycle": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 14,
+     "lastupdate": "2026-09-05 10:05:17",
+     "category": "HOURLY"
+    }
+   ]
+  },
+  {
+   "park_Id": "tdcp3",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 48,
+     "lastupdate": "2026-09-05 10:05:17",
+     "category": "HOURLY"
+    }
+   ],
+   "motorCycle": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 0,
+     "lastupdate": "2026-09-05 10:05:17",
+     "category": "HOURLY"
+    }
+   ]
+  },
+  {
+   "park_Id": "tdcp5",
+   "privateCar": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 88,
+     "lastupdate": "2026-09-05 10:05:17",
+     "category": "HOURLY"
+    }
+   ],
+   "motorCycle": [
+    {
+     "vacancy_type": "A",
+     "vacancy": 7,
+     "lastupdate": "2026-09-05 10:05:17",
+     "category": "HOURLY"
+    }
+   ]
+  }
+ ]
+}

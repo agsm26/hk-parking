@@ -1,0 +1,4828 @@
+{
+ "results": [
+  {
+   "park_Id": "12",
+   "name": "Amoy Plaza",
+   "nature": "commercial",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "region": "KLN",
+    "dcDistrict": "Kwun Tong District",
+    "subDistrict": "Kowloon Bay",
+    "buildingNo": "77",
+    "streetName": "Ngau Tau Kok Raod"
+   },
+   "displayAddress": "77 Ngau Tau Kok Raod, Kowloon Bay, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.32470074,
+   "longitude": 114.21675324,
+   "contactNo": "2756 3666",
+   "website": "https://www.hanglungmalls.com/parking?mall=amoy-plaza",
+   "opening_status": "OPEN",
+   "openingHours": [
+    {
+     "weekdays": [
+      "MON",
+      "TUE",
+      "WED",
+      "THU",
+      "FRI",
+      "SAT",
+      "SUN",
+      "PH"
+     ],
+     "excludePublicHoliday": false,
+     "periodEnd": "24:00",
+     "periodStart": "00:00"
+    }
+   ],
+   "heightLimits": [
+    {
+     "height": 1.9,
+     "remark": ""
+    }
+   ],
+   "facilities": [
+    "evCharger",
+    "disabilities",
+    "unloading",
+    "washing"
+   ],
+   "paymentMethods": [
+    "cash",
+    "octopus"
+   ],
+   "privateCar": {
+    "privileges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "description": "Upon spending HK$300 or above, customers can enjoy 1-hour free parking; HK$500 or above for a maximum of 2-hour free parking. \n\n*Maximum accumulation of 2 on-day machine-printed receipts.\n*Maximum 2 hours of complimentary parking.\n *Offer is restricted to participated tenants and application of Terms and conditions. For more details, please refer to on-site promotion materials.",
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "description": "Customers entering carpark between 12:00nn to 14:00 p.m. during weekdays (except public holidays) and having lunch at restaurant with spending HK$200 or above can also enjoy a maximum of 2-hour free parking privilege.\n\n*Maximum accumulation of 2 on-day receipts from different restaurants.\n*Offer is restricted to participated tenants and application of Terms and conditions. For more details, please refer to on-site promotion materials.",
+      "periodEnd": "14:00",
+      "periodStart": "12:00"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "description": "Upon spending HK$400 or above, customers can enjoy 1-hour free parking; HK$600 or above for a maximum of 2-hour free parking. *Maximum accumulation of 2 on-day machine-printed receipts. *Maximum 2 hours of complimentary parking. *Offer is restricted to participated tenants and application of Terms and conditions. For more details, please refer to on-site promotion materials.",
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     }
+    ],
+    "monthlyCharges": [
+     {
+      "reserved": "non-reserved",
+      "covered": "mixed",
+      "type": "monthly-park",
+      "remark": "Not applicable for 2 of the parking spaces with electric charger.",
+      "price": 3600
+     },
+     {
+      "reserved": "reserved",
+      "covered": "covered",
+      "type": "monthly-park",
+      "remark": "Not applicable for parking spaces with electric charger.",
+      "price": 4200
+     }
+    ],
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "mixed",
+      "type": "night-park",
+      "price": 100,
+      "periodEnd": "09:00",
+      "periodStart": "21:00"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "remark": "",
+      "covered": "mixed",
+      "type": "hourly",
+      "price": 25,
+      "usageMinimum": 1,
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 5,
+    "spaceDIS": 6,
+    "space": 389
+   },
+   "LGV": {
+    "privileges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "description": "Upon spending HK$300 or above, customers can enjoy 1-hour free parking; HK$500 or above for a maximum of 2-hour free parking. *Maximum accumulation of 2 on-day machine-printed receipts. *Maximum 2 hours of complimentary parking. *Offer is restricted to participated tenants and application of Terms and conditions. For more details, please refer to on-site promotion materials.",
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "description": "Customers entering carpark between 12:00nn to 14:00 p.m. during weekdays (except public holidays) and having lunch at restaurant with spending HK$200 or above can also enjoy a maximum of 2-hour free parking privilege. *Maximum accumulation of 2 on-day receipts from different restaurants. *Offer is restricted to participated tenants and application of Terms and conditions. For more details, please refer to on-site promotion materials.",
+      "periodEnd": "14:00",
+      "periodStart": "12:00"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "description": "Upon spending HK$400 or above, customers can enjoy 1-hour free parking; HK$600 or above for a maximum of 2-hour free parking. *Maximum accumulation of 2 on-day machine-printed receipts. *Maximum 2 hours of complimentary parking. *Offer is restricted to participated tenants and application of Terms and conditions. For more details, please refer to on-site promotion materials.",
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     }
+    ],
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "mixed",
+      "type": "night-park",
+      "price": 70,
+      "periodEnd": "08:00",
+      "periodStart": "21:00"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "mixed",
+      "type": "hourly",
+      "usageMinimum": 1,
+      "price": 25,
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 5
+   },
+   "HGV": {
+    "privileges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "description": "Upon spending HK$300 or above, customers can enjoy 1-hour free parking; HK$500 or above for a maximum of 2-hour free parking. *Maximum accumulation of 2 on-day machine-printed receipts. *Maximum 2 hours of complimentary parking. *Offer is restricted to participated tenants and application of Terms and conditions. For more details, please refer to on-site promotion materials.",
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "description": "Customers entering carpark between 12:00nn to 14:00 p.m. during weekdays (except public holidays) and having lunch at restaurant with spending HK$200 or above can also enjoy a maximum of 2-hour free parking privilege. *Maximum accumulation of 1 on-day receipts from different restaurants. *Offer is restricted to participated tenants and application of Terms and conditions. For more details, please refer to on-site promotion materials.",
+      "periodEnd": "14:00",
+      "periodStart": "12:00"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "description": "Upon spending HK$400 or above, customers can enjoy 1-hour free parking; HK$600 or above for a maximum of 2-hour free parking. *Maximum accumulation of 2 on-day machine-printed receipts. *Maximum 2 hours of complimentary parking. *Offer is restricted to participated tenants and application of Terms and conditions. For more details, please refer to on-site promotion materials.",
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     }
+    ],
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "open-air",
+      "type": "night-park",
+      "price": 100,
+      "periodEnd": "09:00",
+      "periodStart": "21:00"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "open-air",
+      "type": "hourly",
+      "usageMinimum": 1,
+      "price": 25,
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 3
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "monthlyCharges": [
+     {
+      "reserved": "reserved",
+      "covered": "covered",
+      "type": "monthly-park",
+      "price": 1100
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 30
+   },
+   "creationDate": "2016-09-05 17:44:10",
+   "modifiedDate": "2026-07-15 09:30:36",
+   "publishedDate": "2017-08-15 09:32:17",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "27",
+   "name": "Yau Lai Shopping Centre Carpark",
+   "nature": "government",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "region": "KLN",
+    "dcDistrict": "Kwun Tong District",
+    "subDistrict": "Yau Tong",
+    "streetName": "9 Yau Tong, Yau Tong, Kowloon",
+    "buildingName": "Yau Lai Shopping Centre",
+    "floor": "LG1 & LG2"
+   },
+   "displayAddress": "LG1 & LG2, Yau Lai Shopping Centre, 9 Yau Tong, Yau Tong, Kowloon, Yau Tong, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.29851205,
+   "longitude": 114.23740089,
+   "contactNo": "23530667",
+   "website": "",
+   "opening_status": "OPEN",
+   "openingHours": [
+    {
+     "weekdays": [
+      "MON",
+      "TUE",
+      "WED",
+      "THU",
+      "FRI",
+      "SAT",
+      "SUN"
+     ],
+     "excludePublicHoliday": false,
+     "periodStart": "00:00",
+     "periodEnd": "00:00"
+    }
+   ],
+   "heightLimits": [
+    {
+     "height": 2
+    }
+   ],
+   "facilities": [
+    "evCharger",
+    "disabilities"
+   ],
+   "paymentMethods": [
+    "octopus"
+   ],
+   "privateCar": {
+    "privileges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "10:00",
+      "periodEnd": "22:00",
+      "description": "One-hour parking concession at Yau Lai Shopping Centre and Doamin Shopping for HK $ 100 or above from Monday to Friday\nTwo-hour parking concessions at Yau Lai Shopping Centre and Doamin Shopping for HK $ 200 or above from Monday to Friday\nThree-hour parking concessions at Yau Lai Shopping Centre and Domain Shopping for HK $ 300 or above from Monday to Friday"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "10:00",
+      "periodEnd": "22:00",
+      "description": "One-hour parking discount on purchases of HK $ 200 or above on Yau Lai Shopping Centre and Domain on Saturdays, Sundays and Public Holidays\nOne-hour parking discount on purchases of HK $ 200 or above on Yau Lai Shopping Centre and Domain on Saturdays, Sundays and Public Holidays"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN"
+      ],
+      "excludePublicHoliday": false,
+      "usageThresholds": [
+       {
+        "hours": 1,
+        "price": 17
+       }
+      ],
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "price": 17,
+      "usageMinimum": 1,
+      "type": "hourly",
+      "covered": "covered"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 1,
+    "space": 11
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN"
+      ],
+      "excludePublicHoliday": false,
+      "usageThresholds": [
+       {
+        "hours": 1,
+        "price": 2
+       }
+      ],
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "price": 2,
+      "usageMinimum": 1,
+      "type": "hourly",
+      "covered": "covered"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 2
+   },
+   "creationDate": "2016-09-27 09:15:23",
+   "modifiedDate": "2022-07-22 15:47:42",
+   "publishedDate": "2016-12-30 12:21:58",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "30",
+   "name": "Telford Plaza D Carpark",
+   "nature": "commercial",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "region": "KLN",
+    "dcDistrict": "Kwun Tong District",
+    "subDistrict": "Kowloon Bay",
+    "streetName": "33 Wai Yip Street"
+   },
+   "displayAddress": "33 Wai Yip Street, Kowloon Bay, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.32228903,
+   "longitude": 114.21204329,
+   "contactNo": "2997 2262",
+   "website": "http://www.telford-plaza.com/tch/tp/about_us/parking_info.jsp",
+   "opening_status": "OPEN",
+   "openingHours": [
+    {
+     "weekdays": [
+      "MON",
+      "TUE",
+      "WED",
+      "THU",
+      "FRI",
+      "SAT",
+      "SUN",
+      "PH"
+     ],
+     "excludePublicHoliday": false,
+     "periodEnd": "24:00",
+     "periodStart": "00:00"
+    }
+   ],
+   "heightLimits": [
+    {
+     "remark": "Private Car",
+     "height": 1.75
+    }
+   ],
+   "facilities": [
+    "evCharger"
+   ],
+   "paymentMethods": [
+    "octopus",
+    "visa",
+    "master"
+   ],
+   "privateCar": {
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "covered",
+      "type": "hourly",
+      "remark": "",
+      "price": 22,
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 70
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2016-11-25 15:45:54",
+   "modifiedDate": "2025-05-27 12:14:21",
+   "publishedDate": "2017-02-13 09:41:31",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "31",
+   "name": "Telford Plaza I Carpark",
+   "nature": "commercial",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "region": "KLN",
+    "dcDistrict": "Kwun Tong District",
+    "subDistrict": "Kowloon Bay",
+    "streetName": "33 Wai Yip Street"
+   },
+   "displayAddress": "33 Wai Yip Street, Kowloon Bay, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.32268602,
+   "longitude": 114.21353459,
+   "contactNo": "2997 2262",
+   "website": "http://www.telford-plaza.com/tch/tp/about_us/parking_info.jsp",
+   "opening_status": "OPEN",
+   "openingHours": [
+    {
+     "periodStart": "00:00",
+     "periodEnd": "24:00",
+     "excludePublicHoliday": false,
+     "weekdays": [
+      "MON",
+      "TUE",
+      "WED",
+      "THU",
+      "FRI",
+      "SAT",
+      "SUN",
+      "PH"
+     ]
+    }
+   ],
+   "heightLimits": [
+    {
+     "height": 3.6
+    }
+   ],
+   "facilities": [
+    "evCharger",
+    "disabilities"
+   ],
+   "paymentMethods": [
+    "octopus",
+    "visa",
+    "master"
+   ],
+   "privateCar": {
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "semi-covered",
+      "type": "hourly",
+      "remark": "",
+      "price": 22,
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 170
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2016-11-25 15:49:17",
+   "modifiedDate": "2018-01-31 17:19:10",
+   "publishedDate": "2017-02-13 09:42:13",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "32",
+   "name": "Telford Plaza II Carpark",
+   "nature": "commercial",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "region": "KLN",
+    "dcDistrict": "Kwun Tong District",
+    "subDistrict": "Kowloon Bay",
+    "streetName": "33 Wai Yip Street"
+   },
+   "displayAddress": "33 Wai Yip Street, Kowloon Bay, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.32135609,
+   "longitude": 114.21326637,
+   "contactNo": "2997 2262",
+   "website": "http://www.telford-plaza.com/tch/tp/about_us/parking_info.jsp",
+   "opening_status": "OPEN",
+   "openingHours": [
+    {
+     "periodStart": "00:00",
+     "periodEnd": "24:00",
+     "excludePublicHoliday": false,
+     "weekdays": [
+      "MON",
+      "TUE",
+      "WED",
+      "THU",
+      "FRI",
+      "SAT",
+      "SUN",
+      "PH"
+     ]
+    }
+   ],
+   "heightLimits": [
+    {
+     "height": 2
+    }
+   ],
+   "facilities": [
+    "evCharger",
+    "disabilities"
+   ],
+   "paymentMethods": [
+    "octopus",
+    "visa",
+    "master"
+   ],
+   "privateCar": {
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "covered",
+      "type": "hourly",
+      "remark": "",
+      "price": 22,
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 94
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2016-11-25 15:54:57",
+   "modifiedDate": "2018-01-31 17:19:44",
+   "publishedDate": "2017-02-13 09:41:51",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "37",
+   "name": "Manhattan Place Carpark",
+   "nature": "commercial",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "region": "KLN",
+    "dcDistrict": "Kwun Tong District",
+    "subDistrict": "Kowloon Bay",
+    "streetName": "Wang Tai Road",
+    "buildingName": "Manhattan Place",
+    "buildingNo": "23"
+   },
+   "displayAddress": "Manhattan Place, 23 Wang Tai Road, Kowloon Bay, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.31994674,
+   "longitude": 114.21005309,
+   "contactNo": "27079990",
+   "renditionUrls": {
+    "square": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A859280094011967658179347734190846999967397591797.jpg/square.png",
+    "thumbnail": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A859280094011967658179347734190846999967397591797.jpg/thumbnail.png",
+    "banner": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A859280094011967658179347734190846999967397591797.jpg/banner.png"
+   },
+   "website": "http://www.manhattan-hk.com/manhattanplace/home/index.htm",
+   "opening_status": "OPEN",
+   "openingHours": [
+    {
+     "weekdays": [
+      "MON",
+      "TUE",
+      "WED",
+      "THU",
+      "FRI",
+      "SAT",
+      "SUN",
+      "PH"
+     ],
+     "excludePublicHoliday": false,
+     "periodEnd": "24:00",
+     "periodStart": "00:00"
+    }
+   ],
+   "heightLimits": [
+    {
+     "height": 2.4
+    }
+   ],
+   "facilities": [
+    "disabilities"
+   ],
+   "paymentMethods": [
+    "octopus"
+   ],
+   "privateCar": {
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "usageThresholds": [
+       {
+        "hours": 1,
+        "price": 20
+       }
+      ],
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "usageMinimum": 0.5,
+      "price": 20,
+      "remark": "Minimum 1 hr at HK$ 20/hr.  Start from 2nd hr, the parking fee is on half hourly basis at rate of HK$ 10.00.",
+      "type": "hourly",
+      "covered": "mixed"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 45
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2016-12-13 14:31:33",
+   "modifiedDate": "2026-02-24 10:50:40",
+   "publishedDate": "2026-02-24 10:50:40",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "38",
+   "name": "Domain Carpark",
+   "nature": "government",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "floor": "LG1",
+    "streetName": "38 Ko Chiu Road",
+    "buildingName": "Domain",
+    "subDistrict": "Yau Tong",
+    "dcDistrict": "Kwun Tong District",
+    "region": "KLN"
+   },
+   "displayAddress": "LG1, Domain, 38 Ko Chiu Road, Yau Tong, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.29598076,
+   "longitude": 114.23869371,
+   "contactNo": "28702992",
+   "website": "http://www.domain-mall.hk/index.php/about-domain",
+   "opening_status": "OPEN",
+   "openingHours": [
+    {
+     "weekdays": [
+      "MON",
+      "TUE",
+      "WED",
+      "THU",
+      "FRI",
+      "SAT",
+      "SUN",
+      "PH"
+     ],
+     "excludePublicHoliday": false,
+     "periodStart": "00:00",
+     "periodEnd": "24:00"
+    }
+   ],
+   "heightLimits": [
+    {
+     "height": 2.1,
+     "remark": "Car"
+    },
+    {
+     "height": 3.8,
+     "remark": "Lorry"
+    }
+   ],
+   "facilities": [
+    "disabilities",
+    "evCharger"
+   ],
+   "paymentMethods": [
+    "octopus"
+   ],
+   "privateCar": {
+    "privileges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "description": "For any accumulated purchase over HK$100 from Mondays to Fridays (excluding public holidays), customers can redeem 2-hour free parking.\nFor any accumulated purchase over HK$200 from Mondays to Fridays (excluding public holidays), customers can redeem 3-hour free parking.\n\nThe redemption limits a maximum of 3-hour free parking from Monday to Friday.\nPromotional Hours: 10am to 10pm (Ingress Time)\n\nTerms and Conditions\n\n1. A maximum of two same day sales receipts issued by Domain tenants are accepted for this redemption. Receipt(s) that is/are not redeemed on the day of purchase will be regarded as invalid.\n2. Original sales receipt(s) must be presented upon redemption. Revised or re-printed receipts will not be accepted. A valid sales receipt must be machine-printed with merchant name, receipt/invoice number, transaction number, transaction date and amount of transaction. Handwritten receipt is not acceptable.\n3. Spending at bank, car park, Octopus add-value service, bill settlement, purchase of gift voucher and related services are excluded.\n4. Complimentary parking offer is only valid to shoppers driving into Domain's carpark from 10am to 10pm.\n5. Redemption should be made at Customer Care Centre from 10am to 11pm. \n6. Redemption procedures for free parking must be processed and completed at the Customer Care Centre.\n7. For every additional hour parked beyond the promotional period, the prevailing parking fee will be duly charged onwards.\nDomain reserves the right of free parking redemption.\n\nNote: Same Free Parking Privilege is also applicable for car parking in the carparks of Yau Lai Shopping Centre and Yau Mei Court.",
+      "periodEnd": "22:00",
+      "periodStart": "10:00"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "description": "For any accumulated purchase over HK$200 on weekends and public holidays, customers can redeem 1-hour free parking; \nFor any accumulated purchase over HK$400 on weekends and public holidays, customers can redeem 2-hour free parking.\n\nThe redemption limits a maximum of 2-hour on weekends.\n\nPromotional Hours: 10am to 10pm (Ingress Time)\n\nTerms and Conditions\n1.\tA maximum of two same day sales receipts issued by Domain tenants are accepted for this redemption. Receipt(s) that is/are not redeemed on the day of purchase will be regarded as invalid.\n2.\tOriginal sales receipt(s) must be presented upon redemption. Revised or re-printed receipts will not be accepted. A valid sales receipt must be machine-printed with merchant name, receipt/invoice number, transaction number, transaction date and amount of transaction. Handwritten receipt is not acceptable.\n3.\tSpending at bank, car park, Octopus add-value service, bill settlement, purchase of gift voucher and related services are excluded.\n4.\tComplimentary parking offer is only valid to shoppers driving into Domain's carpark from 10am to 10pm.\n5.\tRedemption should be made at Customer Care Centre from 10am to 11pm. Redemption procedures for free parking must be processed and completed at the Customer Care Centre.\n6.\tFor every additional hour parked beyond the promotional period, the prevailing parking fee will be duly charged onwards.\n7.\tDomain reserves the right of free parking redemption.\nNote: Same Free Parking Privilege is also applicable for car parking in the carparks of Yau Lai Shopping Centre and Yau Mei Court.",
+      "periodEnd": "22:00",
+      "periodStart": "10:00"
+     }
+    ],
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "night-park",
+      "remark": "Ingress Time",
+      "price": 8,
+      "periodEnd": "07:00",
+      "periodStart": "23:00"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "covered": "covered",
+      "type": "hourly",
+      "price": 18,
+      "periodEnd": "23:00",
+      "periodStart": "07:00"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "covered",
+      "type": "hourly",
+      "price": 20,
+      "periodEnd": "23:00",
+      "periodStart": "07:00"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 11,
+    "spaceDIS": 3,
+    "space": 152
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "remark": "Free for the first half an hour. Per hour, or part thereof (first 2 hours) $21. Each additional hour, or part thereof $42 (Under 3.8M)",
+      "covered": "covered",
+      "type": "hourly",
+      "price": 21,
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 35
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2016-12-14 14:22:40",
+   "modifiedDate": "2022-08-18 15:35:10",
+   "publishedDate": "2016-12-30 12:21:38",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "39",
+   "name": "Choi Tak Estate Carpark",
+   "nature": "government",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "streetName": "Choi Tak Estate",
+    "subDistrict": "Ngau Tau Kok",
+    "dcDistrict": "Kwun Tong District",
+    "region": "KLN"
+   },
+   "displayAddress": "Choi Tak Estate, Ngau Tau Kok, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.32957367,
+   "longitude": 114.21329856,
+   "contactNo": "28063290",
+   "website": "",
+   "opening_status": "OPEN",
+   "openingHours": [
+    {
+     "weekdays": [
+      "MON",
+      "TUE",
+      "WED",
+      "THU",
+      "FRI",
+      "SAT",
+      "SUN",
+      "PH"
+     ],
+     "excludePublicHoliday": false,
+     "periodEnd": "24:00",
+     "periodStart": "00:00"
+    }
+   ],
+   "gracePeriods": [
+    {
+     "minutes": 30
+    }
+   ],
+   "heightLimits": [
+    {
+     "height": 2.4
+    }
+   ],
+   "facilities": [
+    "evCharger",
+    "disabilities",
+    "unloading"
+   ],
+   "paymentMethods": [
+    "octopus"
+   ],
+   "privateCar": {
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "23:00",
+      "periodEnd": "06:00",
+      "price": 13,
+      "type": "night-park",
+      "covered": "covered",
+      "validUntil": "no-restrictions"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "usageThresholds": [
+       {
+        "hours": 1,
+        "price": 17
+       }
+      ],
+      "periodStart": "06:00",
+      "periodEnd": "23:00",
+      "price": 17,
+      "type": "hourly",
+      "covered": "covered",
+      "usageMinimum": 1
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 33
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2016-12-16 17:57:14",
+   "modifiedDate": "2019-01-04 15:05:29",
+   "publishedDate": "2016-12-16 18:03:13",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "75",
+   "name": "Landmark East Carpark",
+   "nature": "commercial",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "buildingName": "Landmark East",
+    "streetName": "How Ming Street",
+    "buildingNo": "100",
+    "subDistrict": "Kwun Tong",
+    "dcDistrict": "Kwun Tong District",
+    "region": "KLN"
+   },
+   "displayAddress": "Landmark East, 100 How Ming Street, Kwun Tong, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.31267152,
+   "longitude": 114.22228396,
+   "contactNo": "3971 0203",
+   "renditionUrls": {
+    "square": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A1008505939494327513640339758408113224686274981686.jpg/square.png",
+    "thumbnail": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A1008505939494327513640339758408113224686274981686.jpg/thumbnail.png",
+    "banner": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A1008505939494327513640339758408113224686274981686.jpg/banner.png"
+   },
+   "website": "http://www.landmarkeast.com.hk",
+   "opening_status": "OPEN",
+   "openingHours": [
+    {
+     "weekdays": [
+      "MON",
+      "TUE",
+      "WED",
+      "THU",
+      "FRI",
+      "SAT",
+      "SUN",
+      "PH"
+     ],
+     "excludePublicHoliday": false,
+     "periodStart": "00:00",
+     "periodEnd": "00:00"
+    }
+   ],
+   "facilities": [
+    "unloading"
+   ],
+   "paymentMethods": [
+    "octopus"
+   ],
+   "privateCar": {
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "covered",
+      "type": "half-hourly",
+      "price": 14,
+      "periodEnd": "24:00",
+      "periodStart": "06:00"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 51
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "monthlyCharges": [
+     {
+      "reserved": "reserved",
+      "covered": "covered",
+      "type": "monthly-park",
+      "price": 630
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2018-03-05 17:22:06",
+   "modifiedDate": "2019-02-25 15:15:11",
+   "publishedDate": "2018-03-26 12:10:16",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "77",
+   "name": "Kingston International Center",
+   "nature": "commercial",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "streetName": "Wang Chiu Road",
+    "buildingNo": "19",
+    "subDistrict": "Kowloon Bay",
+    "dcDistrict": "Kwun Tong District",
+    "region": "KLN"
+   },
+   "displayAddress": "19 Wang Chiu Road, Kowloon Bay, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.32361547,
+   "longitude": 114.20924917,
+   "contactNo": "35895162",
+   "website": "",
+   "opening_status": "OPEN",
+   "facilities": [
+    "unloading",
+    "evCharger"
+   ],
+   "paymentMethods": [
+    "octopus",
+    "cash"
+   ],
+   "privateCar": {
+    "monthlyCharges": [
+     {
+      "remark": "Additional fee(EV): HKD 200/month",
+      "reserved": "non-reserved",
+      "covered": "covered",
+      "type": "monthly-park",
+      "price": 3800
+     },
+     {
+      "remark": "Additional fee(EV): HKD 200/month",
+      "reserved": "reserved",
+      "covered": "covered",
+      "type": "monthly-park",
+      "price": 4500
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "covered": "covered",
+      "type": "hourly",
+      "price": 24,
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "covered",
+      "type": "hourly",
+      "price": 18,
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 2,
+    "spaceDIS": 0,
+    "space": 120
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2019-01-28 15:12:41",
+   "modifiedDate": "2026-02-24 11:11:13",
+   "publishedDate": "2019-08-28 16:58:50",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "78",
+   "name": "Stelux House",
+   "nature": "commercial",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "buildingName": "Stelux House",
+    "streetName": "698 Prince Edward Road East",
+    "subDistrict": "San Po Kong",
+    "dcDistrict": "Wong Tai Sin District",
+    "region": "KLN"
+   },
+   "displayAddress": "Stelux House, 698 Prince Edward Road East, San Po Kong, KLN",
+   "district": "Wong Tai Sin District",
+   "latitude": 22.33448116,
+   "longitude": 114.1981709,
+   "contactNo": "2350 4501",
+   "renditionUrls": {
+    "square": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A642584489794480030606579782864901108463497529270.JPG/square.png",
+    "thumbnail": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A642584489794480030606579782864901108463497529270.JPG/thumbnail.png",
+    "banner": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A642584489794480030606579782864901108463497529270.JPG/banner.png"
+   },
+   "website": "",
+   "opening_status": "OPEN",
+   "heightLimits": [
+    {
+     "height": 3.8
+    }
+   ],
+   "facilities": [
+    "evCharger"
+   ],
+   "paymentMethods": [
+    "octopus"
+   ],
+   "privateCar": {
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "price": 30,
+      "usageMinimum": 1,
+      "type": "hourly",
+      "covered": "covered"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 4,
+    "spaceDIS": 0,
+    "space": 24
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "price": 40,
+      "usageMinimum": 1,
+      "type": "hourly",
+      "covered": "covered"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 1
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2019-04-12 17:28:18",
+   "modifiedDate": "2021-11-08 10:09:14",
+   "publishedDate": "2019-04-18 14:38:19",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "79",
+   "name": "NEO",
+   "nature": "commercial",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "region": "KLN",
+    "dcDistrict": "Kwun Tong District",
+    "subDistrict": "Kwun Tong",
+    "streetName": "Hoi Bun Road",
+    "buildingName": "NEO",
+    "buildingNo": "123"
+   },
+   "displayAddress": "NEO, 123 Hoi Bun Road, Kwun Tong, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.31411072,
+   "longitude": 114.21644211,
+   "contactNo": "2118 0011",
+   "website": "http://www.hkneo.com.hk/tc/",
+   "opening_status": "OPEN",
+   "heightLimits": [
+    {
+     "height": 2,
+     "remark": "Private car"
+    },
+    {
+     "height": 4.7,
+     "remark": "Medium and heavy goods vehicles"
+    }
+   ],
+   "facilities": [
+    "evCharger",
+    "disabilities",
+    "unloading"
+   ],
+   "paymentMethods": [
+    "cash",
+    "octopus"
+   ],
+   "privateCar": {
+    "monthlyCharges": [
+     {
+      "ranges": [
+       {
+        "weekdays": [
+         "MON",
+         "TUE",
+         "WED",
+         "THU",
+         "FRI",
+         "SAT",
+         "SUN",
+         "PH"
+        ],
+        "excludePublicHoliday": false,
+        "periodStart": "00:00",
+        "periodEnd": "24:00"
+       }
+      ],
+      "price": 3300,
+      "type": "monthly-park",
+      "covered": "covered",
+      "reserved": "non-reserved"
+     }
+    ],
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "08:00",
+      "periodEnd": "18:00",
+      "price": 180,
+      "type": "day-park",
+      "covered": "covered",
+      "validUntil": "no-restrictions"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "day-park",
+      "price": 50,
+      "periodEnd": "18:00",
+      "periodStart": "08:00"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "night-park",
+      "price": 50,
+      "periodEnd": "08:00",
+      "periodStart": "18:00"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "covered",
+      "type": "hourly",
+      "usageMinimum": 1,
+      "price": 13,
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "price": 12,
+      "type": "half-hourly",
+      "covered": "covered"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 3,
+    "space": 182
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "unloadings": [
+     {
+      "usageThresholds": [
+       {
+        "hours": 0.5,
+        "price": 0
+       },
+       {
+        "hours": 0.5,
+        "price": 25
+       },
+       {
+        "hours": 0.5,
+        "price": 30
+       },
+       {
+        "hours": 0.5,
+        "price": 35
+       }
+      ],
+      "price": 35,
+      "type": "hourly"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 7
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "price": 850,
+      "type": "day-park",
+      "covered": "covered",
+      "validUntil": "no-restrictions"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2019-05-03 15:22:17",
+   "modifiedDate": "2026-06-01 16:43:02",
+   "publishedDate": "2022-02-09 10:04:25",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "81",
+   "name": "Manulife Place",
+   "nature": "commercial",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "streetName": "Kwun Tong Road",
+    "buildingNo": "348",
+    "subDistrict": "Kwun Tong",
+    "dcDistrict": "Kwun Tong District",
+    "region": "KLN"
+   },
+   "displayAddress": "348 Kwun Tong Road, Kwun Tong, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.3149246,
+   "longitude": 114.21706438,
+   "contactNo": "21543090",
+   "renditionUrls": {
+    "square": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A469807454887318353643252933707115157023274119448.jpg/square.png",
+    "thumbnail": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A469807454887318353643252933707115157023274119448.jpg/thumbnail.png",
+    "banner": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A469807454887318353643252933707115157023274119448.jpg/banner.png"
+   },
+   "website": "https://itt-hk.com/en/index.php",
+   "opening_status": "OPEN",
+   "openingHours": [
+    {
+     "weekdays": [
+      "MON",
+      "TUE",
+      "WED",
+      "THU",
+      "FRI",
+      "SAT",
+      "SUN",
+      "PH"
+     ],
+     "excludePublicHoliday": false,
+     "periodStart": "00:00",
+     "periodEnd": "24:00"
+    }
+   ],
+   "heightLimits": [
+    {
+     "height": 4.7
+    }
+   ],
+   "facilities": [
+    "disabilities",
+    "unloading",
+    "evCharger"
+   ],
+   "paymentMethods": [
+    "visa",
+    "master",
+    "alipay",
+    "octopus"
+   ],
+   "privateCar": {
+    "monthlyCharges": [
+     {
+      "price": 3600,
+      "remark": "",
+      "type": "monthly-park",
+      "covered": "covered",
+      "reserved": "non-reserved"
+     },
+     {
+      "price": 4500,
+      "remark": "Terms & Conditions: 1) Prior application is required. 2) Availability on a first-come first-served basis, Tenants of Manulife Place shall have a first priority on Reserved Parking Spaces. 3) Manulife Place reserves the right to amend any terms and conditions without prior notice and make final decision regarding any disputes about the offer. 4) Subject to further revision without prior notice.",
+      "type": "monthly-park",
+      "covered": "covered",
+      "reserved": "reserved"
+     }
+    ],
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "remark": "Terms & Conditions: 1) $200 day parking is valid for Private CPS, effective from 08:00 – 20:00 (Mon - Fri, except PH). 2) Parking is charged at the prevailing hourly rate or daily rate whichever is less. 3) Parking for part of an hour will be charged as an hour. 4) Single entry only. 5) Manulife Place reserves the right to amend any terms and conditions without prior notice and make final decision regarding any disputes about the offer. 6) Subject to further revision without prior notice.",
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "day-park",
+      "price": 200,
+      "periodEnd": "20:00",
+      "periodStart": "08:00"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "remark": "Terms & Conditions: 1) $100 day parking is valid for Private CPS, effective from 08:00 – 20:00 (Sat, Sun and PH). 2) Parking is charged at the prevailing hourly rate or daily rate whichever is less. 3) Parking for part of an hour will be charged as an hour. 4) Single entry only. 5) Manulife Place reserves the right to amend any terms and conditions without prior notice and make final decision regarding any disputes about the offer. 6) Subject to further revision without prior notice.",
+      "periodStart": "08:00",
+      "periodEnd": "20:00",
+      "price": 100,
+      "type": "day-park",
+      "covered": "covered",
+      "validUntil": "no-restrictions"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "20:00",
+      "periodEnd": "08:00",
+      "price": 95,
+      "type": "night-park",
+      "covered": "covered",
+      "validUntil": "no-restrictions",
+      "remark": "Terms & Conditions: 1) $95 night parking is valid for Private CPS, effective from 20:00 – 08:00. 2) Parking is charged at the prevailing hourly rate or daily rate whichever is less. 3) Parking for part of an hour will be charged as an hour. 4) Single entry only. 5) Manulife Place reserves the right to amend any terms and conditions without prior notice and make final decision regarding any disputes about the offer. 6) Subject to further revision without prior notice."
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "price": 27,
+      "remark": "Terms & Conditions: 1) $200 day parking is valid for Private CPS, effective from 08:00 – 20:00 (Mon - Fri, except PH). 2) $100 day parking is valid for Private CPS, effective from 08:00 – 20:00 (Sat, Sun and PH). 3) $95 night parking is valid for Private CPS, effective from 20:00 – 08:00. 4) Parking is charged at the prevailing hourly rate or daily rate whichever is less. 5) Parking for part of an hour will be charged as an hour. 6) Single entry only. 7) Manulife Place reserves the right to amend any terms and conditions without prior notice and make final decision regarding any disputes about the offer. 8) Subject to further revision without prior notice.",
+      "type": "hourly",
+      "covered": "covered"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "price": 16,
+      "type": "hourly",
+      "covered": "covered",
+      "remark": "Terms & Conditions: 1) $200 day parking is valid for Private CPS, effective from 08:00 – 20:00 (Mon - Fri, except PH). 2) $100 day parking is valid for Private CPS, effective from 08:00 – 20:00 (Sat, Sun and PH). 3) $95 night parking is valid for Private CPS, effective from 20:00 – 08:00. 4) Parking is charged at the prevailing hourly rate or daily rate whichever is less. 5) Parking for part of an hour will be charged as an hour. 6) Single entry only. 7) Manulife Place reserves the right to amend any terms and conditions without prior notice and make final decision regarding any disputes about the offer. 8) Subject to further revision without prior notice."
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 8,
+    "spaceDIS": 3,
+    "space": 80
+   },
+   "LGV": {
+    "monthlyCharges": [
+     {
+      "remark": "Terms & Conditions: 1) Prior application is required. 2) Availability on a first-come first-served basis, Tenants of ITT shall have a first priority on Reserved Parking Spaces. 3) International Trade Tower reserves the right to amend any terms and conditions without prior notice and make final decision regarding any disputes about the offer. 4) Subject to further revision without prior notice.",
+      "price": 5200,
+      "type": "monthly-park",
+      "covered": "covered",
+      "reserved": "non-reserved"
+     }
+    ],
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "remark": "Terms & Conditions: 1) $200 day parking is valid for Private CPS, effective from 08:00 – 20:00 (Mon - Fri, except PH). 2) Parking is charged at the prevailing hourly rate or daily rate whichever is less. 3) Parking for part of an hour will be charged as an hour. 4) Single entry only. 5) Manulife Place reserves the right to amend any terms and conditions without prior notice and make final decision regarding any disputes about the offer. 6) Subject to further revision without prior notice.",
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "day-park",
+      "price": 200,
+      "periodEnd": "20:00",
+      "periodStart": "08:00"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "08:00",
+      "periodEnd": "20:00",
+      "price": 100,
+      "type": "day-park",
+      "covered": "covered",
+      "validUntil": "no-restrictions",
+      "remark": "Terms & Conditions: 1) $100 day parking is valid for Private CPS, effective from 08:00 – 20:00 (Sat, Sun and PH). 2) Parking is charged at the prevailing hourly rate or daily rate whichever is less. 3) Parking for part of an hour will be charged as an hour. 4) Single entry only. 5) Manulife Place reserves the right to amend any terms and conditions without prior notice and make final decision regarding any disputes about the offer. 6) Subject to further revision without prior notice."
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "20:00",
+      "periodEnd": "08:00",
+      "price": 95,
+      "remark": "Terms & Conditions: 1) $95 night parking is valid for Private CPS, effective from 20:00 – 08:00. 2) Parking is charged at the prevailing hourly rate or daily rate whichever is less. 3) Parking for part of an hour will be charged as an hour. 4) Single entry only. 5) Manulife Place reserves the right to amend any terms and conditions without prior notice and make final decision regarding any disputes about the offer. 6) Subject to further revision without prior notice.",
+      "type": "night-park",
+      "covered": "covered",
+      "validUntil": "no-restrictions"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "remark": "",
+      "covered": "covered",
+      "type": "hourly",
+      "price": 27,
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "price": 16,
+      "type": "hourly",
+      "covered": "covered",
+      "remark": "Terms & Conditions: 1) $200 day parking is valid for Private CPS, effective from 08:00 – 20:00 (Mon - Fri, except PH). 2) $100 day parking is valid for Private CPS, effective from 08:00 – 20:00 (Sat, Sun and PH). 3) $95 night parking is valid for Private CPS, effective from 20:00 – 08:00. 4) Parking is charged at the prevailing hourly rate or daily rate whichever is less. 5) Parking for part of an hour will be charged as an hour. 6) Single entry only. 7) Manulife Place reserves the right to amend any terms and conditions without prior notice and make final decision regarding any disputes about the offer. 8) Subject to further revision without prior notice."
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 10
+   },
+   "HGV": {
+    "monthlyCharges": [
+     {
+      "reserved": "non-reserved",
+      "covered": "covered",
+      "type": "monthly-park",
+      "remark": "Terms & Conditions: 1) Prior application is required. 2) Availability on a first-come first-served basis, Tenants of Manulife Place shall have a first priority on Reserved Parking Spaces. 3) Manulife Place reserves the right to amend any terms and conditions without prior notice and make final decision regarding any disputes about the offer. 4) Subject to further revision without prior notice.",
+      "price": 5200
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "usageThresholds": [
+       {
+        "hours": 0.5,
+        "price": 0
+       },
+       {
+        "hours": 0.5,
+        "price": 27
+       },
+       {
+        "hours": 0.5,
+        "price": 32
+       }
+      ],
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "remark": "1) Free / 1st half hour. 2) HK$27 / 2nd half hour. 3) HK$32 / 3rd half hour & thereafter. 4) Parking for part of an hour will be charged as an hour.  5) Single entry only. 6) Manulife Place reserves the right to amend any terms and conditions without prior notice and make final decision regarding any disputes about the offer. 7) Subject to further revision without prior notice.",
+      "price": 32,
+      "type": "half-hourly",
+      "covered": "covered",
+      "usageMinimum": 0.5
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 5
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "monthlyCharges": [
+     {
+      "price": 850,
+      "type": "monthly-park",
+      "covered": "covered",
+      "reserved": "non-reserved",
+      "remark": "Terms & Conditions: 1) Prior application is required. 2) Availability on a first-come first-served basis, Tenants of Manulife Place shall have a first priority on Reserved Parking Spaces. 3) Manulife Place reserves the right to amend any terms and conditions without prior notice and make final decision regarding any disputes about the offer. 4) Subject to further revision without prior notice."
+     }
+    ],
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "day-park",
+      "remark": "Terms & Conditions: 1) $200 day parking is valid for Private CPS, effective from 08:00 – 20:00 (Mon - Fri, except PH). 2) Parking is charged at the prevailing hourly rate or daily rate whichever is less. 3) Parking for part of an hour will be charged as an hour. 4) Single entry only. 5) Manulife Place reserves the right to amend any terms and conditions without prior notice and make final decision regarding any disputes about the offer. 6) Subject to further revision without prior notice.",
+      "price": 200,
+      "periodEnd": "20:00",
+      "periodStart": "08:00"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "day-park",
+      "price": 100,
+      "periodEnd": "20:00",
+      "periodStart": "08:00",
+      "remark": "Terms & Conditions: 1) $100 day parking is valid for Private CPS, effective from 08:00 – 20:00 (Sat, Sun and PH). 2) Parking is charged at the prevailing hourly rate or daily rate whichever is less. 3) Parking for part of an hour will be charged as an hour. 4) Single entry only. 5) Manulife Place reserves the right to amend any terms and conditions without prior notice and make final decision regarding any disputes about the offer. 6) Subject to further revision without prior notice."
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "20:00",
+      "periodEnd": "08:00",
+      "price": 95,
+      "type": "night-park",
+      "covered": "covered",
+      "validUntil": "no-restrictions",
+      "remark": "Terms & Conditions: 1) $95 night parking is valid for Private CPS, effective from 20:00 – 08:00. 2) Parking is charged at the prevailing hourly rate or daily rate whichever is less. 3) Parking for part of an hour will be charged as an hour. 4) Single entry only. 5) Manulife Place reserves the right to amend any terms and conditions without prior notice and make final decision regarding any disputes about the offer. 6) Subject to further revision without prior notice."
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "remark": "Terms & Conditions: 1) $200 day parking is valid for Private CPS, effective from 08:00 – 20:00 (Mon - Fri, except PH). 2) $100 day parking is valid for Private CPS, effective from 08:00 – 20:00 (Sat, Sun and PH). 3) $95 night parking is valid for Private CPS, effective from 20:00 – 08:00. 4) Parking is charged at the prevailing hourly rate or daily rate whichever is less. 5) Parking for part of an hour will be charged as an hour. 6) Single entry only. 7) Manulife Place reserves the right to amend any terms and conditions without prior notice and make final decision regarding any disputes about the offer. 8) Subject to further revision without prior notice.",
+      "covered": "covered",
+      "type": "hourly",
+      "price": 27,
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "price": 16,
+      "remark": "Terms & Conditions: 1) $200 day parking is valid for Private CPS, effective from 08:00 – 20:00 (Mon - Fri, except PH). 2) $100 day parking is valid for Private CPS, effective from 08:00 – 20:00 (Sat, Sun and PH). 3) $95 night parking is valid for Private CPS, effective from 20:00 – 08:00. 4) Parking is charged at the prevailing hourly rate or daily rate whichever is less. 5) Parking for part of an hour will be charged as an hour. 6) Single entry only. 7) Manulife Place reserves the right to amend any terms and conditions without prior notice and make final decision regarding any disputes about the offer. 8) Subject to further revision without prior notice.",
+      "type": "hourly",
+      "covered": "covered"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 20
+   },
+   "creationDate": "2019-07-18 12:10:34",
+   "modifiedDate": "2024-07-12 16:42:11",
+   "publishedDate": "2020-01-07 17:47:28",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "88",
+   "name": "Public Vehicle Parking, 8 Yan Yue Wai, Yau Tong",
+   "nature": "commercial",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "region": "KLN",
+    "dcDistrict": "Kwun Tong District",
+    "subDistrict": "Yau Tong",
+    "buildingName": "Public Vehicle Parking",
+    "streetName": "8 Yan Yue Wai"
+   },
+   "displayAddress": "Public Vehicle Parking, 8 Yan Yue Wai, Yau Tong, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.292238,
+   "longitude": 114.236683,
+   "contactNo": "2366 2823",
+   "website": "",
+   "opening_status": "OPEN",
+   "openingHours": [
+    {
+     "weekdays": [
+      "MON",
+      "TUE",
+      "WED",
+      "THU",
+      "FRI",
+      "SAT",
+      "SUN",
+      "PH"
+     ],
+     "excludePublicHoliday": false,
+     "periodEnd": "00:00",
+     "periodStart": "00:00"
+    }
+   ],
+   "heightLimits": [
+    {
+     "remark": "M",
+     "height": 2.4
+    }
+   ],
+   "facilities": [
+    "evCharger",
+    "disabilities",
+    "unloading"
+   ],
+   "paymentMethods": [
+    "octopus"
+   ],
+   "privateCar": {
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "periodStart": "08:00",
+      "periodEnd": "18:00",
+      "price": 70,
+      "type": "day-park",
+      "covered": "covered",
+      "validUntil": "no-restrictions"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "08:00",
+      "periodEnd": "18:00",
+      "price": 85,
+      "type": "day-park",
+      "covered": "covered",
+      "validUntil": "no-restrictions"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "periodStart": "22:00",
+      "periodEnd": "08:00",
+      "price": 65,
+      "type": "night-park",
+      "covered": "covered",
+      "validUntil": "no-restrictions"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "22:00",
+      "periodEnd": "08:00",
+      "price": 85,
+      "type": "night-park",
+      "covered": "covered",
+      "validUntil": "no-restrictions"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "periodStart": "17:00",
+      "periodEnd": "23:00",
+      "price": 22,
+      "type": "hourly",
+      "covered": "covered"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "periodStart": "23:00",
+      "periodEnd": "17:00",
+      "price": 15,
+      "type": "hourly",
+      "covered": "covered"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "covered",
+      "type": "hourly",
+      "price": 25,
+      "periodEnd": "23:00",
+      "periodStart": "17:00"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "covered",
+      "type": "hourly",
+      "price": 20,
+      "periodEnd": "17:00",
+      "periodStart": "23:00"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 16,
+    "spaceDIS": 1,
+    "space": 122
+   },
+   "LGV": {
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "00:00",
+      "periodEnd": "00:00",
+      "price": 26,
+      "type": "half-hourly",
+      "covered": "covered"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 3,
+    "spaceDIS": 0,
+    "space": 24
+   },
+   "HGV": {
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "00:00",
+      "periodEnd": "00:00",
+      "price": 36,
+      "type": "half-hourly",
+      "covered": "covered"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 1,
+    "spaceDIS": 0,
+    "space": 25
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2020-12-18 15:14:58",
+   "modifiedDate": "2022-10-11 13:57:31",
+   "publishedDate": "2020-12-18 15:26:03",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "93",
+   "name": "Hong Ning Road Park Car Park",
+   "nature": "commercial",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "streetName": "Junction of Hong Ning Road and Wo Hong Path",
+    "subDistrict": "Kwun Tong",
+    "dcDistrict": "Kwun Tong District",
+    "region": "KLN"
+   },
+   "displayAddress": "Junction of Hong Ning Road and Wo Hong Path, Kwun Tong, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.32070104,
+   "longitude": 114.22477841,
+   "contactNo": "",
+   "website": "",
+   "opening_status": "OPEN",
+   "openingHours": [
+    {
+     "weekdays": [
+      "MON",
+      "TUE",
+      "WED",
+      "THU",
+      "FRI",
+      "SAT",
+      "SUN",
+      "PH"
+     ],
+     "excludePublicHoliday": false,
+     "periodStart": "00:00",
+     "periodEnd": "24:00"
+    }
+   ],
+   "heightLimits": [
+    {
+     "height": 2.45
+    }
+   ],
+   "facilities": [
+    "disabilities"
+   ],
+   "privateCar": {
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "day-park",
+      "price": 2,
+      "periodEnd": "07:00",
+      "periodStart": "23:00"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": false,
+      "usageThresholds": [
+       {
+        "price": 12,
+        "hours": 2
+       }
+      ],
+      "covered": "covered",
+      "type": "hourly",
+      "price": 18,
+      "periodEnd": "00:00",
+      "periodStart": "00:00"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "usageThresholds": [
+       {
+        "price": 20,
+        "hours": 2
+       }
+      ],
+      "covered": "covered",
+      "type": "hourly",
+      "price": 30,
+      "periodEnd": "23:00",
+      "periodStart": "07:00"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 1,
+    "space": 16
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2021-07-27 12:09:02",
+   "modifiedDate": "2023-11-10 16:22:52",
+   "publishedDate": "2021-07-29 10:52:35",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "100",
+   "name": "Prosperity Place Car Park",
+   "nature": "commercial",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "buildingName": "Prosperity Place Car Park",
+    "streetName": "6 Shing Yip Street",
+    "subDistrict": "Kwun Tong",
+    "dcDistrict": "Kwun Tong District",
+    "region": "KLN"
+   },
+   "displayAddress": "Prosperity Place Car Park, 6 Shing Yip Street, Kwun Tong, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.31060791,
+   "longitude": 114.2257385,
+   "contactNo": "67961400",
+   "renditionUrls": {
+    "square": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A1024777083027213348588968133748246333733318794266.png/square.png",
+    "thumbnail": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A1024777083027213348588968133748246333733318794266.png/thumbnail.png",
+    "banner": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A1024777083027213348588968133748246333733318794266.png/banner.png"
+   },
+   "website": "",
+   "opening_status": "OPEN",
+   "openingHours": [
+    {
+     "weekdays": [
+      "MON",
+      "TUE",
+      "WED",
+      "THU",
+      "FRI",
+      "SAT",
+      "SUN",
+      "PH"
+     ],
+     "excludePublicHoliday": false,
+     "periodStart": "00:00",
+     "periodEnd": "00:00"
+    }
+   ],
+   "heightLimits": [
+    {
+     "height": 4.1
+    }
+   ],
+   "paymentMethods": [
+    "octopus"
+   ],
+   "privateCar": {
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "day-park",
+      "price": 130,
+      "periodEnd": "08:00",
+      "periodStart": "19:00"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "day-park",
+      "price": 105,
+      "periodEnd": "00:00",
+      "periodStart": "08:00"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "covered",
+      "type": "hourly",
+      "remark": "Last Update:(2023/04/20)",
+      "price": 18,
+      "periodEnd": "00:00",
+      "periodStart": "08:00"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "covered",
+      "type": "hourly",
+      "remark": "Last Update:(2023/04/20)",
+      "price": 22,
+      "periodEnd": "00:00",
+      "periodStart": "08:00"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 96
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2023-04-20 11:45:23",
+   "modifiedDate": "2026-02-24 09:46:29",
+   "publishedDate": "2023-04-20 12:33:06",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "101",
+   "name": "Prosperity Center Car Park",
+   "nature": "commercial",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "buildingName": "Prosperity Centre Car Park",
+    "buildingNo": "25",
+    "streetName": "Chong Yip Street",
+    "subDistrict": "Kwun Tong",
+    "dcDistrict": "Kwun Tong District",
+    "region": "KLN"
+   },
+   "displayAddress": "Prosperity Centre Car Park, 25 Chong Yip Street, Kwun Tong, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.31414153,
+   "longitude": 114.2195567,
+   "contactNo": "67961393",
+   "renditionUrls": {
+    "square": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A915718766070366444542505038806645269890059758729.png/square.png",
+    "thumbnail": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A915718766070366444542505038806645269890059758729.png/thumbnail.png",
+    "banner": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A915718766070366444542505038806645269890059758729.png/banner.png"
+   },
+   "website": "",
+   "opening_status": "OPEN",
+   "openingHours": [
+    {
+     "weekdays": [
+      "MON",
+      "TUE",
+      "WED",
+      "THU",
+      "FRI",
+      "SAT"
+     ],
+     "excludePublicHoliday": false,
+     "periodStart": "07:00",
+     "periodEnd": "00:00"
+    },
+    {
+     "weekdays": [
+      "SUN",
+      "PH"
+     ],
+     "excludePublicHoliday": false,
+     "periodStart": "07:00",
+     "periodEnd": "00:00"
+    }
+   ],
+   "heightLimits": [
+    {
+     "height": 4.1
+    }
+   ],
+   "paymentMethods": [
+    "octopus"
+   ],
+   "privateCar": {
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "07:00",
+      "periodEnd": "00:00",
+      "price": 160,
+      "remark": "(last Review Date: 2023-04-20)",
+      "type": "day-park",
+      "covered": "covered",
+      "validUntil": "no-restrictions"
+     },
+     {
+      "weekdays": [
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "07:00",
+      "periodEnd": "00:00",
+      "price": 95,
+      "remark": "(Last Review Date: 2023-04-20)",
+      "type": "day-park",
+      "covered": "covered",
+      "validUntil": "no-restrictions"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "07:00",
+      "periodEnd": "00:00",
+      "price": 22,
+      "remark": "(Last Review Date: 2023-04-20)",
+      "type": "hourly",
+      "covered": "covered"
+     },
+     {
+      "weekdays": [
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "07:00",
+      "periodEnd": "00:00",
+      "price": 22,
+      "remark": "(Last Review Date: 2023-04-20)",
+      "type": "hourly",
+      "covered": "covered"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 91
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2023-04-20 11:54:56",
+   "modifiedDate": "2023-04-25 17:56:48",
+   "publishedDate": "2023-04-20 12:32:53",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "102",
+   "name": "The ANGLE",
+   "nature": "commercial",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "streetName": "98 How Ming Street",
+    "subDistrict": "Kwun Tong",
+    "dcDistrict": "Kwun Tong District",
+    "region": "KLN"
+   },
+   "displayAddress": "98 How Ming Street, Kwun Tong, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.3131996,
+   "longitude": 114.2205472,
+   "contactNo": "",
+   "website": "",
+   "opening_status": "OPEN",
+   "facilities": [
+    "disabilities"
+   ],
+   "paymentMethods": [
+    "octopus"
+   ],
+   "privateCar": {
+    "monthlyCharges": [
+     {
+      "price": 4000,
+      "type": "monthly-park",
+      "covered": "covered",
+      "reserved": "non-reserved"
+     },
+     {
+      "price": 5100,
+      "type": "monthly-park",
+      "covered": "covered",
+      "reserved": "reserved"
+     }
+    ],
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "08:00",
+      "periodEnd": "18:00",
+      "price": 165,
+      "type": "day-park",
+      "covered": "covered",
+      "validUntil": "no-restrictions"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "price": 26,
+      "type": "hourly",
+      "covered": "covered"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 340
+   },
+   "LGV": {
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "price": 50,
+      "type": "hourly",
+      "covered": "covered"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "monthlyCharges": [
+     {
+      "price": 1000,
+      "type": "monthly-park",
+      "covered": "covered",
+      "reserved": "non-reserved"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2023-05-31 09:51:35",
+   "modifiedDate": "2026-07-16 12:10:18",
+   "publishedDate": "2026-07-07 11:46:00",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "103",
+   "name": "One Sky Parc (Wilson Parking)",
+   "nature": "commercial",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "region": "KLN",
+    "dcDistrict": "Kwun Tong District",
+    "subDistrict": "Kwun Tong",
+    "streetName": "53 Hung To Road"
+   },
+   "displayAddress": "53 Hung To Road, Kwun Tong, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.3111392,
+   "longitude": 114.2223215,
+   "contactNo": "9229-6642",
+   "website": "https://www.wilsonparking.com.hk/zh/car_parks/detail/347",
+   "opening_status": "OPEN",
+   "paymentMethods": [
+    "octopus"
+   ],
+   "privateCar": {
+    "monthlyCharges": [
+     {
+      "price": 3800,
+      "type": "monthly-park",
+      "covered": "covered",
+      "reserved": "non-reserved"
+     }
+    ],
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT"
+      ],
+      "excludePublicHoliday": true,
+      "validUntil": "same-day",
+      "covered": "covered",
+      "type": "24-hours-park",
+      "price": 140,
+      "validUntilEnd": "24:00",
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     },
+     {
+      "weekdays": [
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "validUntilEnd": "24:00",
+      "price": 80,
+      "type": "24-hours-park",
+      "covered": "covered",
+      "validUntil": "same-day"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "price": 24,
+      "type": "hourly",
+      "covered": "covered"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 53
+   },
+   "LGV": {
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "price": 35,
+      "type": "hourly",
+      "covered": "covered"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "monthlyCharges": [
+     {
+      "price": 1000,
+      "type": "monthly-park",
+      "covered": "covered",
+      "reserved": "non-reserved"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2023-05-31 09:55:10",
+   "modifiedDate": "2025-07-02 16:51:22",
+   "publishedDate": "2023-05-31 10:11:22",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "104",
+   "name": "AIRSIDE",
+   "nature": "commercial",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "region": "KLN",
+    "dcDistrict": "Wong Tai Sin District",
+    "subDistrict": "San Po Kong",
+    "buildingNo": "2",
+    "streetName": "Concorde Road, Kai Tak",
+    "buildingName": "AIRSIDE"
+   },
+   "displayAddress": "AIRSIDE, 2 Concorde Road, Kai Tak, San Po Kong, KLN",
+   "district": "Wong Tai Sin District",
+   "latitude": 22.33124094,
+   "longitude": 114.198246,
+   "contactNo": "26860333",
+   "renditionUrls": {
+    "square": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A759617729494466877995152936654849042855160054878.png/square.png",
+    "thumbnail": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A759617729494466877995152936654849042855160054878.png/thumbnail.png",
+    "banner": "https://sps-opendata.pilotsmartke.gov.hk/rest/getRendition/fs-1%3A759617729494466877995152936654849042855160054878.png/banner.png"
+   },
+   "website": "https://www.airside.com.hk/en",
+   "opening_status": "OPEN",
+   "openingHours": [
+    {
+     "weekdays": [
+      "MON",
+      "TUE",
+      "WED",
+      "THU",
+      "FRI",
+      "SAT",
+      "SUN",
+      "PH"
+     ],
+     "excludePublicHoliday": false,
+     "periodEnd": "24:00",
+     "periodStart": "00:00"
+    }
+   ],
+   "heightLimits": [
+    {
+     "height": 2.4
+    }
+   ],
+   "facilities": [
+    "evCharger",
+    "disabilities"
+   ],
+   "paymentMethods": [
+    "octopus",
+    "visa",
+    "master"
+   ],
+   "privateCar": {
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "day-park",
+      "price": 140,
+      "periodEnd": "19:00",
+      "periodStart": "08:00"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "21:00",
+      "periodEnd": "08:00",
+      "price": 90,
+      "type": "night-park",
+      "covered": "covered",
+      "validUntil": "no-restrictions"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "price": 25,
+      "type": "hourly",
+      "covered": "covered",
+      "remark": "Super-charging Fees: HKD$3.3/kWh, Fast Charging Fees: HKD$3/kWh, Medium Charging Fees: HKD$2.2/kWh"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "price": 28,
+      "type": "hourly",
+      "covered": "covered",
+      "remark": "Super-charging Fees: HKD$3.3/kWh, Fast Charging Fees: HKD$3/kWh, Medium Charging Fees: HKD$2.2/kWh"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 851,
+    "spaceDIS": 6,
+    "space": 851
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "day-park",
+      "price": 140,
+      "periodEnd": "19:00",
+      "periodStart": "08:00"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "night-park",
+      "price": 90,
+      "periodEnd": "08:00",
+      "periodStart": "21:00"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI"
+      ],
+      "excludePublicHoliday": true,
+      "covered": "covered",
+      "type": "hourly",
+      "price": 25,
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     },
+     {
+      "weekdays": [
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "covered",
+      "type": "hourly",
+      "price": 28,
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 87
+   },
+   "creationDate": "2023-06-28 14:56:55",
+   "modifiedDate": "2025-07-02 06:37:11",
+   "publishedDate": "2023-09-26 09:04:33",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "117",
+   "name": "Kai Ching Estate Car Park",
+   "nature": "government",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "region": "KLN",
+    "dcDistrict": "Kowloon City District",
+    "subDistrict": "Kowloon City",
+    "streetName": "12 Muk Hung Street"
+   },
+   "displayAddress": "12 Muk Hung Street, Kowloon City, KLN",
+   "district": "Kowloon City District",
+   "latitude": 22.3315089,
+   "longitude": 114.2027843,
+   "contactNo": "",
+   "website": "",
+   "opening_status": "OPEN",
+   "heightLimits": [
+    {
+     "height": 2.4
+    }
+   ],
+   "privateCar": {
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "00:00",
+      "periodEnd": "00:00",
+      "price": 19,
+      "type": "hourly",
+      "covered": "covered"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 1,
+    "space": 25
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2024-07-08 14:25:49",
+   "modifiedDate": "2024-07-10 09:25:44",
+   "publishedDate": "2024-07-10 09:25:44",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "118",
+   "name": "Tak Long Estate Carpark A",
+   "nature": "government",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "streetName": "Shing Kai Road",
+    "subDistrict": "Kowloon City",
+    "dcDistrict": "Kowloon City District",
+    "region": "KLN"
+   },
+   "displayAddress": "Shing Kai Road, Kowloon City, KLN",
+   "district": "Kowloon City District",
+   "latitude": 22.32879957,
+   "longitude": 114.20429707,
+   "contactNo": "",
+   "website": "",
+   "opening_status": "OPEN",
+   "heightLimits": [
+    {
+     "height": 2
+    }
+   ],
+   "facilities": [
+    "evCharger"
+   ],
+   "privateCar": {
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "00:00",
+      "periodEnd": "00:00",
+      "price": 20,
+      "type": "hourly",
+      "covered": "covered"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 15,
+    "spaceDIS": 0,
+    "space": 32
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2024-07-08 16:45:27",
+   "modifiedDate": "2024-07-10 16:06:03",
+   "publishedDate": "2024-07-09 14:34:46",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "120",
+   "name": "Choi Ying Estate Car Park",
+   "nature": "government",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "region": "KLN",
+    "dcDistrict": "Kwun Tong District",
+    "subDistrict": "Ngau Tau Kok",
+    "streetName": "79 Choi Ha Road"
+   },
+   "displayAddress": "79 Choi Ha Road, Ngau Tau Kok, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.32849687,
+   "longitude": 114.21452165,
+   "contactNo": "",
+   "website": "",
+   "opening_status": "OPEN",
+   "privateCar": {
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "covered",
+      "type": "hourly",
+      "price": 20,
+      "periodEnd": "00:00",
+      "periodStart": "00:00"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 10
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2024-07-09 10:53:21",
+   "modifiedDate": "2026-08-28 15:37:57",
+   "publishedDate": "2026-08-28 15:37:57",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "121",
+   "name": "On Kay Court Car Park",
+   "nature": "government",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "streetName": "On Wah Street",
+    "subDistrict": "Ngau Tau Kok",
+    "dcDistrict": "Kwun Tong District",
+    "region": "KLN"
+   },
+   "displayAddress": "On Wah Street, Ngau Tau Kok, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.32188211,
+   "longitude": 114.21692491,
+   "contactNo": "",
+   "website": "",
+   "opening_status": "OPEN",
+   "privateCar": {
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "day-park",
+      "price": 100,
+      "periodEnd": "20:00",
+      "periodStart": "08:00"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "covered",
+      "type": "hourly",
+      "price": 20,
+      "periodEnd": "23:00",
+      "periodStart": "07:00"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "covered",
+      "type": "hourly",
+      "price": 16,
+      "periodEnd": "07:00",
+      "periodStart": "23:00"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 3,
+    "space": 27
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2024-07-09 11:02:16",
+   "modifiedDate": "2024-07-10 09:35:48",
+   "publishedDate": "2024-07-10 09:35:48",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "123",
+   "name": "KTR350 Car Park",
+   "nature": "commercial",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "streetName": "KWUN TONG ROAD 350",
+    "subDistrict": "Kwun Tong",
+    "dcDistrict": "Kwun Tong District",
+    "region": "KLN"
+   },
+   "displayAddress": "KWUN TONG ROAD 350, Kwun Tong, KLN",
+   "district": "Kwun Tong District",
+   "latitude": 22.3150437,
+   "longitude": 114.2179817,
+   "contactNo": "21168259",
+   "website": "",
+   "opening_status": "OPEN",
+   "facilities": [
+    "evCharger"
+   ],
+   "privateCar": {
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "covered",
+      "type": "hourly",
+      "price": 24,
+      "periodEnd": "00:00",
+      "periodStart": "00:00"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 142,
+    "spaceDIS": 2,
+    "space": 142
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2024-10-04 18:06:48",
+   "modifiedDate": "2024-10-09 11:41:03",
+   "publishedDate": "2024-10-08 10:59:12",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "124",
+   "name": "Stadium Carpark",
+   "nature": "government",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "buildingName": "Kai Tak Sport Park",
+    "streetName": "38-39 Shing Kai Road, Kowloon, Hong Kong",
+    "subDistrict": "Kowloon City",
+    "dcDistrict": "Kowloon City District",
+    "region": "KLN"
+   },
+   "displayAddress": "Kai Tak Sport Park, 38-39 Shing Kai Road, Kowloon, Hong Kong, Kowloon City, KLN",
+   "district": "Kowloon City District",
+   "latitude": 22.32216993,
+   "longitude": 114.1980958,
+   "contactNo": "",
+   "website": "https://www.kaitaksportspark.com.hk/car-park/2",
+   "opening_status": "OPEN",
+   "facilities": [
+    "disabilities",
+    "evCharger"
+   ],
+   "paymentMethods": [
+    "octopus",
+    "visa",
+    "master",
+    "alipay"
+   ],
+   "privateCar": {
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU"
+      ],
+      "excludePublicHoliday": true,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "day-park",
+      "price": 120,
+      "periodEnd": "19:00",
+      "periodStart": "07:00"
+     },
+     {
+      "weekdays": [
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "day-park",
+      "price": 180,
+      "periodEnd": "19:00",
+      "periodStart": "07:00"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "night-park",
+      "price": 80,
+      "periodEnd": "10:00",
+      "periodStart": "19:00"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU"
+      ],
+      "excludePublicHoliday": true,
+      "periodStart": "07:00",
+      "periodEnd": "22:00",
+      "price": 25,
+      "type": "hourly",
+      "covered": "covered"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU"
+      ],
+      "excludePublicHoliday": true,
+      "periodStart": "22:00",
+      "periodEnd": "07:00",
+      "price": 12,
+      "type": "hourly",
+      "covered": "covered"
+     },
+     {
+      "weekdays": [
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "07:00",
+      "periodEnd": "22:00",
+      "price": 27,
+      "type": "hourly",
+      "covered": "covered"
+     },
+     {
+      "weekdays": [
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "covered",
+      "type": "hourly",
+      "price": 12,
+      "periodEnd": "07:00",
+      "periodStart": "22:00"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 334,
+    "spaceDIS": 7,
+    "space": 334
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU"
+      ],
+      "excludePublicHoliday": true,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "day-park",
+      "price": 60,
+      "periodEnd": "19:00",
+      "periodStart": "07:00"
+     },
+     {
+      "weekdays": [
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "day-park",
+      "price": 90,
+      "periodEnd": "19:00",
+      "periodStart": "07:00"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "night-park",
+      "price": 40,
+      "periodEnd": "10:00",
+      "periodStart": "19:00"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU"
+      ],
+      "excludePublicHoliday": true,
+      "periodStart": "07:00",
+      "periodEnd": "22:00",
+      "price": 12,
+      "type": "hourly",
+      "covered": "covered"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU"
+      ],
+      "excludePublicHoliday": true,
+      "periodStart": "22:00",
+      "periodEnd": "07:00",
+      "price": 6,
+      "type": "hourly",
+      "covered": "covered"
+     },
+     {
+      "weekdays": [
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "07:00",
+      "periodEnd": "22:00",
+      "price": 13,
+      "type": "hourly",
+      "covered": "covered"
+     },
+     {
+      "weekdays": [
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "22:00",
+      "periodEnd": "07:00",
+      "price": 6,
+      "type": "hourly",
+      "covered": "covered"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 34
+   },
+   "creationDate": "2024-10-18 17:39:40",
+   "modifiedDate": "2025-12-31 17:21:59",
+   "publishedDate": "2025-12-31 17:21:59",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "125",
+   "name": "Arena Carpark",
+   "nature": "government",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "buildingName": "Kai Tak Sport Park",
+    "region": "KLN",
+    "dcDistrict": "Kowloon City District",
+    "subDistrict": "Kowloon City",
+    "streetName": "38-39 Shing Kai Road, Kowloon, Hong Kong"
+   },
+   "displayAddress": "Kai Tak Sport Park, 38-39 Shing Kai Road, Kowloon, Hong Kong, Kowloon City, KLN",
+   "district": "Kowloon City District",
+   "latitude": 22.32545005,
+   "longitude": 114.19669569,
+   "contactNo": "",
+   "website": "https://www.kaitaksportspark.com.hk/car-park/1",
+   "opening_status": "OPEN",
+   "facilities": [
+    "evCharger",
+    "disabilities"
+   ],
+   "paymentMethods": [
+    "octopus",
+    "visa",
+    "master",
+    "alipay"
+   ],
+   "privateCar": {
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU"
+      ],
+      "excludePublicHoliday": true,
+      "periodStart": "07:00",
+      "periodEnd": "19:00",
+      "price": 140,
+      "type": "day-park",
+      "covered": "covered",
+      "validUntil": "no-restrictions"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "night-park",
+      "price": 72,
+      "periodEnd": "07:00",
+      "periodStart": "22:00"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU"
+      ],
+      "excludePublicHoliday": true,
+      "covered": "covered",
+      "type": "hourly",
+      "price": 25,
+      "periodEnd": "22:00",
+      "periodStart": "07:00"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU"
+      ],
+      "excludePublicHoliday": true,
+      "periodStart": "22:00",
+      "periodEnd": "07:00",
+      "price": 12,
+      "type": "hourly",
+      "covered": "covered"
+     },
+     {
+      "weekdays": [
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "07:00",
+      "periodEnd": "22:00",
+      "price": 28,
+      "type": "hourly",
+      "covered": "covered"
+     },
+     {
+      "weekdays": [
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "22:00",
+      "periodEnd": "07:00",
+      "price": 12,
+      "type": "hourly",
+      "covered": "covered"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 236,
+    "spaceDIS": 8,
+    "space": 236
+   },
+   "LGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU"
+      ],
+      "excludePublicHoliday": true,
+      "periodStart": "07:00",
+      "periodEnd": "19:00",
+      "price": 70,
+      "type": "day-park",
+      "covered": "covered",
+      "validUntil": "no-restrictions"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "night-park",
+      "price": 36,
+      "periodEnd": "07:00",
+      "periodStart": "22:00"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU"
+      ],
+      "excludePublicHoliday": true,
+      "periodStart": "07:00",
+      "periodEnd": "22:00",
+      "price": 12,
+      "type": "hourly",
+      "covered": "covered"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU"
+      ],
+      "excludePublicHoliday": true,
+      "periodStart": "22:00",
+      "periodEnd": "07:00",
+      "price": 6,
+      "type": "hourly",
+      "covered": "covered"
+     },
+     {
+      "weekdays": [
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "07:00",
+      "periodEnd": "22:00",
+      "price": 14,
+      "type": "hourly",
+      "covered": "covered"
+     },
+     {
+      "weekdays": [
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "22:00",
+      "periodEnd": "07:00",
+      "price": 6,
+      "type": "hourly",
+      "covered": "covered"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 25
+   },
+   "creationDate": "2024-10-18 17:42:56",
+   "modifiedDate": "2025-12-30 18:07:54",
+   "publishedDate": "2025-01-01 21:31:59",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "128",
+   "name": "The Burrow (Wilson Parking)",
+   "nature": "commercial",
+   "carpark_Type": "multi-storey",
+   "address": {
+    "streetName": "15-17 Ng Fong Street",
+    "subDistrict": "San Po Kong",
+    "dcDistrict": "Wong Tai Sin District",
+    "region": "KLN"
+   },
+   "displayAddress": "15-17 Ng Fong Street, San Po Kong, KLN",
+   "district": "Wong Tai Sin District",
+   "latitude": 22.3381653,
+   "longitude": 114.199945,
+   "contactNo": "9737-0932",
+   "website": "https://www.wilsonparking.com.hk/zh/car_parks/detail/424",
+   "opening_status": "OPEN",
+   "facilities": [
+    "evCharger"
+   ],
+   "paymentMethods": [
+    "octopus"
+   ],
+   "privateCar": {
+    "monthlyCharges": [
+     {
+      "price": 4300,
+      "type": "monthly-park",
+      "covered": "covered",
+      "reserved": "non-reserved"
+     }
+    ],
+    "dayNightParks": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "day-park",
+      "price": 170,
+      "periodEnd": "19:00",
+      "periodStart": "08:00"
+     },
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "validUntil": "no-restrictions",
+      "covered": "covered",
+      "type": "night-park",
+      "price": 90,
+      "periodEnd": "08:00",
+      "periodStart": "19:00"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "covered": "covered",
+      "type": "hourly",
+      "price": 30,
+      "periodEnd": "24:00",
+      "periodStart": "00:00"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 85
+   },
+   "LGV": {
+    "monthlyCharges": [
+     {
+      "price": 5300,
+      "type": "monthly-park",
+      "covered": "covered",
+      "reserved": "non-reserved"
+     }
+    ],
+    "hourlyCharges": [
+     {
+      "weekdays": [
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT",
+       "SUN",
+       "PH"
+      ],
+      "excludePublicHoliday": false,
+      "periodStart": "00:00",
+      "periodEnd": "24:00",
+      "price": 40,
+      "type": "hourly",
+      "covered": "covered"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "HGV": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "coach": {
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "motorCycle": {
+    "monthlyCharges": [
+     {
+      "price": 1200,
+      "type": "monthly-park",
+      "covered": "covered",
+      "reserved": "non-reserved"
+     }
+    ],
+    "spaceUNL": 0,
+    "spaceEV": 0,
+    "spaceDIS": 0,
+    "space": 0
+   },
+   "creationDate": "2025-10-08 15:27:33",
+   "modifiedDate": "2025-10-14 15:57:19",
+   "publishedDate": "2025-10-08 15:27:47",
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "tdc166p1",
+   "name": "Phase 1 Carpark of Tin Ching Estate",
+   "displayAddress": "Tin Ching Estate (Phase 1 Carpark), Yuen Long, New Territories",
+   "district": "Yuen Long",
+   "latitude": 22.463276765818,
+   "longitude": 114.00184446738,
+   "contactNo": "34018578",
+   "renditionUrls": {
+    "carpark_photo": "http://resource.data.one.gov.hk/td/carpark/tdc166p1.jpg"
+   },
+   "opening_status": "CLOSED",
+   "heightLimits": [
+    {
+     "height": 0,
+     "remark": "Height Limit: \n"
+    }
+   ],
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "tdc6p11",
+   "name": "Cheung Shan Estate Carpark",
+   "displayAddress": "Cheung Shan Estate Road West, Tsuen Wan, N.T.",
+   "district": "Tsuen Wan",
+   "latitude": 22.378225291103,
+   "longitude": 114.12981855349,
+   "contactNo": "",
+   "renditionUrls": {
+    "carpark_photo": "http://resource.data.one.gov.hk/td/carpark/tdc6p11.jpg"
+   },
+   "website": "",
+   "opening_status": "OPEN",
+   "heightLimits": [
+    {
+     "height": 1.7,
+     "remark": "Height Limit: Height limit:1.7(M)\n*Private Car / Van<br>$20 per hour"
+    }
+   ],
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "tdc245p1",
+   "name": "Hong Wah Court Car Park",
+   "displayAddress": "No.2 Lin Tak Road, Lam Tin, Kowloon",
+   "district": "Kwun Tong",
+   "latitude": 22.313958857871,
+   "longitude": 114.24008778165,
+   "contactNo": "",
+   "renditionUrls": {
+    "carpark_photo": "http://resource.data.one.gov.hk/td/carpark/tdc245p1.jpg"
+   },
+   "website": "",
+   "opening_status": "CLOSED",
+   "heightLimits": [
+    {
+     "height": 0,
+     "remark": "Height Limit: \n"
+    }
+   ],
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "tdc6p8",
+   "name": "Kwai Shing West Shopping Centre Car Park",
+   "displayAddress": "Kwai Luen Road, Kwai Chung, N.T.",
+   "district": "Kwai Tsing",
+   "latitude": 22.360948600865,
+   "longitude": 114.12163200072,
+   "contactNo": "98553566",
+   "renditionUrls": {
+    "carpark_photo": "http://resource.data.one.gov.hk/td/carpark/tdc6p8.jpg"
+   },
+   "website": "",
+   "opening_status": "OPEN",
+   "heightLimits": [
+    {
+     "height": 1.8,
+     "remark": "Height Limit: Height limit:1.8(M)\n*Private Car / Van <br> $20 per hour"
+    }
+   ],
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "tdc6p9",
+   "name": "Lai King Estate Car Park C",
+   "displayAddress": "Lai King Hill Road, Kwai Chung, N.T.",
+   "district": "Kwai Tsing",
+   "latitude": 22.349594568342,
+   "longitude": 114.126365945,
+   "renditionUrls": {
+    "carpark_photo": "http://resource.data.one.gov.hk/td/carpark/tdc6p9.jpg"
+   },
+   "opening_status": "OPEN",
+   "heightLimits": [
+    {
+     "height": 0,
+     "remark": "Height Limit: \nPrivate Car/Van<br>$21 per hour"
+    }
+   ],
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "tdc8p3",
+   "name": "MTR Hong Kong Station Car Park",
+   "displayAddress": "FINANCE STREET, Central & Western District, Hong Kong",
+   "district": "Central & Western",
+   "latitude": 22.285922464,
+   "longitude": 114.157505851,
+   "contactNo": "28818888",
+   "renditionUrls": {
+    "carpark_photo": "http://resource.data.one.gov.hk/td/carpark/tdc8p3.jpg"
+   },
+   "website": "https://www.mtr.com.hk/en/customer/services/aestations_carpark.html",
+   "opening_status": "OPEN",
+   "heightLimits": [
+    {
+     "height": 2.1,
+     "remark": "Height Limit: Height limit:2.1(M)\n"
+    }
+   ],
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "tdcp10",
+   "name": "Aberdeen Car Park",
+   "displayAddress": "18 Aberdeen Reservoir Road, Aberdeen, Hong Kong",
+   "district": "Southern",
+   "latitude": 22.25027272,
+   "longitude": 114.15661803,
+   "renditionUrls": {
+    "carpark_photo": "http://resource.data.one.gov.hk/td/carpark/tdcp10.jpg"
+   },
+   "website": "https://www.mackcarpark.com.hk/eng/carpark_info.php?id=32",
+   "opening_status": "OPEN",
+   "heightLimits": [
+    {
+     "height": 0,
+     "remark": "Height Limit: \nHourly<br>  07:00 - 23:00 $20 per hour (private car)<br>  23:00 - 07:00 $18 per hour (private car)<br><br>  Day Park<br>  08:00 - 23:00 $32 (motorcycles)<br><br> Night Park<br>  23:00 - 08:00 $14 (motorcycles)<br><br>  Quarterly<br>  Quarterly $7050 (private car)<br>  Quarterly $1380 (motorcycles)<br>  Quarterly $2610 (taxi)<br>"
+    }
+   ],
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "tdcp11",
+   "name": "Tin Hau Car Park",
+   "displayAddress": "1 King's Road, Causeway Bay",
+   "district": "Wan Chai",
+   "latitude": 22.28288221,
+   "longitude": 114.19166511,
+   "renditionUrls": {
+    "carpark_photo": "http://resource.data.one.gov.hk/td/carpark/tdcp11.jpg"
+   },
+   "website": "https://www.wilsonparking.com.hk/en-us/car_parks/detail/7",
+   "opening_status": "OPEN",
+   "heightLimits": [
+    {
+     "height": 0,
+     "remark": "Height Limit: \nHourly<br>  07:00 - 23:00 $24 per hour (private car)<br>  23:00 - 07:00 $19 per hour (private car)<br><br>  Day Park<br>  07:00 - 19:00 $135 (private car)<br>  08:00 - 23:00 $32 (motorcycles)<br><br>  Night Park<br>  23:00 - 08:00 $14 (motorcycles)<br><br>  Quarterly<br>  Quarterly $10050 (private car)<br>  Quarterly $1380 (motorcycles)<br>  Quarterly $2610 (taxi)<br>"
+    }
+   ],
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "tdcp12",
+   "name": "Sheung Fung Street Car Park",
+   "displayAddress": "Sheung Fung Street, Wong Tai Sin, Kowloon",
+   "district": "Wong Tai Sin",
+   "latitude": 22.34395897,
+   "longitude": 114.19705899,
+   "renditionUrls": {
+    "carpark_photo": "http://resource.data.one.gov.hk/td/carpark/tdcp12.jpg"
+   },
+   "website": "https://www.mackcarpark.com.hk/eng/carpark_info.php?id=33",
+   "opening_status": "OPEN",
+   "heightLimits": [
+    {
+     "height": 0,
+     "remark": "Height Limit: \nHourly<br>  07:00 - 23:00 $16 per hour (private car)<br>  23:00 - 07:00 $14 per hour (private car)<br><br>  Day Park<br>  07:00 - 19:00 $110 (private car)<br>  08:00 - 23:00 $32 (motorcycles)<br><br>  Night Park<br>  23:00 - 08:00 $14 (motorcycles)<br><br>  Quarterly<br>  Quarterly $7350 (private car)<br>  Quarterly $1380 (motorcycles)<br>  Quarterly $2610 (taxi)<br>"
+    }
+   ],
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "tdcp2",
+   "name": "Rumsey Street Car Park",
+   "displayAddress": "2 Rumsey Street, Sheung Wan, Hong Kong",
+   "district": "Central & Western",
+   "latitude": 22.28740848,
+   "longitude": 114.15322694,
+   "renditionUrls": {
+    "carpark_photo": "http://resource.data.one.gov.hk/td/carpark/tdcp2.jpg"
+   },
+   "website": "https://www.mackcarpark.com.hk/eng/carpark_info.php?id=31",
+   "opening_status": "OPEN",
+   "heightLimits": [
+    {
+     "height": 0,
+     "remark": "Height Limit: \nHourly<br>  07:00 - 23:00 $26 per hour (private car)<br>  23:00 - 07:00 $20 per hour (private car)<br><br>  Day Park<br>  Monday to Saturday (Excl. PH) from 07:00 - 19:00 $210 (private car)<br>  Sunday to Public holiday from 08:00 - 00:00 $150 (private car)<br>  08:00 - 23:00 $32 (motorcycles)<br><br>  Night Park<br>  Monday to Saturday (Excl. PH) from 19:00 - 07:00 $80 (private car)<br>  23:00 - 08:00 $14 (motorcycles)<br><br>  Quarterly<br>  Quarterly $13500 (private car)<br>  Quarterly $1380 (motorcycles)<br>  Quarterly $2610 (taxi)<br>"
+    }
+   ],
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "tdcp3",
+   "name": "Tsuen Wan Car Park",
+   "displayAddress": "174-208 Castle Peak Road, Tsuen Wan, New Territories",
+   "district": "Tsuen Wan",
+   "latitude": 22.37284735,
+   "longitude": 114.11860252,
+   "renditionUrls": {
+    "carpark_photo": "http://resource.data.one.gov.hk/td/carpark/tdcp3.jpg"
+   },
+   "website": "https://www.wilsonparking.com.hk/en-us/car_parks/detail/8",
+   "opening_status": "OPEN",
+   "heightLimits": [
+    {
+     "height": 0,
+     "remark": "Height Limit: \nHourly<br> 07:00 - 23:00 $21 per hour (private car)<br>  23:00 - 07:00 $17 per hour (private car)<br><br>  Day Park<br>  07:00 - 19:00 $130 (private car)<br>  08:00 - 23:00 $32 (motorcycles)<br><br>  Night Park<br>  19:00 - 07:00 $75 (private car)<br>  23:00 - 08:00 $14 (motorcycles)<br><br>  Quarterly<br> Quarterly $7650 (private car)<br>  Quarterly $1380 (motorcycles)<br>  Quarterly $2610 (taxi)<br>"
+    }
+   ],
+   "lang": "en_US"
+  },
+  {
+   "park_Id": "tdcp5",
+   "name": "City Hall Car Park",
+   "displayAddress": "1 Edinburgh Place, Central, Hong Kong",
+   "district": "Central & Western",
+   "latitude": 22.28191055,
+   "longitude": 114.16213972,
+   "contactNo": "",
+   "renditionUrls": {
+    "carpark_photo": "http://resource.data.one.gov.hk/td/carpark/tdcp5.jpg"
+   },
+   "website": "https://www.wilsonparking.com.hk/en-us/car_parks/detail/296",
+   "opening_status": "OPEN",
+   "heightLimits": [
+    {
+     "height": 0,
+     "remark": "Height Limit: \nHourly<br> 07:00 - 19:00 $26 per hour (private car)<br> 19:00 - 07:00 $20 per hour (private car)<br><br> Day Park<br> Monday to Saturday (Excl. PH) from 07:00 - 19:00 $210 (private car)<br> Sunday to Public holiday from 08:00 - 00:00 $150 (private car)<br> 08:00 - 23:00 $32 (motorcycles)<br><br> Night Park<br> Monday to Saturday (Excl. PH) from 19:00 - 07:00 $80 (private car)<br> 23:00 - 08:00 $14 (motorcycles)<br><br> Quarterly<br> Quarterly $14,550 (private car)<br> Quarterly $1,380 (motorcycles)<br> Quarterly $2,610 (taxi)<br>"
+    }
+   ],
+   "lang": "en_US"
+  }
+ ]
+}
