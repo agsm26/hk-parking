@@ -1,0 +1,13 @@
+# Runs the logic tests on every upload. A red cross on the commit means the
+# uploaded core.js broke something; fix before phones pick up the update.
+name: tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node --test tests/core.test.mjs
+      - run: node --check app.js && node --check sw.js
