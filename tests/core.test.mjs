@@ -197,3 +197,38 @@ test("search across scripts", () => {
   assert.deepEqual(C.searchCarParks("zzzz", parks), []);
   assert.ok(C.districtsMatching("tsim").some(d => d.id === "yauTsimMong")); assert.equal(C.districtsMatching("沙田")[0].id, "shaTin");
 });
+
+test("backup code, error log, staleness, Address Lookup Service", () => {
+  const state = { favs: [{ id: "meter:西洋菜南街|弼街", name: { en: "Sai Yeung Choi", tc: "西洋菜南街" } }], vehicles: [{ id: "v1", nickname: "MIFA 9", heightMetres: 1.84 }], activeVehicleId: "v1", lang: "tc", vac: { huge: 1 }, feed: [1, 2, 3] };
+  const code = C.backupEncode(state, 1000);
+  assert.ok(code.startsWith("CPHK1.")); assert.ok(!/[+/=]/.test(code));
+  const back = C.backupDecode("  " + code.slice(0, 20) + "\n" + code.slice(20) + " ");
+  assert.equal(back.ok, true); assert.equal(back.at, 1000);
+  assert.deepEqual(back.data.favs, state.favs); assert.equal(back.data.vehicles[0].nickname, "MIFA 9"); assert.equal(back.data.lang, "tc");
+  assert.equal(back.data.vac, undefined); assert.equal(back.data.feed, undefined);
+  assert.deepEqual(C.backupSummary(back.data), { favs: 1, vehicles: 1, places: 0 });
+  assert.equal(C.backupDecode("hello").error, "notBackup"); assert.equal(C.backupDecode("CPHK1.!!!").error, "corrupt"); assert.equal(C.backupDecode("").ok, false);
+
+  let log = []; for (let i = 0; i < 12; i++) log = C.pushError(log, { at: i });
+  assert.equal(log.length, 10); assert.equal(log[0].at, 11);
+
+  const now = Date.parse("2026-09-06T00:00:00Z");
+  assert.equal(C.factsStale("2026-08-30", now), false); assert.equal(C.factsStale("2026-02-01", now), true); assert.equal(C.factsStale(null, now), false); assert.equal(C.factsStale("garbage", now), false);
+
+  const als = { SuggestedAddress: [
+    { Address: { PremisesAddress: { EngPremisesAddress: { BuildingName: "AMOY PLAZA", EngEstate: { EstateName: "AMOY GARDENS" }, EngStreet: { StreetName: "NGAU TAU KOK ROAD", BuildingNoFrom: "77" }, EngDistrict: { DcDistrict: "KWUN TONG DISTRICT" }, Region: "KLN" }, ChiPremisesAddress: { Region: "九龍", ChiDistrict: { DcDistrict: "觀塘區" }, ChiStreet: { StreetName: "牛頭角道", BuildingNoFrom: "77" }, BuildingName: "淘大商場" }, GeospatialInformation: { Latitude: "22.32409", Longitude: "114.21643" } } }, ValidationInformation: { Score: 70 } },
+    { Address: { PremisesAddress: { EngPremisesAddress: { BuildingName: "AMOY PLAZA" }, GeospatialInformation: [{ Latitude: "22.32411", Longitude: "114.21641" }] } } },
+    { Address: { PremisesAddress: { EngPremisesAddress: { EngStreet: { StreetName: "NATHAN ROAD", BuildingNoFrom: "1" } }, GeospatialInformation: { Latitude: "51.5", Longitude: "-0.1" } } } },
+    { Address: {} }, null,
+  ] };
+  const en = C.alsPlaces(als, "en");
+  assert.equal(en.length, 1);
+  const ordered = C.alsPlaces({ SuggestedAddress: [
+    { Address: { PremisesAddress: { EngPremisesAddress: { BuildingName: "WEAK" }, GeospatialInformation: { Latitude: "22.30", Longitude: "114.17" } } }, ValidationInformation: { Score: 30 } },
+    { Address: { PremisesAddress: { EngPremisesAddress: { BuildingName: "STRONG" }, GeospatialInformation: { Latitude: "22.31", Longitude: "114.18" } } }, ValidationInformation: { Score: 90 } } ] }, "en").map(x => x.title);
+  assert.deepEqual(ordered, ["Strong", "Weak"]); assert.equal(en[0].title, "Amoy Plaza"); assert.equal(en[0].subtitle, "77 Ngau Tau Kok Road, Kwun Tong District"); assert.equal(en[0].kind, "maps");
+  assert.ok(Math.abs(en[0].coordinate.lat - 22.32409) < 1e-6);
+  const tc = C.alsPlaces(als, "tc");
+  assert.equal(tc[0].title, "淘大商場"); assert.equal(tc[0].subtitle, "牛頭角道77號，觀塘區");
+  assert.deepEqual(C.alsPlaces({}, "en"), []); assert.deepEqual(C.alsPlaces(null, "en"), []);
+});
