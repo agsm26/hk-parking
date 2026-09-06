@@ -2,23 +2,23 @@
 //
 // What it caches: the app shell (HTML, JS, CSS, Leaflet, icons) and the bundled
 // data snapshots, so the app opens instantly and offline. What it never caches:
-// the live government feeds, map tiles and place search — those are network
+// the live government feeds, map tiles and address search — those are network
 // only, and the page itself keeps the last successful feed in IndexedDB with
 // its timestamp for offline display.
 //
 // Bump VERSION whenever any shell file changes; the old cache is dropped on
 // activate and the page is told an update is ready.
-const VERSION = "2026-09-05c";
+const VERSION = "2026-09-06b";
 const SHELL = `carpark-shell-${VERSION}`;
 const SHELL_FILES = [
   "./", "./index.html", "./app.js", "./core.js", "./manifest.json",
   "./vendor/leaflet.js", "./vendor/leaflet.css",
   "./vendor/images/marker-icon.png", "./vendor/images/marker-icon-2x.png", "./vendor/images/marker-shadow.png",
   "./vendor/images/layers.png", "./vendor/images/layers-2x.png",
-  "./data/osm_carparks.json", "./data/osm_entrances.json", "./data/curated_carparks.json",
+  "./data/osm_carparks.json", "./data/osm_entrances.json", "./data/curated_carparks.json", "./data/meter_zones.json",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png", "./icons/apple-touch-icon.png",
 ];
-const NETWORK_ONLY = ["api.data.gov.hk", "resource.data.one.gov.hk", "tile.openstreetmap.org", "nominatim.openstreetmap.org"];
+const NETWORK_ONLY = ["api.data.gov.hk", "resource.data.one.gov.hk", "www.als.gov.hk", "mapapi.geodata.gov.hk", "tile.openstreetmap.org", "nominatim.openstreetmap.org"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(SHELL).then((c) => c.addAll(SHELL_FILES)));

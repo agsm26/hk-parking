@@ -28,6 +28,11 @@ To ask for a commercial licence, open an issue on this repository.
 - **Transport Department data** (`api.data.gov.hk`, `resource.data.one.gov.hk`)
   is fetched live by the app and is subject to the
   [DATA.GOV.HK Terms and Conditions](https://data.gov.hk/en/terms-and-conditions).
+- **Lands Department basemap and labels** (`mapapi.geodata.gov.hk`) are © Lands
+  Department, HKSAR Government, used under the
+  [CSDI portal terms](https://portal.csdi.gov.hk) with attribution shown on the map.
+- **Address Lookup Service** (`www.als.gov.hk`) is provided by the Office of the
+  Government Chief Information Officer under its own terms.
 - **OpenStreetMap data** in `data/osm_carparks.json` and `data/osm_entrances.json`,
   and the map tiles, are © OpenStreetMap contributors under the
   [ODbL](https://www.openstreetmap.org/copyright). The non-commercial restriction

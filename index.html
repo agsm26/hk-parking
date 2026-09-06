@@ -2,6 +2,7 @@
 <html lang="zh-HK">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://api.data.gov.hk https://resource.data.one.gov.hk https://www.als.gov.hk https://nominatim.openstreetmap.org; font-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'self'; form-action 'none'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#1f70eb">
@@ -39,6 +40,8 @@ html,body{margin:0;padding:0;height:100%}
 body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"PingFang HK","PingFang TC","Noto Sans HK","Segoe UI",sans-serif;font-size:16px;line-height:1.45;-webkit-text-size-adjust:100%;overscroll-behavior-y:none}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer;border:0;background:none;padding:0;-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+:focus:not(:focus-visible){outline:none}
 a{color:var(--accent)}
 [hidden]{display:none!important}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
@@ -59,10 +62,10 @@ nav.tabs button[aria-current="page"]{color:var(--accent)}
 .searchbox{display:flex;align-items:center;gap:10px;width:100%;min-height:56px;padding:0 14px;border-radius:14px;background:var(--surface);border:1px solid var(--line);font-size:18px;text-align:left}
 .searchbox .ph{color:var(--ink-soft);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .searchbox .val{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.searchbox .loc{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:20px}
+.searchbox .loc{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:20px}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:10px 16px;margin:0 -16px;scrollbar-width:none;scroll-snap-type:x proximity}
 .chips::-webkit-scrollbar{display:none}
-.chip{flex:0 0 auto;min-height:40px;padding:0 14px;border-radius:20px;background:var(--surface);border:1px solid var(--line);font-size:14px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;scroll-snap-align:start}
+.chip{flex:0 0 auto;min-height:44px;padding:0 14px;border-radius:20px;background:var(--surface);border:1px solid var(--line);font-size:14px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;scroll-snap-align:start}
 .chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
 .primary{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:var(--tap);border-radius:12px;background:var(--accent);color:#fff;font-weight:700;font-size:17px;padding:0 16px}
 .secondary{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:var(--tap);border-radius:12px;background:var(--surface);border:1px solid var(--line);font-weight:600;font-size:16px;padding:0 14px}
@@ -113,7 +116,7 @@ footer.attr{padding:20px 0 12px;font-size:12px;color:var(--ink-soft);text-align:
 .sheet-head{display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;background:var(--bg);padding:8px 0 10px;z-index:2}
 .sheet-head .grab{position:absolute;left:50%;top:0;width:38px;height:4px;border-radius:2px;background:var(--line);transform:translateX(-50%)}
 .sheet-head h2{margin:0;font-size:17px;flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sheet-head .quiet{min-width:64px}
+.sheet-head .quiet{min-width:64px;min-height:44px}
 .sheet h1{font-size:24px;margin:8px 0 4px}
 .sub{margin:0 0 4px;font-size:14px;color:var(--ink-soft)}
 .section{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin:12px 0}
@@ -128,6 +131,19 @@ footer.attr{padding:20px 0 12px;font-size:12px;color:var(--ink-soft);text-align:
 .advice{font-size:13px;color:var(--ink-soft)} .advice.warning{color:var(--warn)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(96px + env(safe-area-inset-bottom));z-index:60;background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:22px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center}
 .toast.on{opacity:.96}
+
+/* ---- dialog ---- */
+.dlg{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,14,17,.5)}
+.dlg-box{width:100%;max-width:360px;background:var(--bg);border-radius:16px;padding:18px 16px calc(16px + env(safe-area-inset-bottom));box-shadow:0 10px 40px rgba(0,0,0,.35);max-height:90dvh;overflow-y:auto}
+.dlg-box h2{margin:0 0 6px;font-size:18px}
+.dlg-box .fld{display:flex;flex-direction:column;gap:6px;margin:12px 0}
+.dlg-box label{font-size:13px;color:var(--ink-soft)}
+.dlg-box input,.dlg-box select,.dlg-box textarea{min-height:44px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--surface);font-size:16px;width:100%}
+.dlg-box textarea{resize:vertical;font:inherit}
+.dlg-box .row2{margin-top:14px}
+.primary.danger{background:var(--full,#b82f2f)}
+.offline-bar{background:var(--warn-soft,#fff4e0);color:var(--warn,#b36b00);border:1px solid var(--warn,#b36b00);border-radius:10px;padding:8px 12px;font-size:13px;margin:8px 0}
+.err{font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums;word-break:break-all}
 
 /* ---- search panel ---- */
 .search-panel{position:fixed;inset:0;z-index:55;background:var(--bg);display:none;flex-direction:column;padding-top:env(safe-area-inset-top)}
@@ -146,7 +162,7 @@ footer.attr{padding:20px 0 12px;font-size:12px;color:var(--ink-soft);text-align:
 .form .field{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:6px 0;border-bottom:1px solid var(--line)}
 .form .field:last-child{border-bottom:0}
 .form label{flex:1}
-.form input[type=text],.form input[type=number],.form select{min-height:40px;border:1px solid var(--line);border-radius:10px;padding:0 10px;background:var(--bg);max-width:46%}
+.form input[type=text],.form input[type=number],.form select{min-height:44px;border:1px solid var(--line);border-radius:10px;padding:0 10px;background:var(--bg);max-width:46%}
 .form input[type=number]{width:110px;text-align:right}
 .switch{position:relative;width:52px;height:32px;border-radius:16px;background:var(--line);flex:0 0 auto;transition:background .15s}
 .switch::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:left .15s}
@@ -155,7 +171,7 @@ footer.attr{padding:20px 0 12px;font-size:12px;color:var(--ink-soft);text-align:
 .list-item .txt{flex:1;min-width:0}
 .list-item .txt small{display:block;color:var(--ink-soft);font-size:12px}
 .list-item .act{display:flex;gap:6px}
-.list-item .act button{min-width:40px;min-height:40px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-size:14px;padding:0 10px}
+.list-item .act button{min-width:44px;min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-size:14px;padding:0 10px}
 .timer{font-variant-numeric:tabular-nums;font-size:28px;font-weight:700}
 .details-text{white-space:pre-line}
 
@@ -197,7 +213,8 @@ footer.attr{padding:20px 0 12px;font-size:12px;color:var(--ink-soft);text-align:
 <div class="search-panel" id="search" role="dialog" aria-modal="true"></div>
 <div class="scrim" id="scrim"></div>
 <section class="sheet" id="sheet" role="dialog" aria-modal="true" hidden></section>
-<div class="toast" id="toast" role="status"></div>
+<div class="dlg" id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <script src="vendor/leaflet.js"></script>
 <script type="module" src="app.js"></script>

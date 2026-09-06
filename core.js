@@ -763,3 +763,62 @@ export function districtsMatching(query) {
   const key = normText(query); if (!key) return [];
   return DISTRICTS.filter(d => [...Object.values(d.name), ...d.aliases].map(normText).some(x => x.startsWith(key) || (key.startsWith(x) && x.length >= 2)));
 }
+
+// ====================================================================
+// Backup code, error log, staleness, Address Lookup Service parsing.
+// ====================================================================
+
+// Everything a user would be sad to lose, in one copyable code. Feed
+// payloads are deliberately excluded: they are re-downloaded.
+export const BACKUP_KEYS = ["favs", "vehicles", "activeVehicleId", "places", "searches", "recents", "filter", "sort", "lang", "navApp", "alerts"];
+const BACKUP_PREFIX = "CPHK1.";
+const utf8ToB64url = (s) => { const bytes = new TextEncoder().encode(s); let bin = ""; for (const b of bytes) bin += String.fromCharCode(b); return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
+const b64urlToUtf8 = (s) => { const b = s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - s.length % 4) % 4); const bin = atob(b); const bytes = Uint8Array.from(bin, c => c.charCodeAt(0)); return new TextDecoder().decode(bytes); };
+export function backupEncode(state, now = Date.now()) {
+  const data = {}; for (const k of BACKUP_KEYS) if (state[k] !== undefined) data[k] = state[k];
+  return BACKUP_PREFIX + utf8ToB64url(JSON.stringify({ app: "carparkhk", v: 1, at: now, data }));
+}
+export function backupDecode(code) {
+  const s = String(code || "").trim().replace(/\s+/g, "");
+  if (!s.startsWith(BACKUP_PREFIX)) return { ok: false, error: "notBackup" };
+  try {
+    const doc = JSON.parse(b64urlToUtf8(s.slice(BACKUP_PREFIX.length)));
+    if (doc.app !== "carparkhk" || typeof doc.data !== "object" || !doc.data) return { ok: false, error: "notBackup" };
+    const data = {}; for (const k of BACKUP_KEYS) if (doc.data[k] !== undefined) data[k] = doc.data[k];
+    return { ok: true, at: doc.at || null, data };
+  } catch { return { ok: false, error: "corrupt" }; }
+}
+export const backupSummary = (data) => ({ favs: (data.favs || []).length, vehicles: (data.vehicles || []).length, places: (data.places || []).length });
+
+// Newest first, capped; kept on the device so a user can read what failed.
+export function pushError(log, entry, cap = 10) { return [entry, ...(Array.isArray(log) ? log : [])].slice(0, cap); }
+
+// Operator facts copied by hand go stale. Flag after `days`.
+export function factsStale(checkedOn, now = Date.now(), days = 180) {
+  const t = Date.parse(checkedOn); return Number.isFinite(t) && now - t > days * 86400e3;
+}
+
+// Address Lookup Service (www.als.gov.hk) → places for the search list.
+// Returns { title, subtitle, coordinate, kind: "maps" } in the asked language,
+// deduplicated by position, Hong Kong only. Never throws on odd shapes.
+export function alsPlaces(json, lang = "en") {
+  const out = [], seen = new Set();
+  for (const s of json?.SuggestedAddress || []) {
+    const p = s?.Address?.PremisesAddress; if (!p) continue;
+    const g0 = p.GeospatialInformation, g = Array.isArray(g0) ? g0[0] : g0;
+    const c = { lat: parseFloat(g?.Latitude), lng: parseFloat(g?.Longitude) };
+    if (!Number.isFinite(c.lat) || !Number.isFinite(c.lng) || !inHK(c)) continue;
+    const key = c.lat.toFixed(4) + "," + c.lng.toFixed(4); if (seen.has(key)) continue; seen.add(key);
+    const en = p.EngPremisesAddress || {}, tc = p.ChiPremisesAddress || {};
+    const enStreet = [en.EngStreet?.BuildingNoFrom, titleCase(en.EngStreet?.StreetName)].filter(Boolean).join(" ");
+    const tcStreet = [tc.ChiStreet?.StreetName, tc.ChiStreet?.BuildingNoFrom ? tc.ChiStreet.BuildingNoFrom + "號" : ""].filter(Boolean).join("");
+    const enTitle = titleCase(en.BuildingName) || titleCase(en.EngEstate?.EstateName) || enStreet;
+    const tcTitle = tc.BuildingName || tc.ChiEstate?.EstateName || tcStreet;
+    const enSub = [enStreet && enStreet !== enTitle ? enStreet : null, titleCase(en.EngDistrict?.DcDistrict)].filter(Boolean).join(", ");
+    const tcSub = [tcStreet && tcStreet !== tcTitle ? tcStreet : null, tc.ChiDistrict?.DcDistrict].filter(Boolean).join("，");
+    const title = lang === "en" ? (enTitle || tcTitle) : (tcTitle || enTitle);
+    if (!title) continue;
+    out.push({ title, subtitle: lang === "en" ? enSub : tcSub, coordinate: c, kind: "maps", score: s?.ValidationInformation?.Score ?? 0 });
+  }
+  return out.sort((a, b) => b.score - a.score);   // best match first; ALS itself does not order by score
+}

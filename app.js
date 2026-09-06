@@ -9,7 +9,18 @@ const FEEDS = {
   meterInfo: "https://resource.data.one.gov.hk/td/psiparkingspaces/spaceinfo/parkingspaces.csv",
   meterOcc: "https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv",
 };
-const REFRESH = { info: 6 * 3600e3, meters: 24 * 3600e3, vacancy: 60e3, meterVac: 120e3 };
+const REFRESH = { info: 6 * 3600e3, meters: 24 * 3600e3, metersSnapshot: 7 * 86400e3, vacancy: 60e3, meterVac: 120e3 };
+const APP_VERSION = "2026-09-06b";                       // stamped by bump.py together with sw.js
+const REPO_URL = "https://github.com/agsm26/hk-parking";  // issue reports go here
+const FETCH_TIMEOUT = 8000;
+// Map tiles: the Lands Department basemap through the CSDI portal (free, no
+// key, Hong Kong only, labels in Chinese or English) with OpenStreetMap as the
+// fallback if the government service is down.
+const TILES = {
+  gov: { base: "https://mapapi.geodata.gov.hk/gs/api/v1.0.0/xyz/basemap/wgs84/{z}/{x}/{y}.png", label: (lang) => `https://mapapi.geodata.gov.hk/gs/api/v1.0.0/xyz/label/hk/${lang === "en" ? "en" : "tc"}/wgs84/{z}/{x}/{y}.png`, attribution: '<a href="https://portal.csdi.gov.hk" target="_blank" rel="noopener">© Lands Department 地政總署</a>' },
+  osm: { base: "https://tile.openstreetmap.org/{z}/{x}/{y}.png", attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors' },
+};
+let tileProvider = "gov";
 const qs = new URLSearchParams(location.search);
 
 // ------------------------------------------------------------- storage ----
@@ -52,6 +63,7 @@ const S = {
   ranked: [], all: [], lastError: null, phase: "idle", busy: false,
   geo: { pos: null, status: "unknown", error: null },
   now: Date.now(), fixed: null,
+  errors: LS.get("errors", []), online: navigator.onLine !== false, onboarded: LS.get("onboarded", false), metersFromSnapshot: false,
 };
 if (qs.get("lat") && qs.get("lng")) S.fixed = { lat: parseFloat(qs.get("lat")), lng: parseFloat(qs.get("lng")) };
 const vehicle = () => S.vehicles.find(v => v.id === S.activeVehicleId) || S.vehicles[0] || null;
@@ -59,11 +71,108 @@ const L_ = (en, tc) => C.pick(S.lang, en, tc);
 const T_ = (lt) => C.t(S.lang, lt);
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const save = (k) => LS.set(k, S[k]);
+const save = (k) => { LS.set(k, S[k]); if (!STORAGE_OK && !save.warned) { save.warned = true; toast(L_("Not saved: this browser blocks storage", "未能儲存：瀏覽器封鎖了儲存")); } };
 let toastT;
 function toast(msg) { const el = $("toast"); el.textContent = msg; el.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("on"), 2200); }
+// Saving works only if this browser lets pages store data. Safari's "Block All
+// Cookies" and some private modes refuse localStorage; iPhone also keeps
+// separate storage for Safari and for the Home Screen app, so saves made in
+// one do not appear in the other.
+const STORAGE_OK = (() => { try { localStorage.setItem("chk__probe", "1"); const ok = localStorage.getItem("chk__probe") === "1"; localStorage.removeItem("chk__probe"); return ok; } catch { return false; } })();
+const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const IS_INSTALLED = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+function storageTip() {
+  if (!STORAGE_OK) return `<div class="card" style="border-color:var(--warn,#b36b00)"><h2 style="margin:0 0 6px;font-size:16px">⚠️ ${esc(L_("This browser is not saving", "呢個瀏覽器唔會儲存"))}</h2><p class="note">${esc(L_("Favourites and vehicles cannot be kept because storage is blocked. On iPhone: Settings ▸ Apps ▸ Safari ▸ turn off \"Block All Cookies\". Private Browsing also discards saves when the tab closes.", "儲存功能被封鎖，常用同車輛資料無法保留。iPhone：設定 ▸ App ▸ Safari ▸ 關閉「封鎖所有 Cookie」。私密瀏覽亦會喺關閉分頁後清除。"))}</p></div>`;
+  if (IS_IOS && !IS_INSTALLED()) return `<p class="note">💡 ${esc(L_("Saving here in Safari and in the Home Screen app are kept separately on iPhone. Add to Home Screen first (Share ▸ Add to Home Screen), then save your car and favourites inside that app so they stay.", "iPhone 會將 Safari 同主畫面 app 嘅儲存分開。請先加到主畫面（分享 ▸ 加入主畫面），再喺該 app 內儲存車輛同常用，資料就會保留。"))}</p>`;
+  return "";
+}
 
 // ---------------------------------------------------------- origin -------
+// ---- in-app dialog (replaces prompt/confirm/alert, which look broken in a
+// Home Screen app and cannot be translated or styled) ----
+let dlgResolve = null, dlgOpener = null;
+function dialog({ title, text = "", fields = [], ok, cancel, okOnly = false, danger = false }) {
+  return new Promise(resolve => {
+    closeDialog(null);
+    const el = $("dlg"); dlgOpener = document.activeElement; dlgResolve = resolve;
+    const fld = fields.map(f => { const id = "dlg-" + f.id, lab = `<label for="${id}">${esc(f.label)}</label>`;
+      if (f.type === "select") return `<div class="fld">${lab}<select id="${id}">${f.options.map(o => `<option value="${esc(o[0])}"${o[0] === f.value ? " selected" : ""}>${esc(o[1])}</option>`).join("")}</select></div>`;
+      if (f.type === "textarea") return `<div class="fld">${lab}<textarea id="${id}" rows="3" placeholder="${esc(f.placeholder || "")}">${esc(f.value || "")}</textarea></div>`;
+      return `<div class="fld">${lab}<input id="${id}" type="${f.type || "text"}" placeholder="${esc(f.placeholder || "")}" value="${esc(f.value ?? "")}" autocomplete="off"></div>`; }).join("");
+    el.innerHTML = `<div class="dlg-box"><h2 id="dlg-title">${esc(title)}</h2>${text ? `<p class="note">${esc(text)}</p>` : ""}${fld}<div class="row2">${okOnly ? "" : `<button class="secondary" id="dlg-cancel">${esc(cancel || L_("Cancel", "取消"))}</button>`}<button class="primary${danger ? " danger" : ""}" id="dlg-ok">${esc(ok || L_("OK", "確定"))}</button></div></div>`;
+    el.hidden = false;
+    const values = () => Object.fromEntries(fields.map(f => [f.id, $("dlg-" + f.id).value]));
+    $("dlg-ok").onclick = () => closeDialog(fields.length ? values() : true);
+    const c = $("dlg-cancel"); if (c) c.onclick = () => closeDialog(null);
+    el.onclick = (e) => { if (e.target === el && !okOnly) closeDialog(null); };
+    el.onkeydown = (e) => { if (e.key === "Enter" && !["TEXTAREA", "SELECT"].includes(e.target.tagName)) { e.preventDefault(); $("dlg-ok").click(); } };
+    setTimeout(() => (el.querySelector("input, select, textarea") || $("dlg-ok")).focus(), 30);
+  });
+}
+function closeDialog(result) {
+  const el = $("dlg"); if (el.hidden && !dlgResolve) return;
+  el.hidden = true; el.innerHTML = ""; const r = dlgResolve; dlgResolve = null;
+  if (dlgOpener && document.contains(dlgOpener)) dlgOpener.focus({ preventScroll: true }); dlgOpener = null;
+  if (r) r(result);
+}
+// Keyboard and switch-control users: keep Tab inside the open layer, and put
+// focus back where it came from when the layer closes.
+let sheetOpener = null;
+function focusSheet() { const sh = $("sheet"); if (!sh.contains(document.activeElement)) sheetOpener = document.activeElement; setTimeout(() => sh.querySelector("[data-close]")?.focus({ preventScroll: true }), 80); }
+function trapTab(container, e) {
+  const f = [...container.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter(x => !x.disabled && x.offsetParent !== null);
+  if (!f.length) return; const first = f[0], last = f[f.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+}
+
+// ---- backup & restore: the only way data crosses phones, or Safari ↔ Home Screen ----
+async function backupCode() {
+  const code = C.backupEncode(S), n = C.backupSummary(S);
+  const text = L_(`搵車位 backup (${n.favs} favourites, ${n.vehicles} vehicles, ${n.places} places). On the other phone open the app → More → Restore and paste this code:\n\n${code}`, `搵車位 備份（${n.favs} 個常用、${n.vehicles} 架車、${n.places} 個地點）。喺另一部手機開 app → 更多 → 還原，貼上此代碼：\n\n${code}`);
+  if (navigator.share) { try { await navigator.share({ text }); } catch {} return; }
+  try { await navigator.clipboard.writeText(text); toast(L_("Backup code copied", "已複製備份代碼")); }
+  catch { await dialog({ title: L_("Backup code", "備份代碼"), fields: [{ id: "code", label: L_("Copy this text", "複製呢段文字"), type: "textarea", value: code }], okOnly: true }); }
+}
+async function restoreCode() {
+  const v = await dialog({ title: L_("Restore from backup", "由備份還原"), text: L_("Paste the backup code from your other phone or from Safari. Favourites, vehicles and places on this device will be replaced.", "貼上另一部手機或 Safari 嘅備份代碼。呢部機上嘅常用、車輛同地點會被取代。"), fields: [{ id: "code", label: L_("Backup code", "備份代碼"), type: "textarea", placeholder: "CPHK1.…" }], ok: L_("Restore", "還原") });
+  if (!v) return;
+  const m = String(v.code).match(/CPHK1\.[A-Za-z0-9_\-\s]+/), r = C.backupDecode(m ? m[0] : v.code);
+  if (!r.ok) { toast(r.error === "corrupt" ? L_("That code is damaged", "代碼已損壞") : L_("That is not a backup code", "唔係備份代碼")); return; }
+  for (const [k, val] of Object.entries(r.data)) { S[k] = val; save(k); }
+  S.filter = { ...C.DEFAULT_FILTER(), ...(S.filter || {}) };
+  document.documentElement.lang = S.lang === "en" ? "en-HK" : "zh-HK";
+  const n = C.backupSummary(r.data); rerank(); render();
+  toast(L_(`Restored ${n.favs} favourites, ${n.vehicles} vehicles, ${n.places} places`, `已還原 ${n.favs} 個常用、${n.vehicles} 架車、${n.places} 個地點`));
+}
+
+// ---- issue reports reach the developer as a prefilled GitHub issue (no server, no e-mail exposed) ----
+function sendReport(r) {
+  if (!r) return; const cp = S.carparks.find(c => c.id === r.id);
+  const title = `[${r.kind}] ${cp ? T_(cp.name) : r.id}`;
+  const body = [`Car park: ${cp ? `${cp.name.en || ""} / ${cp.name.tc || ""}` : "(not in current list)"}`, `ID: ${r.id}`, `Issue: ${r.kind}`, `Details: ${r.details || "-"}`, `Reported: ${new Date(r.at).toISOString()}`, `App: ${APP_VERSION} (web)`].join("\n");
+  r.sentAt = Date.now(); save("reports");
+  window.open(`${REPO_URL}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`, "_blank", "noopener");
+}
+
+// ---- base map layers with automatic fallback ----
+function addBaseLayers(m) {
+  const p = TILES[tileProvider], layers = [L.tileLayer(p.base, { maxZoom: 19, attribution: p.attribution })];
+  if (p.label) layers.push(L.tileLayer(p.label(S.lang), { maxZoom: 19 }));
+  layers.forEach(l => l.addTo(m));
+  let errs = 0, loads = 0;
+  layers[0].on("tileload", () => { loads++; });
+  layers[0].on("tileerror", () => {
+    if (++errs >= 8 && loads === 0 && tileProvider === "gov") {
+      tileProvider = "osm"; logError("mapapi.geodata.gov.hk", "tiles failed, switched to OpenStreetMap");
+      for (const mm of [map, miniMap]) if (mm) relayer(mm);
+      toast(L_("Government map unavailable, using OpenStreetMap", "政府地圖暫時用唔到，改用 OpenStreetMap"));
+    }
+  });
+  return layers;
+}
+function relayer(m) { m.eachLayer(l => { if (l instanceof L.TileLayer) m.removeLayer(l); }); addBaseLayers(m); }
+
 function originPoint() {
   if (S.origin.type === "place") { const c = S.origin.place?.coordinate; return c && C.inHK(c) ? c : null; }
   const p = S.fixed || S.geo.pos; return p && C.inHK(p) ? p : null;
@@ -83,8 +192,24 @@ function startGeo() {
 }
 
 // ------------------------------------------------------------ loading ----
-async function fetchJSON(url) { const r = await fetch(url, { cache: "no-store" }); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }
-async function fetchText(url) { const r = await fetch(url, { cache: "no-store" }); if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); }
+function logError(url, msg) { S.errors = C.pushError(S.errors, { at: Date.now(), url: String(url).replace(/^https?:\/\//, "").slice(0, 70), msg: String(msg).slice(0, 120) }); save("errors"); }
+// Every network call goes through here: a hard timeout (a hung government
+// response used to freeze the refresh silently), one retry, and a local log
+// the user can read under More ▸ Diagnostics.
+async function fetchRaw(url, opts = {}) {
+  const { timeout = FETCH_TIMEOUT, retries = 1, ...init } = opts;
+  for (let attempt = 0; ; attempt++) {
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), timeout);
+    try { const r = await fetch(url, { cache: "no-store", ...init, signal: ctl.signal }); if (!r.ok) throw new Error("HTTP " + r.status); return r; }
+    catch (e) {
+      const msg = e.name === "AbortError" ? `timeout ${timeout / 1000}s` : (e.message || String(e));
+      if (attempt >= retries || !S.online) { logError(url, msg); throw new Error(msg); }
+      await new Promise(res => setTimeout(res, 700 * (attempt + 1)));
+    } finally { clearTimeout(timer); }
+  }
+}
+async function fetchJSON(url, opts) { return (await fetchRaw(url, opts)).json(); }
+async function fetchText(url, opts) { return (await fetchRaw(url, opts)).text(); }
 
 async function loadStatic() {
   if (S.static) return;
@@ -115,12 +240,18 @@ async function loadInfo(force) {
 
 async function loadMeters(force) {
   const cached = await IDB.get("meters");
-  if (cached && !S.meters.zones.length) { S.meters = { zones: cached.zones, index: cached.index }; S.metersAt = cached.at; }
-  if (!force && S.metersAt && Date.now() - S.metersAt < REFRESH.meters && S.meters.zones.length) return;
+  if (cached && !S.meters.zones.length) { S.meters = { zones: cached.zones, index: cached.index }; S.metersAt = cached.at; S.metersFromSnapshot = !!cached.snapshot; }
+  if (!S.meters.zones.length) {
+    // Bundled snapshot (1.7 MB, cached by the service worker) instead of the
+    // 4.8 MB government CSV on first open. The CSV is fetched once a week.
+    try { const snap = await fetchJSON("data/meter_zones.json"); if (snap.zones?.length) { S.meters = { zones: snap.zones, index: snap.index }; S.metersAt = snap.at; S.metersFromSnapshot = true; await IDB.set("meters", { ...S.meters, at: snap.at, snapshot: true }); } } catch {}
+  }
+  const age = S.metersAt ? Date.now() - S.metersAt : Infinity;
+  if (!force && S.meters.zones.length && age < (S.metersFromSnapshot ? REFRESH.metersSnapshot : REFRESH.meters)) return;
   try {
-    const text = await fetchText(FEEDS.meterInfo);
+    const text = await fetchText(FEEDS.meterInfo, { timeout: 60e3, retries: 0 });
     const m = C.meterZones(text);
-    if (m.zones.length) { S.meters = m; S.metersAt = Date.now(); await IDB.set("meters", { ...m, at: S.metersAt }); }
+    if (m.zones.length) { S.meters = m; S.metersAt = Date.now(); S.metersFromSnapshot = false; await IDB.set("meters", { ...m, at: S.metersAt }); }
   } catch (e) { /* meters are optional; car parks still work */ }
 }
 
@@ -139,15 +270,17 @@ async function loadVacancy(force) {
 
 async function refresh(force = false) {
   if (S.busy) return; S.busy = true;
+  const all = force === "all";   // "all" re-fetches the big info/meter files too; true = live counts only
+  if (!S.online && S.carparks.length) { S.busy = false; S.now = Date.now(); rerank(); render(); return; }
   if (!S.carparks.length) S.phase = "loading";
   render();
   try {
     await loadStatic();
-    await loadInfo(force);
+    await loadInfo(all);
     rebuildCarParks(); rerank(); render();
-    await loadMeters(force);
+    await loadMeters(all);
     rebuildCarParks();
-    await loadVacancy(force);
+    await loadVacancy(!!force);
   } finally {
     S.busy = false; S.now = Date.now();
     S.phase = S.carparks.length ? "loaded" : (S.lastError ? "failed" : "loaded");
@@ -210,7 +343,7 @@ function cardHTML(r, extra = "") {
   if (!C.hasEntrance(cp)) tags.push(`<span class="tag">📍 ${esc(L_("Location approximate", "位置為約略"))}</span>`);
   return `<button class="card ${extra}" data-cp="${esc(cp.id)}">
     <div class="card-top"><div class="card-name"><h2>${fav ? "★ " : ""}${esc(T_(cp.name))}</h2><p>${esc(T_(cp.address))}</p>
-      <div class="meta">${r.dist != null ? `<span>➤ ${esc(C.fmtDist(r.dist, S.lang))}</span>` : ""}${freshHTML(r)}</div></div>${badge(r)}</div>
+      <div class="meta">${r.dist != null ? `<span title="${esc(L_("Straight-line distance", "直線距離"))}">➤ ${esc(C.fmtDist(r.dist, S.lang))}</span>` : ""}${freshHTML(r)}</div></div>${badge(r)}</div>
     <div class="tags">${tags.join("")}</div></button>`;
 }
 const fmtHourly = (hkd, est) => { const v = Number.isInteger(hkd) ? `$${hkd}` : `$${hkd.toFixed(1)}`; const b = L_(`${v}/hr`, `${v}/小時`); return est ? L_(`${b} est.`, `約 ${b}`) : b; };
@@ -224,6 +357,7 @@ function renderFind() {
   const el = $("panel-find");
   const o = originPoint(), reason = emptyReason(), r0 = recommended();
   let body = "";
+  const offlineBar = !S.online ? `<div class="offline-bar" role="status">📡 ${esc(L_("You're offline. Showing the last data received; counts may be out of date.", "你而家離線。顯示最後收到嘅資料，數字可能已過時。"))}</div>` : "";
   if (reason === "loading") body = `<div class="state"><div class="ic">⏳</div><p>${esc(L_("Loading live car park data…", "載入緊即時車位資料…"))}</p></div>`;
   else if (reason) body = emptyStateHTML(reason);
   else {
@@ -242,9 +376,9 @@ function renderFind() {
     <button class="searchbox" id="open-search"><span aria-hidden="true">🔍</span>${S.origin.type === "place" ? `<span class="val">${esc(originLabel())}</span><span class="loc" id="use-loc" role="button" aria-label="${esc(L_("Use current location", "用而家位置"))}">➤</span>` : `<span class="ph">${esc(L_("Where are you going?", "你去邊度？"))}</span>`}</button>
     ${chipsHTML(C.CHIPS.map(c => c.id))}
     <button class="primary" id="find-now">Ⓟ ${esc(L_("Find Parking Now", "即刻搵位"))}</button>
-    <div class="status"><span>${S.vacFromCache ? "💾" : "●"} ${esc(lastUpdatedText())}</span><span><button data-sort-menu>⇅ ${esc(T_(C.SORT_LABEL[S.sort]))}</button> · <button data-tab="map">🗺 ${esc(L_("Map", "地圖"))}</button></span></div>
-    ${body}
-    <footer class="attr">${esc(L_("Live data: Transport Department via DATA.GOV.HK · Map & other car parks © OpenStreetMap contributors · Estimates only, verify on site.", "即時資料：運輸署（資料一線通）· 地圖及其他停車場 © OpenStreetMap 貢獻者 · 只供參考，以現場為準。"))}</footer>`;
+    <div class="status"><span aria-live="polite">${S.vacFromCache ? "💾" : "●"} ${esc(lastUpdatedText())}</span><span><button data-sort-menu>⇅ ${esc(T_(C.SORT_LABEL[S.sort]))}</button> · <button data-tab="map">🗺 ${esc(L_("Map", "地圖"))}</button></span></div>
+    ${offlineBar}${body}
+    <footer class="attr">${esc(L_("Live data: Transport Department via DATA.GOV.HK · Map © Lands Department (CSDI) · Other car parks © OpenStreetMap contributors · Distances are straight-line, not driving distance · Estimates only, verify on site.", "即時資料：運輸署（資料一線通）· 地圖 © 地政總署（空間數據共享平台）· 其他停車場 © OpenStreetMap 貢獻者 · 距離為直線而非行車距離 · 只供參考，以現場為準。"))}</footer>`;
 }
 
 function emptyStateHTML(reason) {
@@ -252,7 +386,8 @@ function emptyStateHTML(reason) {
   switch (reason) {
     case "outsideHK": return st("🌏", L_("You're outside Hong Kong", "你唔喺香港"), L_("This app covers Hong Kong car parks only. Search a Hong Kong destination to plan ahead.", "呢個 app 只涵蓋香港停車場。可以搜尋香港目的地預先計劃。"), L_("Search a destination", "搜尋目的地"), "search");
     case "denied": return st("📍", L_("Location not available", "攞唔到位置"), L_("Location is off for this app. Search a destination, or allow location in your browser settings.", "定位已關閉。可以搜尋目的地，或者喺瀏覽器設定允許定位。"), L_("Search a destination", "搜尋目的地"), "search");
-    case "noLocation": return st("📍", L_("Where are you?", "你喺邊？"), L_("Allow location to see car parks near you, or search a destination.", "允許定位以顯示附近車位，或者搜尋目的地。"), L_("Allow location", "允許定位"), "locate");
+    case "noLocation": return S.onboarded ? st("📍", L_("Where are you?", "你喺邊？"), L_("Allow location to see car parks near you, or search a destination.", "允許定位以顯示附近車位，或者搜尋目的地。"), L_("Allow location", "允許定位"), "locate")
+      : `<div class="card"><div class="state"><div class="ic" aria-hidden="true">📍</div><h3>${esc(L_("Find spaces near you", "搵附近車位"))}</h3><p>${esc(L_("The app asks for your location to rank car parks by distance. It is used only while the app is open and never leaves this phone.", "app 會要求定位，用嚟按距離排列停車場。只會喺開啟時使用，唔會離開呢部手機。"))}</p><button class="primary" data-act="locate">${esc(L_("Allow location", "允許定位"))}</button><p style="margin:10px 0 0"><button data-act="search" style="color:var(--accent);font-weight:600;min-height:44px">${esc(L_("Search a destination instead", "改為搜尋目的地"))}</button></p></div></div>`;
     case "offline": return st("📡", L_("Can't reach the parking feed", "連唔到車位資料"), L_("Check your connection and try again. Nothing is cached yet.", "請檢查網絡再試。暫時未有快取資料。"), L_("Try again", "再試一次"), "retry");
     case "feedEmpty": return st("📭", L_("No car parks in the feed", "資料庫暫時冇停車場"), L_("The government feed returned nothing. Try again in a minute.", "政府資料暫時冇內容，請稍後再試。"), L_("Try again", "再試一次"), "retry");
     case "noCompatible": return st("🚐", L_("Nothing compatible nearby", "附近冇啱你車嘅車位"), L_("No car park here confirms it fits your vehicle. Show all and check the height yourself?", "附近冇停車場確認啱你架車，可以顯示全部再自己核對限高。"), L_("Show all", "顯示全部"), "resetFilters");
@@ -318,15 +453,15 @@ function openDetail(id) {
       ${cp.photoURL ? `<img src="${esc(cp.photoURL)}" alt="" loading="lazy" style="width:100%;height:140px;object-fit:cover;border-radius:10px;margin-top:10px">` : ""}</div>
     <div class="section"><h3>$ ${esc(L_("Fees", "收費"))}</h3>${feesHTML(fee)}<p class="note">${esc(L_("Fees vary and change. Confirm at the entrance before parking.", "收費或有變動，泊車前請以入口標示為準。"))}</p></div>
     <div class="section"><h3>✓ ${esc(L_("Data sources", "資料來源"))}</h3>${cp.sources.map(s => `<p class="note">${C.providesLive(s) ? "●" : "📄"} ${esc(T_(C.SOURCE_ATTRIBUTION[s] || C.lt(s, s)))}</p>`).join("")}
-      ${cp.factsProvenance ? `<p class="note">${esc(L_("Height, fees and hours as published by ", "限高、收費及時間由 "))}${esc(T_(cp.factsProvenance.publisher))}${cp.factsProvenance.checkedOn ? esc(L_(`, checked ${cp.factsProvenance.checkedOn}`, `公佈，核對日期 ${cp.factsProvenance.checkedOn}`)) : ""}${cp.factsProvenance.sourceURL ? ` · <a href="${esc(cp.factsProvenance.sourceURL)}" target="_blank" rel="noopener">${esc(new URL(cp.factsProvenance.sourceURL).hostname)}</a>` : ""}</p>` : ""}
+      ${cp.factsProvenance ? `<p class="note">${esc(L_("Height, fees and hours as published by ", "限高、收費及時間由 "))}${esc(T_(cp.factsProvenance.publisher))}${cp.factsProvenance.checkedOn ? esc(L_(`, checked ${cp.factsProvenance.checkedOn}`, `公佈，核對日期 ${cp.factsProvenance.checkedOn}`)) : ""}${C.factsStale(cp.factsProvenance.checkedOn, S.now) ? `<span style="color:var(--warn)"> ⚠ ${esc(L_("checked over 6 months ago, verify on site", "核對已超過六個月，請以現場為準"))}</span>` : ""}${cp.factsProvenance.sourceURL ? ` · <a href="${esc(cp.factsProvenance.sourceURL)}" target="_blank" rel="noopener">${esc(new URL(cp.factsProvenance.sourceURL).hostname)}</a>` : ""}</p>` : ""}
       ${cp.isEnriched ? `<p class="note">${esc(L_("Live availability, fees and facilities are operator-provided through the government feed.", "空位、收費同設施由營運商經政府平台提供。"))}</p>` : ""}</div>`;
-  $("sheet").hidden = false; requestAnimationFrame(() => { $("sheet").classList.add("on"); $("scrim").classList.add("on"); });
+  $("sheet").hidden = false; requestAnimationFrame(() => { $("sheet").classList.add("on"); $("scrim").classList.add("on"); }); focusSheet();
   $("sheet").scrollTop = 0;
   setTimeout(() => {
     if (miniMap) { miniMap.remove(); miniMap = null; }
     const p = C.navPoint(cp);
-    miniMap = L.map("minimap", { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, touchZoom: false, doubleClickZoom: false }).setView([p.lat, p.lng], 17);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(miniMap);
+    miniMap = L.map("minimap", { zoomControl: false, attributionControl: true, dragging: false, scrollWheelZoom: false, touchZoom: false, doubleClickZoom: false }).setView([p.lat, p.lng], 17);
+    miniMap.attributionControl.setPrefix(false); addBaseLayers(miniMap);
     L.circleMarker([cp.lat, cp.lng], { radius: 7, color: "#fff", weight: 2, fillColor: "#6b7379", fillOpacity: 1 }).addTo(miniMap);
     if (cp.entrance) L.circleMarker([cp.entrance.lat, cp.entrance.lng], { radius: 8, color: "#fff", weight: 2, fillColor: "#1f70eb", fillOpacity: 1 }).addTo(miniMap);
   }, 60);
@@ -341,7 +476,7 @@ function feesHTML(fee) {
   if (fee.note) h += `<p class="details-text" style="font-size:14px">${esc(fee.note)}</p>`;
   return h;
 }
-function closeSheet() { $("sheet").classList.remove("on"); $("scrim").classList.remove("on"); setTimeout(() => { $("sheet").hidden = true; if (miniMap) { miniMap.remove(); miniMap = null; } }, 220); sheetFor = null; if (location.hash.startsWith("#cp/")) history.replaceState(null, "", "#" + S.tab); }
+function closeSheet() { $("sheet").classList.remove("on"); $("scrim").classList.remove("on"); setTimeout(() => { $("sheet").hidden = true; if (miniMap) { miniMap.remove(); miniMap = null; } }, 220); sheetFor = null; if (sheetOpener && document.contains(sheetOpener)) sheetOpener.focus({ preventScroll: true }); sheetOpener = null; if (location.hash.startsWith("#cp/")) history.replaceState(null, "", "#" + S.tab); }
 
 // ---------------------------------------------------------- actions ------
 function navigateTo(id) {
@@ -383,7 +518,7 @@ function openSearch(mode = "dest") {
   const el = $("search"); el.classList.add("on");
   el.innerHTML = `<div class="bar"><input id="q" type="search" placeholder="${esc(L_("Place, mall, district or car park", "地點、商場、地區或停車場"))}" autocomplete="off" enterkeyhint="search" aria-label="${esc(L_("Search", "搜尋"))}"><button class="quiet" id="q-cancel">${esc(L_("Cancel", "取消"))}</button></div><div class="list" id="q-list"></div>`;
   renderSearchList(""); setTimeout(() => $("q").focus(), 50);
-  $("q").addEventListener("input", e => { const q = e.target.value; renderSearchList(q); clearTimeout(suggestT); if (q.trim().length >= 3) suggestT = setTimeout(() => nominatim(q), 350); });
+  $("q").addEventListener("input", e => { const q = e.target.value; renderSearchList(q); clearTimeout(suggestT); if (q.trim().length >= 3) suggestT = setTimeout(() => placeSearch(q), 350); });
   $("q").addEventListener("keydown", e => { if (e.key === "Enter") { const first = $("q-list").querySelector("[data-pick]"); if (first) first.click(); } });
   $("q-cancel").onclick = closeSearch;
 }
@@ -407,24 +542,33 @@ function renderSearchList(q) {
 }
 async function nominatim(q) {
   const tries = [q, C.toTrad(q) + " 香港", q + " Hong Kong"];
-  for (const s of [...new Set(tries)]) {
+  for (const t of [...new Set(tries)]) {
     try {
-      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=hk&accept-language=${S.lang === "en" ? "en" : "zh-TW"}&q=${encodeURIComponent(s)}`, { headers: { Accept: "application/json" } });
-      const j = await r.json();
+      const j = await fetchJSON(`https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=hk&accept-language=${S.lang === "en" ? "en" : "zh-TW"}&q=${encodeURIComponent(t)}`, { headers: { Accept: "application/json" }, timeout: 6000, retries: 0 });
       const res = (j || []).map(x => ({ title: (x.display_name || q).split(",")[0], subtitle: (x.display_name || "").split(",").slice(1, 3).join(",").trim(), coordinate: { lat: +x.lat, lng: +x.lon }, kind: "maps" })).filter(x => C.inHK(x.coordinate));
-      if (res.length) { mapsResults = res; if ($("q")?.value === q) renderSearchList(q); return; }
+      if (res.length) return res;
     } catch {}
   }
+  return [];
+}
+// Government Address Lookup Service first: free, Hong Kong only, knows every
+// building and estate by its Chinese and English name. OpenStreetMap's
+// Nominatim (a volunteer service with a strict rate limit) only as fallback.
+async function placeSearch(q) {
+  let res = [];
+  try { const j = await fetchJSON(`https://www.als.gov.hk/lookup?q=${encodeURIComponent(q)}&n=6`, { headers: { Accept: "application/json" }, timeout: 6000, retries: 0 }); res = C.alsPlaces(j, S.lang); } catch {}
+  if (!res.length) res = await nominatim(q);
+  if ($("q")?.value === q) { mapsResults = res; renderSearchList(q); }
 }
 function pickSearch(v) {
   const done = (place) => {
-    if (!place.coordinate || !C.inHK(place.coordinate)) { alert(L_(`${place.title} is not in Hong Kong. This app covers Hong Kong car parks only.`, `${place.title}唔喺香港。呢個 app 只涵蓋香港停車場。`)); return; }
+    if (!place.coordinate || !C.inHK(place.coordinate)) { dialog({ title: L_("Outside Hong Kong", "唔喺香港"), text: L_(`${place.title} is not in Hong Kong. This app covers Hong Kong car parks only.`, `${place.title}唔喺香港。呢個 app 只涵蓋香港停車場。`), okOnly: true }); return; }
     if (searchMode && searchMode.pick) { searchMode.pick(place); closeSearch(); return; }
     S.origin = { type: "place", place }; save("origin");
     if (place.kind !== "district") { const key = place.title + "|" + (place.subtitle || ""); S.searches = [{ key, title: place.title, subtitle: place.subtitle || "", coordinate: place.coordinate, kind: place.kind }, ...S.searches.filter(s => s.key !== key)].slice(0, 8); save("searches"); }
     closeSearch(); rerank(); render(); if (S.tab === "map") mapCentreOn(place.coordinate);
   };
-  if (v === "current") { S.origin = { type: "current" }; save("origin"); startGeo(); closeSearch(); rerank(); render(); return; }
+  if (v === "current") { S.origin = { type: "current" }; save("origin"); S.onboarded = true; save("onboarded"); startGeo(); closeSearch(); rerank(); render(); return; }
   const [kind, rest] = [v.slice(0, v.indexOf(":")), v.slice(v.indexOf(":") + 1)];
   if (kind === "cp") { const cp = S.carparks.find(c => c.id === rest); if (cp) done({ title: T_(cp.name), subtitle: T_(cp.address), coordinate: { lat: cp.lat, lng: cp.lng }, kind: "carPark", id: cp.id }); }
   else if (kind === "district") { const d = C.districtById(rest); const pts = S.carparks.filter(c => c.district === rest); const c = pts.length ? { lat: pts.reduce((a, p) => a + p.lat, 0) / pts.length, lng: pts.reduce((a, p) => a + p.lng, 0) / pts.length } : C.HK.centre;
@@ -440,7 +584,7 @@ function ensureMap() {
   if (map) return;
   const b = L.latLngBounds([C.HK.minLat, C.HK.minLng], [C.HK.maxLat, C.HK.maxLng]);
   map = L.map("map", { preferCanvas: true, zoomControl: false, maxBounds: b, maxBoundsViscosity: 1.0, minZoom: 10, maxZoom: 19 }).setView([C.HK.centre.lat, C.HK.centre.lng], 11);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
+  addBaseLayers(map);
   markerLayer = L.layerGroup().addTo(map); meLayer = L.layerGroup().addTo(map);
   let t; map.on("moveend zoomend", () => { clearTimeout(t); t = setTimeout(paintMarkers, 150); });
 }
@@ -490,6 +634,7 @@ function renderSaved() {
       <p style="margin:8px 0 0"><button data-cp="${esc(s.id)}" style="color:var(--accent);font-weight:600;min-height:40px">${esc(L_("Car park details", "停車場詳情"))}</button></p></div>`;
     clearInterval(tick); tick = setInterval(() => { const t = $("timer"); if (t && S.session) t.textContent = fmtDur(Date.now() - S.session.startedAt); else clearInterval(tick); }, 1000);
   } else if (S.lastSession) h += `<div class="sect"><span>${esc(L_("Last parked", "上次泊車"))}</span></div><button class="list-item" data-cp="${esc(S.lastSession.id)}"><span>Ⓟ</span><span class="txt">${esc(T_(S.lastSession.name))}<small>${new Date(S.lastSession.startedAt).toLocaleString(S.lang === "en" ? "en-HK" : "zh-HK")}</small></span></button>`;
+  h += storageTip();
   h += `<div class="sect"><span>★ ${esc(L_("Favourite car parks", "常用停車場"))}</span></div>`;
   const favs = [...S.favs].sort((a, b) => (b.pinned - a.pinned) || (b.at - a.at));
   if (!favs.length) h += `<p class="note">${esc(L_("Tap the star on any car park to keep it here.", "喺任何停車場撳星星就會存喺度。"))}</p>`;
@@ -512,7 +657,7 @@ const fmtDur = (ms) => { const s = Math.floor(ms / 1000); return `${String(Math.
 
 // ----------------------------------------------------------- vehicle -----
 function renderVehicle() {
-  const el = $("panel-vehicle"); let h = `<h1>${esc(L_("Vehicle", "車輛"))}</h1>`;
+  const el = $("panel-vehicle"); let h = `<h1>${esc(L_("Vehicle", "車輛"))}</h1>` + storageTip();
   if (!S.vehicles.length) h += `<div class="card"><h2 style="margin:0 0 6px;font-size:17px">${esc(L_("Add your vehicle", "加入你架車"))}</h2><p class="note">${esc(L_("Height and type are used to warn about low clearances and hide car parks with no spaces for your vehicle. Stored on this device only.", "車高同車種用嚟提醒限高，同隱藏冇你車種車位嘅停車場。只會存喺呢部機。"))}</p><button class="primary" data-act="addVehicle">＋ ${esc(L_("Add vehicle", "加入車輛"))}</button></div>`;
   for (const v of S.vehicles) { const active = v.id === (vehicle()?.id);
     h += `<div class="list-item"><button class="txt" data-editveh="${esc(v.id)}" style="text-align:left"><b>${esc(v.nickname)}</b>${active ? ` <span style="color:var(--accent);font-size:12px;font-weight:600">${esc(L_("Active", "使用中"))}</span>` : ""}<small>${esc([T_(C.VEHICLE_NAME[v.type]), C.dimensionsText(v), v.needsEVCharging ? L_("EV", "電動車") : null, v.maxHourlyRateHKD ? L_(`≤ $${v.maxHourlyRateHKD}/hr`, `≤ $${v.maxHourlyRateHKD}/小時`) : null].filter(Boolean).join(" · "))}</small></button>
@@ -537,7 +682,7 @@ function openVehicleEditor(v) {
         ${sw("avoidNoLiveData", L_("Rank car parks without live data lower", "冇即時資料嘅停車場排後啲"))}</div>
       <div class="section"><h3>${esc(L_("Frequent districts", "常去地區"))}</h3>${Object.entries(C.REGIONS).map(([rid, rn]) => `<details><summary style="min-height:40px;display:flex;align-items:center">${esc(T_(rn))}</summary>${C.DISTRICTS.filter(d => d.region === rid).map(d => `<div class="field"><label>${esc(T_(d.name))}</label><button class="switch" role="switch" aria-checked="${v.preferredDistricts.includes(d.id)}" data-dist="${d.id}"></button></div>`).join("")}</details>`).join("")}</div>
     </form>`;
-  $("sheet").hidden = false; requestAnimationFrame(() => { $("sheet").classList.add("on"); $("scrim").classList.add("on"); });
+  $("sheet").hidden = false; requestAnimationFrame(() => { $("sheet").classList.add("on"); $("scrim").classList.add("on"); }); focusSheet();
   $("veh-save").onclick = () => {
     const n = (id, lo, hi) => { const x = parseFloat($(id).value.replace(",", ".")); return Number.isFinite(x) && x >= lo && x <= hi ? x : null; };
     const nv = { ...v, nickname: $("v-name").value.trim() || v.nickname, type: $("v-type").value, heightMetres: n("v-h", 0.5, 6), lengthMetres: n("v-l", 1, 20), widthMetres: n("v-w", 0.5, 4), maxHourlyRateHKD: n("v-rate", 1, 999) };
@@ -563,15 +708,19 @@ function renderMore() {
       <p class="note"><b>${esc(T_(C.SOURCE_ATTRIBUTION.transportDepartmentMeters))}</b><br>${esc(L_("Every private-car meter bay, grouped by street section; the count is bays whose sensor reports vacant.", "所有私家車咪錶位，按路段分組；數字係感應器報「吉」嘅泊位數。"))}</p>
       <p class="note"><b>${esc(T_(C.SOURCE_ATTRIBUTION.openStreetMap))}</b> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">openstreetmap.org/copyright</a><br>${esc(L_("Car parks and mall car parks no feed covers (Harbour City, Times Square, IFC, Pacific Place, Festival Walk and hundreds more), plus mapped vehicle entrances and the map itself.", "所有資料來源未涵蓋嘅停車場及商場停車場（海港城、時代廣場、國金、太古廣場、又一城等數百個），以及入口點同地圖本身。"))}</p>
       <p class="note"><b>${esc(L_("Operator-published facts", "營運商公佈資料"))}</b><br>${esc(L_("Tariffs, hours and phone numbers read from operators' own parking pages, stored with the page address and the date checked, shown on each detail.", "收費、時間及電話由營運商官方泊車網頁抄錄，記錄網址同核對日期，詳情頁會顯示。"))}</p>
-      <p class="note"><b>${esc(L_("Place search", "地點搜尋"))}</b><br>${esc(L_("Nominatim (OpenStreetMap). Only Hong Kong results are accepted.", "Nominatim（OpenStreetMap）。只接受香港結果。"))}</p></div>
+      <p class="note"><b>${esc(L_("Map", "地圖"))}</b><br>${esc(L_("Basemap and labels © Lands Department, through the Common Spatial Data Infrastructure portal (free government map service). Falls back to OpenStreetMap tiles if unavailable.", "底圖及標注 © 地政總署，經空間數據共享平台提供（免費政府地圖服務）。如無法連接則改用 OpenStreetMap 地圖。"))}</p>
+      <p class="note"><b>${esc(L_("Address search", "地址搜尋"))}</b><br>${esc(L_("Government Address Lookup Service (als.gov.hk), with OpenStreetMap Nominatim as fallback. Only Hong Kong results are accepted.", "政府地址查詢服務（als.gov.hk），OpenStreetMap Nominatim 作後備。只接受香港結果。"))}</p></div>
     <div class="section"><h3>${esc(L_("Privacy", "私隱"))}</h3><p class="note">${esc(L_("Location is used only while the app is open, only to show nearby car parks and distances, and is never uploaded. Favourites, vehicles, parking sessions and reports stay in this browser. The app talks to DATA.GOV.HK, OpenStreetMap tiles and Nominatim. No account, no analytics, no ads.", "定位只會喺 app 開啟時使用，用嚟顯示附近停車場同距離，唔會上傳。常用、車輛、泊車紀錄同報告只存喺呢個瀏覽器。本 app 只連接資料一線通、OpenStreetMap 地圖及 Nominatim。唔使登入、冇分析追蹤、冇廣告。"))}</p></div>
     <div class="section"><h3>${esc(L_("Known limitations", "已知限制"))}</h3><p class="note">${esc(L_("Live counts exist only where the operator publishes. Swire, Wharf and Hongkong Land malls do not; they are information only. Fees change; verify on site. Distances are straight-line. The parking reminder fires only while the app is open. Length and width warnings use the standard 5.0 × 2.5 m bay because no car park publishes bay sizes.", "即時空位只限有向平台提供資料嘅營運商；太古、九倉、置地商場冇提供，只作參考。收費會變，請以現場為準。距離為直線。泊車提醒只會喺 app 開啟時發出。車長車闊提示以標準 5.0 × 2.5 米車位為準。"))}</p></div>
-    <div class="section"><h3>${esc(L_("My issue reports", "我嘅問題報告"))}</h3>${S.reports.length ? S.reports.map(r => `<p class="note"><b>${esc(r.kind)}</b> · ${esc(r.id)} · ${new Date(r.at).toLocaleString()}<br>${esc(r.details)}</p>`).join("") : `<p class="note">${esc(L_("None yet. Reports stay on this device.", "未有。報告只存喺本機。"))}</p>`}
+    <div class="section"><h3>💾 ${esc(L_("Backup & restore", "備份與還原"))}</h3><p class="note">${esc(L_("Favourites, vehicles and places live on this phone only. Copy a backup code to move them to another phone, or from Safari into the Home Screen app.", "常用、車輛同地點只存喺呢部手機。複製備份代碼可以搬去另一部手機，或者由 Safari 搬入主畫面 app。"))}</p>
+      <div class="row2"><button class="secondary" data-act="backup">⇪ ${esc(L_("Copy backup code", "複製備份代碼"))}</button><button class="secondary" data-act="restore">⤓ ${esc(L_("Restore", "還原"))}</button></div></div>
+    <div class="section"><h3>🩺 ${esc(L_("Diagnostics", "診斷"))}</h3>${S.errors.length ? S.errors.map(e => `<p class="err">${new Date(e.at).toLocaleString(S.lang === "en" ? "en-HK" : "zh-HK")} · ${esc(e.url)}<br>${esc(e.msg)}</p>`).join("") + `<button class="secondary" data-act="clearErrors" style="margin-top:8px">${esc(L_("Clear log", "清除記錄"))}</button>` : `<p class="note">${esc(L_("No feed errors recorded. The last ten failures appear here so you can tell what went wrong.", "未有資料錯誤記錄。最近十次失敗會顯示喺呢度，方便你了解出咗咩問題。"))}</p>`}</div>
+    <div class="section"><h3>${esc(L_("My issue reports", "我嘅問題報告"))}</h3>${S.reports.length ? S.reports.map((r, i) => `<p class="note"><b>${esc(r.kind)}</b> · ${esc(r.id)} · ${new Date(r.at).toLocaleString()}<br>${esc(r.details)}${r.sentAt ? ` · ✓ ${esc(L_("sent", "已傳送"))}` : ` · <button data-sendreport="${i}" style="color:var(--accent);font-weight:600;min-height:32px">${esc(L_("Send to developer", "傳送給開發者"))}</button>`}</p>`).join("") : `<p class="note">${esc(L_("None yet. Reports are saved here and can be sent to the developer as a GitHub issue.", "未有。報告會存喺呢度，並可以透過 GitHub issue 傳送給開發者。"))}</p>`}
       ${S.reports.length ? `<button class="secondary" data-act="shareReports">⇪ ${esc(L_("Share reports", "分享報告"))}</button>` : ""}</div>
     <div class="section"><h3>${esc(L_("Licence", "使用條款"))}</h3><p class="note">${esc(L_("Free for personal, non-commercial use. Selling this app, running it as a service or using it to promote a business is not permitted without written permission. Provided as is; always check the signs at the car park.", "只限個人非商業用途。未經書面許可，不得出售本 app、作為服務營運或用於推廣業務。按現狀提供；請以停車場現場標示為準。"))} <a href="https://github.com/agsm26/hk-parking/blob/main/LICENSE.md" target="_blank" rel="noopener">LICENSE.md</a></p></div>
     <div class="section"><button class="secondary" data-act="clearCache">${esc(L_("Clear cached feed data", "清除快取資料"))}</button></div>
-    <p class="note" style="text-align:center">搵車位 · Car Park HK · v1 web · ${esc(L_("Data snapshots 5 Sep 2026", "資料快照 2026-09-05"))}</p>`;
-  $("m-lang").onchange = e => { S.lang = e.target.value; save("lang"); document.documentElement.lang = S.lang === "en" ? "en-HK" : "zh-HK"; render(); };
+    <p class="note" style="text-align:center">搵車位 · Car Park HK · ${esc(APP_VERSION)} · ${esc(L_("Data snapshots 6 Sep 2026", "資料快照 2026-09-06"))}</p>`;
+  $("m-lang").onchange = e => { S.lang = e.target.value; save("lang"); document.documentElement.lang = S.lang === "en" ? "en-HK" : "zh-HK"; render(); if (map) relayer(map); };
   $("m-nav").onchange = e => { S.navApp = e.target.value; save("navApp"); };
   $("m-alerts").onclick = async () => { S.alerts = !S.alerts; if (S.alerts && "Notification" in window && Notification.permission === "default") await Notification.requestPermission().catch(() => {}); save("alerts"); renderMore(); };
 }
@@ -589,7 +738,7 @@ function render() {
 }
 
 // ------------------------------------------------------------ events -----
-document.addEventListener("click", (e) => {
+document.addEventListener("click", async (e) => {
   const b = (sel) => e.target.closest(sel);
   let x;
   if ((x = b("[data-tab]"))) { e.preventDefault(); setTab(x.dataset.tab); return; }
@@ -597,21 +746,34 @@ document.addEventListener("click", (e) => {
   if ((x = b("[data-sort-menu]"))) { const i = C.SORTS.indexOf(S.sort); S.sort = C.SORTS[(i + 1) % C.SORTS.length]; save("sort"); rerank(); render(); toast(T_(C.SORT_LABEL[S.sort])); return; }
   if ((x = b("#use-loc"))) { e.stopPropagation(); S.origin = { type: "current" }; save("origin"); startGeo(); rerank(); render(); return; }
   if ((x = b("#open-search, #map-search"))) { openSearch("dest"); return; }
-  if ((x = b("#find-now"))) { if (S.origin.type === "current" && S.geo.status !== "ok" && !S.fixed) startGeo(); refresh(true).then(() => { const r0 = recommended(); if (r0) openDetail(r0.id); }); return; }
+  if ((x = b("#find-now"))) { S.onboarded = true; save("onboarded"); if (S.origin.type === "current" && S.geo.status !== "ok" && !S.fixed) startGeo(); refresh(true).then(() => { const r0 = recommended(); if (r0) openDetail(r0.id); }); return; }
   if ((x = b("#more"))) { S.limit = (S.limit || 20) + 20; render(); return; }
   if ((x = b("[data-nav]"))) { navigateTo(x.dataset.nav); return; }
   if ((x = b("[data-fav]"))) { toggleFav(x.dataset.fav); const id = x.dataset.fav; openDetail(id); return; }
   if ((x = b("[data-share]"))) { shareCP(x.dataset.share); return; }
-  if ((x = b("[data-park]"))) { const floor = prompt(L_("Floor / zone / spot (optional)", "樓層／區域／車位（可選）")) ; if (floor === null) return; const hrs = parseFloat(prompt(L_("Remind me before paid time ends? Hours (blank = no reminder)", "收費時間完結前提醒？小時數（留空 = 唔提醒）"), "") || "0") || 0; startSession(x.dataset.park, floor, hrs); closeSheet(); setTab("saved"); return; }
-  if ((x = b("[data-report]"))) { const kind = prompt(L_("What is wrong? 1 availability · 2 entrance · 3 price · 4 closed · 5 other", "有咩問題？1 空位 · 2 入口 · 3 收費 · 4 已關閉 · 5 其他"), "1"); if (kind === null) return; const details = prompt(L_("Details (optional)", "詳情（可選）"), "") || "";
-    S.reports.unshift({ id: x.dataset.report, kind: ({ 1: "availability", 2: "entrance", 3: "price", 4: "closed" })[kind] || "other", details, at: Date.now() }); save("reports"); toast(L_("Saved on this device", "已存喺本機")); return; }
+  if ((x = b("[data-park]"))) {
+    const v = await dialog({ title: L_("I parked here", "我泊咗喺度"), text: L_("The reminder fires 10 minutes early and only while the app is open.", "提醒會早 10 分鐘發出，只限 app 開啟時。"),
+      fields: [{ id: "floor", label: L_("Floor / zone / spot (optional)", "樓層／區域／車位（可選）"), placeholder: L_("e.g. P2 · B12", "例如 P2 · B12") },
+        { id: "hrs", label: L_("Remind me before paid time ends", "收費時間完結前提醒"), type: "select", value: "0", options: [["0", L_("No reminder", "唔提醒")], ["1", L_("After 1 hour", "1 小時後")], ["2", L_("After 2 hours", "2 小時後")], ["3", L_("After 3 hours", "3 小時後")], ["4", L_("After 4 hours", "4 小時後")], ["8", L_("After 8 hours", "8 小時後")]] }], ok: L_("Start", "開始") });
+    if (!v) return; startSession(x.dataset.park, v.floor.trim(), parseFloat(v.hrs) || 0); closeSheet(); setTab("saved"); return; }
+  if ((x = b("[data-report]"))) {
+    const id = x.dataset.report;
+    const v = await dialog({ title: L_("Report an issue", "報告問題"), fields: [
+      { id: "kind", label: L_("What is wrong?", "有咩問題？"), type: "select", value: "availability", options: [["availability", L_("Availability count wrong", "空位數目唔準")], ["entrance", L_("Entrance in the wrong place", "入口位置錯")], ["price", L_("Fee wrong or outdated", "收費錯或過時")], ["height", L_("Height limit wrong", "限高錯")], ["closed", L_("Car park closed or gone", "停車場已關閉／唔存在")], ["other", L_("Other", "其他")]] },
+      { id: "details", label: L_("Details (optional)", "詳情（可選）"), type: "textarea", placeholder: L_("What did you see on site?", "現場見到啲咩？") }], ok: L_("Save", "儲存") });
+    if (!v) return;
+    const rep = { id, kind: v.kind, details: v.details.trim(), at: Date.now() }; S.reports.unshift(rep); save("reports");
+    const send = await dialog({ title: L_("Saved on this device", "已存喺本機"), text: L_("Send it to the developer too? This opens GitHub with the report filled in; posting needs a free GitHub account.", "同時傳送給開發者？會開啟 GitHub 並填好報告，發佈需要免費 GitHub 帳戶。"), ok: L_("Send", "傳送"), cancel: L_("Not now", "暫時唔要") });
+    if (send) sendReport(rep); return; }
+  if ((x = b("[data-sendreport]"))) { sendReport(S.reports[+x.dataset.sendreport]); return; }
   if ((x = b("[data-close]"))) { closeSheet(); return; }
   if ((x = b("[data-cp]"))) { openDetail(x.dataset.cp); return; }
   if ((x = b("[data-pick]"))) { pickSearch(x.dataset.pick); return; }
   if ((x = b("[data-act]"))) { const a = x.dataset.act;
-    if (a === "search") openSearch("dest"); else if (a === "locate") startGeo(); else if (a === "retry") refresh(true);
+    if (a === "search") openSearch("dest"); else if (a === "locate") { S.onboarded = true; save("onboarded"); startGeo(); } else if (a === "retry") refresh("all");
+    else if (a === "backup") backupCode(); else if (a === "restore") restoreCode(); else if (a === "clearErrors") { S.errors = []; save("errors"); render(); }
     else if (a === "resetFilters") { S.filter = { ...C.DEFAULT_FILTER(), vehicleType: S.filter.vehicleType }; S.sort = "bestMatch"; save("filter"); save("sort"); rerank(); render(); }
-    else if (a === "endSession") { if (confirm(L_("End parking session?", "結束泊車紀錄？"))) { endSession(); render(); } }
+    else if (a === "endSession") { if (await dialog({ title: L_("End parking session?", "結束泊車紀錄？"), ok: L_("End", "結束"), danger: true })) { endSession(); render(); } }
     else if (a === "clearSearches") { S.searches = []; save("searches"); render(); }
     else if (a === "addVehicle") openVehicleEditor(null);
     else if (a === "clearCache") { IDB.clear().then(() => { toast(L_("Cache cleared", "已清除快取")); }); }
@@ -626,13 +788,18 @@ document.addEventListener("click", (e) => {
   if ((x = b("[data-gosearch]"))) { pickSearch("search:" + x.dataset.gosearch); return; }
   if ((x = b("[data-editveh]"))) { openVehicleEditor(S.vehicles.find(v => v.id === x.dataset.editveh)); return; }
   if ((x = b("[data-useveh]"))) { S.activeVehicleId = x.dataset.useveh; save("activeVehicleId"); S.filter.vehicleType = vehicle().type; save("filter"); rerank(); render(); return; }
-  if ((x = b("[data-delveh]"))) { if (!confirm(L_("Delete this vehicle?", "刪除呢架車？"))) return; S.vehicles = S.vehicles.filter(v => v.id !== x.dataset.delveh); if (S.activeVehicleId === x.dataset.delveh) S.activeVehicleId = S.vehicles[0]?.id || null; save("vehicles"); save("activeVehicleId"); rerank(); render(); return; }
+  if ((x = b("[data-delveh]"))) { const dv = S.vehicles.find(v => v.id === x.dataset.delveh); if (!(await dialog({ title: L_("Delete this vehicle?", "刪除呢架車？"), text: dv?.nickname || "", ok: L_("Delete", "刪除"), danger: true }))) return; S.vehicles = S.vehicles.filter(v => v.id !== x.dataset.delveh); if (S.activeVehicleId === x.dataset.delveh) S.activeVehicleId = S.vehicles[0]?.id || null; save("vehicles"); save("activeVehicleId"); rerank(); render(); return; }
   if ((x = b(".switch"))) { x.setAttribute("aria-checked", x.getAttribute("aria-checked") !== "true"); return; }
   if ((x = b("#scrim"))) { closeSheet(); return; }
   if ((x = b("#map-here"))) { if (map) { const c = map.getCenter(); S.origin = { type: "place", place: { title: L_("Map area", "地圖呢一區"), subtitle: "", coordinate: C.clampHK({ lat: c.lat, lng: c.lng }), kind: "mapArea" } }; save("origin"); rerank(); render(); toast(L_("Using the map centre as start", "已經用地圖中心做起點")); } return; }
   if ((x = b("#map-locate"))) { const o = originPoint(); if (o && map) mapCentreOn(o, 16); else startGeo(); return; }
 });
-document.addEventListener("keydown", e => { if (e.key === "Escape") { if ($("search").classList.contains("on")) closeSearch(); else if (!$("sheet").hidden) closeSheet(); } });
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") { if (!$("dlg").hidden) closeDialog(null); else if ($("search").classList.contains("on")) closeSearch(); else if (!$("sheet").hidden) closeSheet(); return; }
+  if (e.key === "Tab") { if (!$("dlg").hidden) trapTab($("dlg"), e); else if (!$("sheet").hidden) trapTab($("sheet"), e); }
+});
+window.addEventListener("online", () => { S.online = true; toast(L_("Back online", "已重新連線")); refresh(true); });
+window.addEventListener("offline", () => { S.online = false; render(); });
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { S.now = Date.now(); refresh(false); } });
 window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (h.startsWith("cp/")) openDetail(decodeURIComponent(h.slice(3))); else if (TABS.some(t => t[0] === h) && h !== S.tab) setTab(h); });
 
@@ -643,7 +810,7 @@ window.addEventListener("hashchange", () => { const h = location.hash.slice(1); 
   if (TABS.some(t => t[0] === h)) S.tab = h;
   for (const p of document.querySelectorAll(".panel")) p.classList.toggle("on", p.id === "panel-" + S.tab);
   render();
-  if (S.origin.type === "current" && !S.fixed) startGeo();
+  if (S.origin.type === "current" && !S.fixed && S.onboarded) startGeo();   // first run explains before the permission prompt
   if (S.session) scheduleReminder();
   await refresh(false);
   if (h.startsWith("cp/")) openDetail(decodeURIComponent(h.slice(3)));
