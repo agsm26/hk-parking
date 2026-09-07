@@ -640,7 +640,9 @@ export function evaluate(rec, ctx) {
   else if (lv === "limited") { score += 25; reasons.push(["limited", reading?.count]); }
   else if (lv === "full") reasons.push(["full"]);
   else { score += 8; reasons.push([fresh === "stale" ? "stale" : "noLiveData"]); }
-  if (dist != null) { score += 30 * Math.exp(-dist / 2000); if (dist < 600) reasons.push(["nearby"]); }
+  // Distance decays over ~800 m (not 2 km): a live meter a kilometre away must not
+  // outrank the mall car park you are standing in. Within 300 m counts as "right here".
+  if (dist != null) { score += 30 * Math.exp(-dist / 800); if (dist < 300 && lv !== "full") { score += 12; reasons.push(["atLocation"]); } else if (dist < 600) reasons.push(["nearby"]); }
   if (fresh === "live") { score += 10; reasons.push(["live"]); } else if (fresh === "recent") score += 7; else if (fresh === "delayed") { score += 3; reasons.push(["delayed"]); }
   if (f.kind === "fits" || f.kind === "noRestriction") { score += 10; reasons.push(["fits"]); }
   else if (f.kind === "tight") { score += 6; reasons.push(["tight"]); }
@@ -663,7 +665,7 @@ export function reasonText(r, lang) {
     case "available": return v != null ? (en ? `${v} spaces` : `${v} 個位`) : (en ? "Spaces available" : "有位");
     case "limited": return v != null ? (en ? `Only ${v} left` : `淨返 ${v} 個`) : (en ? "Limited" : "少量");
     case "full": return en ? "Full" : "爆滿"; case "noLiveData": return en ? "No live data" : "冇即時資料"; case "stale": return en ? "Data is old" : "資料太舊";
-    case "nearby": return en ? "Close by" : "好近"; case "live": return en ? "Live" : "即時"; case "delayed": return en ? "May be delayed" : "或有延遲";
+    case "nearby": return en ? "Close by" : "好近"; case "atLocation": return en ? "Right here" : "就喺呢度"; case "live": return en ? "Live" : "即時"; case "delayed": return en ? "May be delayed" : "或有延遲";
     case "fits": return en ? "Height OK" : "高度合適"; case "tight": return en ? "Tight clearance" : "限高好貼"; case "tooTall": return en ? "Too tall" : "入唔到";
     case "heightUnknown": return en ? "Height not confirmed" : "限高未確認"; case "closed": return en ? "Closed now" : "而家閂咗"; case "open": return en ? "Open now" : "開放中";
     case "withinBudget": return en ? `~$${Math.round(v)}/hr` : `約 $${Math.round(v)}/小時`; case "overBudget": return en ? `$${Math.round(v)}/hr, over budget` : `$${Math.round(v)}/小時，超預算`;
@@ -688,10 +690,11 @@ export function rank(records, ctx, sort = "bestMatch") { return records.map(r =>
 
 // --------------------------------------------------------------- filters ---
 
-export const DEFAULT_FILTER = () => ({ vehicleType: "privateCar", availableNow: false, minimumSpaces: null, minimumClearanceMetres: null, onlyConfirmedHeight: false, evCharging: false, motorcycleSpaces: false, accessibleSpaces: false, openNow: false, maxHourlyRateHKD: null, mallOnly: false, districts: [], maxDistanceMetres: null, maxFreshness: null, onlyCompatible: false, includeMeters: true });
+export const DEFAULT_FILTER = () => ({ vehicleType: "privateCar", availableNow: false, minimumSpaces: null, minimumClearanceMetres: null, onlyConfirmedHeight: false, evCharging: false, motorcycleSpaces: false, accessibleSpaces: false, openNow: false, maxHourlyRateHKD: null, mallOnly: false, districts: [], maxDistanceMetres: null, minDistanceMetres: null, maxFreshness: null, onlyCompatible: false, includeMeters: true });
 export function filterActiveCount(f) {
   let n = 0; for (const k of ["availableNow", "onlyConfirmedHeight", "evCharging", "motorcycleSpaces", "accessibleSpaces", "openNow", "mallOnly", "onlyCompatible"]) if (f[k]) n++;
-  for (const k of ["minimumSpaces", "minimumClearanceMetres", "maxHourlyRateHKD", "maxDistanceMetres", "maxFreshness"]) if (f[k] != null) n++;
+  for (const k of ["minimumSpaces", "minimumClearanceMetres", "maxHourlyRateHKD", "maxFreshness"]) if (f[k] != null) n++;
+  if (f.maxDistanceMetres != null || f.minDistanceMetres != null) n++;   // a distance band counts once
   if (f.districts?.length) n++; if (!f.includeMeters) n++; return n;
 }
 const FRESH_ORDER = { live: 0, recent: 1, delayed: 2, stale: 3, none: 4 };
@@ -710,11 +713,24 @@ export function matchesFilter(f, r) {
   if (f.mallOnly && !cp.isMall) return false;
   if (f.districts?.length && !(cp.district && f.districts.includes(cp.district))) return false;
   if (f.maxDistanceMetres != null && r.dist != null && r.dist > f.maxDistanceMetres) return false;
+  if (f.minDistanceMetres != null && r.dist != null && r.dist < f.minDistanceMetres) return false;
   if (f.maxFreshness != null && FRESH_ORDER[r.fresh] > FRESH_ORDER[f.maxFreshness]) return false;
   if (f.onlyCompatible && (r.fit.kind === "doesNotFit" || r.supports === false)) return false;
   return true;
 }
 export const applyFilter = (f, ranked) => ranked.filter(r => matchesFilter(f, r));
+
+// Distance bands the user can pick on the Find and Map screens. "all" clears both
+// bounds; the others are rings measured straight-line from the origin.
+export const DISTANCE_BANDS = [
+  { id: "all", min: null, max: null, label: lt("Any distance", "不限距離") },
+  { id: "b250", min: null, max: 250, label: lt("≤ 250 m", "≤ 250 米") },
+  { id: "b500", min: 250, max: 500, label: lt("250–500 m", "250–500 米") },
+  { id: "b1k", min: 500, max: 1000, label: lt("500 m – 1 km", "500 米 – 1 公里") },
+  { id: "b2k", min: 1000, max: 2000, label: lt("1 – 2 km", "1 – 2 公里") },
+];
+export function bandOf(f) { return DISTANCE_BANDS.find(b => (b.min ?? null) === (f.minDistanceMetres ?? null) && (b.max ?? null) === (f.maxDistanceMetres ?? null))?.id || "custom"; }
+export function applyBand(f, id) { const b = DISTANCE_BANDS.find(x => x.id === id) || DISTANCE_BANDS[0]; return { ...f, minDistanceMetres: b.min, maxDistanceMetres: b.max }; }
 
 export const CHIPS = [
   { id: "nearMe", label: lt("Near me", "附近"), icon: "◎" }, { id: "cheapest", label: lt("Cheapest", "最平"), icon: "$" },

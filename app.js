@@ -10,7 +10,7 @@ const FEEDS = {
   meterOcc: "https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv",
 };
 const REFRESH = { info: 6 * 3600e3, meters: 24 * 3600e3, metersSnapshot: 7 * 86400e3, vacancy: 60e3, meterVac: 120e3 };
-const APP_VERSION = "2026-09-06b";                       // stamped by bump.py together with sw.js
+const APP_VERSION = "2026-09-06c";                       // stamped by bump.py together with sw.js
 const REPO_URL = "https://github.com/agsm26/hk-parking";  // issue reports go here
 const FETCH_TIMEOUT = 8000;
 // Map tiles: the Lands Department basemap through the CSDI portal (free, no
@@ -310,6 +310,7 @@ function emptyReason() {
   if (outsideHK()) return "outsideHK";
   if (!originPoint() && S.origin.type === "current") return S.geo.status === "denied" ? "denied" : "noLocation";
   if (S.filter.onlyCompatible && C.filterActiveCount(S.filter) === 1) return "noCompatible";
+  if (C.bandOf(S.filter) !== "all" && C.applyFilter(C.applyBand(S.filter, "all"), S.all).length) return "outOfBand";
   return "noMatches";
 }
 function lastUpdatedText() {
@@ -348,6 +349,10 @@ function cardHTML(r, extra = "") {
 }
 const fmtHourly = (hkd, est) => { const v = Number.isInteger(hkd) ? `$${hkd}` : `$${hkd.toFixed(1)}`; const b = L_(`${v}/hr`, `${v}/小時`); return est ? L_(`${b} est.`, `約 ${b}`) : b; };
 
+function bandsHTML() {
+  const cur = C.bandOf(S.filter);
+  return `<div class="bands" role="radiogroup" aria-label="${esc(L_("Distance", "距離"))}"><span class="lbl">➤</span>${C.DISTANCE_BANDS.map(b => `<button role="radio" data-band="${b.id}" aria-checked="${cur === b.id}">${esc(T_(b.label))}</button>`).join("")}</div>`;
+}
 function chipsHTML(ids) {
   return `<div class="chips" role="group">${ids.map(id => { const c = C.CHIPS.find(x => x.id === id); const on = C.chipIsOn(id, S.filter, S.sort);
     return `<button class="chip" data-chip="${id}" aria-pressed="${on}"><span aria-hidden="true">${c.icon}</span>${esc(T_(c.label))}</button>`; }).join("")}</div>`;
@@ -367,7 +372,9 @@ function renderFind() {
     if (r0) body += `<div class="sect"><span class="accent">✦ ${esc(L_("Recommended now", "而家最推薦"))}</span></div>${cardHTML(r0, "rec")}
       <p class="reasons">${esc(r0.reasons.slice(0, 4).map(x => C.reasonText(x, S.lang)).join(" · "))}</p>
       <div class="row2"><button class="primary" data-nav="${esc(r0.id)}">➤ ${esc(L_("Navigate", "導航"))}</button><button class="secondary" data-cp="${esc(r0.id)}">ⓘ ${esc(L_("Details", "詳情"))}</button></div>`;
-    const rest = S.ranked.filter(r => r.id !== r0?.id);
+    const here = S.ranked.filter(r => r.dist != null && r.dist <= 250 && r.id !== r0?.id).sort((a, b) => a.dist - b.dist).slice(0, 3);
+    if (here.length) body += `<div class="sect"><span>📍 ${esc(L_("Right here (within 250 m)", "就喺呢度（250 米內）"))}</span></div>${here.map(r => cardHTML(r)).join("")}`;
+    const rest = S.ranked.filter(r => r.id !== r0?.id && !here.includes(r));
     body += `<div class="sect"><span>${esc(L_(`Nearby, ranked by ${T_(C.SORT_LABEL[S.sort]).toLowerCase()}`, `附近 · 按${T_(C.SORT_LABEL[S.sort])}排序`))}</span><small>${rest.length}</small></div>`;
     body += rest.slice(0, S.limit || 20).map(r => cardHTML(r)).join("");
     if (rest.length > (S.limit || 20)) body += `<button class="more" id="more">${esc(L_(`Show ${Math.min(20, rest.length - (S.limit || 20))} more`, `睇多 ${Math.min(20, rest.length - (S.limit || 20))} 個`))}</button>`;
@@ -375,6 +382,7 @@ function renderFind() {
   el.innerHTML = `<h1 id="h-find">${esc(L_("Find Parking", "搵車位"))}</h1>
     <button class="searchbox" id="open-search"><span aria-hidden="true">🔍</span>${S.origin.type === "place" ? `<span class="val">${esc(originLabel())}</span><span class="loc" id="use-loc" role="button" aria-label="${esc(L_("Use current location", "用而家位置"))}">➤</span>` : `<span class="ph">${esc(L_("Where are you going?", "你去邊度？"))}</span>`}</button>
     ${chipsHTML(C.CHIPS.map(c => c.id))}
+    ${bandsHTML()}
     <button class="primary" id="find-now">Ⓟ ${esc(L_("Find Parking Now", "即刻搵位"))}</button>
     <div class="status"><span aria-live="polite">${S.vacFromCache ? "💾" : "●"} ${esc(lastUpdatedText())}</span><span><button data-sort-menu>⇅ ${esc(T_(C.SORT_LABEL[S.sort]))}</button> · <button data-tab="map">🗺 ${esc(L_("Map", "地圖"))}</button></span></div>
     ${offlineBar}${body}
@@ -390,6 +398,7 @@ function emptyStateHTML(reason) {
       : `<div class="card"><div class="state"><div class="ic" aria-hidden="true">📍</div><h3>${esc(L_("Find spaces near you", "搵附近車位"))}</h3><p>${esc(L_("The app asks for your location to rank car parks by distance. It is used only while the app is open and never leaves this phone.", "app 會要求定位，用嚟按距離排列停車場。只會喺開啟時使用，唔會離開呢部手機。"))}</p><button class="primary" data-act="locate">${esc(L_("Allow location", "允許定位"))}</button><p style="margin:10px 0 0"><button data-act="search" style="color:var(--accent);font-weight:600;min-height:44px">${esc(L_("Search a destination instead", "改為搜尋目的地"))}</button></p></div></div>`;
     case "offline": return st("📡", L_("Can't reach the parking feed", "連唔到車位資料"), L_("Check your connection and try again. Nothing is cached yet.", "請檢查網絡再試。暫時未有快取資料。"), L_("Try again", "再試一次"), "retry");
     case "feedEmpty": return st("📭", L_("No car parks in the feed", "資料庫暫時冇停車場"), L_("The government feed returned nothing. Try again in a minute.", "政府資料暫時冇內容，請稍後再試。"), L_("Try again", "再試一次"), "retry");
+    case "outOfBand": return st("➤", L_("Nothing in this distance band", "呢個距離範圍內冇車位"), L_(`No car park between ${T_(C.DISTANCE_BANDS.find(b => b.id === C.bandOf(S.filter))?.label || C.lt("", ""))} from here. Pick a wider band.`, `由呢度起 ${T_(C.DISTANCE_BANDS.find(b => b.id === C.bandOf(S.filter))?.label || C.lt("", ""))} 範圍內冇停車場，請揀闊一點。`), L_("Any distance", "不限距離"), "clearBand");
     case "noCompatible": return st("🚐", L_("Nothing compatible nearby", "附近冇啱你車嘅車位"), L_("No car park here confirms it fits your vehicle. Show all and check the height yourself?", "附近冇停車場確認啱你架車，可以顯示全部再自己核對限高。"), L_("Show all", "顯示全部"), "resetFilters");
     default: { const n = C.filterActiveCount(S.filter); return st("⚙︎", L_("No car parks match", "冇符合嘅停車場"), n ? L_(`${n} filters are on. Loosen them or widen the distance.`, `開咗 ${n} 個篩選，試下放寬或者加大範圍。`) : L_("Nothing within range. Try a destination.", "範圍內冇車位，試下搜尋目的地。"), n ? L_("Clear filters", "清除篩選") : null, "resetFilters"); }
   }
@@ -618,6 +627,7 @@ function renderMap() {
   ensureMap();
   $("map-top").innerHTML = `<button class="searchbox" id="map-search"><span aria-hidden="true">🔍</span><span class="${S.origin.type === "place" ? "val" : "ph"}">${esc(S.origin.type === "place" ? originLabel() : L_("Search destination", "搜尋目的地"))}</span><span class="loc" data-tab="find" role="button" aria-label="${esc(L_("Show list", "顯示清單"))}">☰</span></button>
     ${chipsHTML(["nearMe", "mostSpaces", "streetMeters", "evCharging", "heightFits", "openNow"])}
+    ${bandsHTML()}
     <div class="status"><span>${esc(lastUpdatedText())}</span><span data-count></span></div>`;
   $("map-here").textContent = L_("Search this area", "喺呢區搵位");
   setTimeout(() => { map.invalidateSize(); const o = originPoint(); if (o && !mapCentred) mapCentreOn(o, 16); paintMarkers(); }, 50);
@@ -742,6 +752,7 @@ document.addEventListener("click", async (e) => {
   const b = (sel) => e.target.closest(sel);
   let x;
   if ((x = b("[data-tab]"))) { e.preventDefault(); setTab(x.dataset.tab); return; }
+  if ((x = b("[data-band]"))) { S.filter = C.applyBand(S.filter, x.dataset.band); save("filter"); rerank(); render(); return; }
   if ((x = b("[data-chip]"))) { const on = !C.chipIsOn(x.dataset.chip, S.filter, S.sort); const r = C.applyChip(x.dataset.chip, S.filter, S.sort, on); S.filter = r.f; S.sort = r.sort; save("filter"); save("sort"); rerank(); render(); return; }
   if ((x = b("[data-sort-menu]"))) { const i = C.SORTS.indexOf(S.sort); S.sort = C.SORTS[(i + 1) % C.SORTS.length]; save("sort"); rerank(); render(); toast(T_(C.SORT_LABEL[S.sort])); return; }
   if ((x = b("#use-loc"))) { e.stopPropagation(); S.origin = { type: "current" }; save("origin"); startGeo(); rerank(); render(); return; }
@@ -771,6 +782,7 @@ document.addEventListener("click", async (e) => {
   if ((x = b("[data-pick]"))) { pickSearch(x.dataset.pick); return; }
   if ((x = b("[data-act]"))) { const a = x.dataset.act;
     if (a === "search") openSearch("dest"); else if (a === "locate") { S.onboarded = true; save("onboarded"); startGeo(); } else if (a === "retry") refresh("all");
+    else if (a === "clearBand") { S.filter = C.applyBand(S.filter, "all"); save("filter"); rerank(); render(); }
     else if (a === "backup") backupCode(); else if (a === "restore") restoreCode(); else if (a === "clearErrors") { S.errors = []; save("errors"); render(); }
     else if (a === "resetFilters") { S.filter = { ...C.DEFAULT_FILTER(), vehicleType: S.filter.vehicleType }; S.sort = "bestMatch"; save("filter"); save("sort"); rerank(); render(); }
     else if (a === "endSession") { if (await dialog({ title: L_("End parking session?", "結束泊車紀錄？"), ok: L_("End", "結束"), danger: true })) { endSession(); render(); } }
