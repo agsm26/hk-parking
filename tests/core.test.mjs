@@ -183,6 +183,17 @@ test("fit, size advice, ranking, filters, chips", () => {
   assert.deepEqual(ids({ includeMeters: false }), ["closed", "estate", "mall"]);
   assert.deepEqual(ids({ onlyCompatible: true }), ["closed", "estate", "meter"]);
   assert.equal(C.filterActiveCount({ ...f, availableNow: true, evCharging: true, includeMeters: false }), 3);
+  // distance bands: rings from the origin, one filter regardless of bounds
+  const far = C.rank([{ cp: cp({ id: "here", lat: origin.lat + 0.001, lng: origin.lng }), vac: rd(3) }, { cp: cp({ id: "mid", lat: origin.lat + 0.0035, lng: origin.lng }), vac: rd(3) }, { cp: cp({ id: "far", lat: origin.lat + 0.007, lng: origin.lng }), vac: rd(3) }], { origin, now });
+  const inBand = (id) => C.applyFilter(C.applyBand(C.DEFAULT_FILTER(), id), far).map(r => r.id).sort();
+  assert.deepEqual(inBand("all"), ["far", "here", "mid"]); assert.deepEqual(inBand("b250"), ["here"]); assert.deepEqual(inBand("b500"), ["mid"]); assert.deepEqual(inBand("b1k"), ["far"]); assert.deepEqual(inBand("b2k"), []);
+  assert.equal(C.bandOf(C.applyBand(C.DEFAULT_FILTER(), "b500")), "b500"); assert.equal(C.bandOf(C.DEFAULT_FILTER()), "all"); assert.equal(C.bandOf({ minDistanceMetres: 10, maxDistanceMetres: 20 }), "custom");
+  assert.equal(C.filterActiveCount(C.applyBand(C.DEFAULT_FILTER(), "b1k")), 1); assert.equal(C.filterActiveCount(C.applyBand(C.DEFAULT_FILTER(), "all")), 0);
+  // standing at an info-only mall: it must appear near the top, not below meters a kilometre away
+  assert.ok(far[0].reasons.some(r => r[0] === "atLocation"));
+  const mallHere = C.evaluate({ cp: cp({ id: "mall", lat: origin.lat + 0.0008, lng: origin.lng, sources: ["openStreetMap"] }), vac: {} }, { origin, now });
+  const meterFar = C.evaluate({ cp: cp({ id: "meter", kind: "onStreetMeter", lat: origin.lat + 0.009, lng: origin.lng }), vac: rd(6) }, { origin, now });
+  assert.ok(mallHere.score > meterFar.score * 0.6, `${mallHere.score} vs ${meterFar.score}`);
   let st = { f: C.DEFAULT_FILTER(), sort: "bestMatch" };
   st = C.applyChip("cheapest", st.f, st.sort, true); assert.equal(st.sort, "lowestCost"); assert.ok(C.chipIsOn("cheapest", st.f, st.sort));
   st = C.applyChip("streetMeters", st.f, st.sort, false); assert.equal(st.f.includeMeters, false);
