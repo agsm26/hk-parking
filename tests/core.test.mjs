@@ -189,6 +189,15 @@ test("fit, size advice, ranking, filters, chips", () => {
   assert.deepEqual(inBand("all"), ["far", "here", "mid"]); assert.deepEqual(inBand("b250"), ["here"]); assert.deepEqual(inBand("b500"), ["mid"]); assert.deepEqual(inBand("b1k"), ["far"]); assert.deepEqual(inBand("b2k"), []);
   assert.equal(C.bandOf(C.applyBand(C.DEFAULT_FILTER(), "b500")), "b500"); assert.equal(C.bandOf(C.DEFAULT_FILTER()), "all"); assert.equal(C.bandOf({ minDistanceMetres: 10, maxDistanceMetres: 20 }), "custom");
   assert.equal(C.filterActiveCount(C.applyBand(C.DEFAULT_FILTER(), "b1k")), 1); assert.equal(C.filterActiveCount(C.applyBand(C.DEFAULT_FILTER(), "all")), 0);
+  // familiarity: somewhere you park often is nudged up, but never past a full car park
+  const visits = { mall: { n: 4 }, estate: { n: 1 } };
+  const withV = (id, v) => C.evaluate({ cp: cp({ id, lat: origin.lat + 0.004, lng: origin.lng }), vac: rd(5) }, { origin, now, visits: v });
+  assert.ok(withV("mall", visits).score > withV("mall", {}).score);
+  assert.ok(withV("mall", visits).reasons.some(r => r[0] === "parkOften" && r[1] === 4));
+  assert.ok(withV("estate", visits).reasons.some(r => r[0] === "parkedBefore"));
+  assert.equal(withV("other", visits).reasons.some(r => /park/i.test(r[0])), false);
+  assert.ok(C.evaluate({ cp: cp({ id: "mall", openingStatus: "closed" }), vac: rd(5) }, { origin, now, visits }).score === 0);
+  assert.ok(C.BACKUP_KEYS.includes("visits"));
   // standing at an info-only mall: it must appear near the top, not below meters a kilometre away
   assert.ok(far[0].reasons.some(r => r[0] === "atLocation"));
   const mallHere = C.evaluate({ cp: cp({ id: "mall", lat: origin.lat + 0.0008, lng: origin.lng, sources: ["openStreetMap"] }), vac: {} }, { origin, now });
