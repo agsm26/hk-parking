@@ -46,7 +46,9 @@ page; leaving early loses the commit.
 
 1. In Terminal, in the `web` folder: `python3 bump.py` (stamps a new version
    into `sw.js` and `app.js`; without it phones keep the old copy) and
-   `node --test tests/core.test.mjs` (must say fail 0).
+   `node --test tests/core.test.mjs` (must say fail 0). Every few months run
+   `python3 refresh_data.py` first — it rebuilds the meter and OpenStreetMap
+   data and lists the operator facts that need re-reading.
 2. Upload the changed files at https://github.com/agsm26/hk-parking/upload/main
    (files in a folder go to `.../upload/main/<folder>`). Commit, wait for the
    repository page.
@@ -57,12 +59,9 @@ page; leaving early loses the commit.
    background and shows "Update ready"; the second uses it.
 
 The `.github/workflows/test.yml` file uploads through
-`.../upload/main/.github/workflows`. To refresh the meter snapshot
-(`data/meter_zones.json`, do it every few months): download
-`https://resource.data.one.gov.hk/td/psiparkingspaces/spaceinfo/parkingspaces.csv`
-into the folder as `_meters.csv`, then run
-`node -e 'import("./core.js").then(C=>{const fs=require("fs");const m=C.meterZones(fs.readFileSync("_meters.csv","utf8"));fs.writeFileSync("data/meter_zones.json",JSON.stringify({at:Date.now(),zones:m.zones,index:m.index}))})'`
-and delete `_meters.csv`.
+`.../upload/main/.github/workflows`. `python3 refresh_data.py` now does the
+meter and OpenStreetMap refresh for you; `enrich_osm.py` can also be run on its
+own if you already have an Overpass dump.
 
 ## If something is wrong on the phone
 

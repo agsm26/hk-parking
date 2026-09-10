@@ -650,6 +650,11 @@ export function evaluate(rec, ctx) {
   else { score += 4; if (ctx.vehicle?.heightMetres) reasons.push(["heightUnknown"]); }
   if (open === true) { score += 5; reasons.push(["open"]); } else if (open === false) { blocked = true; reasons.push(["closed"]); } else score += 2;
   if (rate && ctx.vehicle?.maxHourlyRateHKD) { const hr = hourlyEquivalent(rate); if (hr <= ctx.vehicle.maxHourlyRateHKD) { score += 5; reasons.push(["withinBudget", hr]); } else { score -= 10; reasons.push(["overBudget", hr]); } }
+  // Somewhere you have parked before is a known quantity: you know the ramp, the
+  // bay sizes and the walk. Worth a nudge, never enough to outrank a full car park.
+  const visits = ctx.visits?.[cp.id]?.n || 0;
+  if (visits >= 3) { score += 8; reasons.push(["parkOften", visits]); }
+  else if (visits >= 1) { score += 4; reasons.push(["parkedBefore", visits]); }
   if (ctx.vehicle) {
     if (ctx.vehicle.needsEVCharging) { if (cp.facilities.includes("evCharger") || (reading?.evCount ?? 0) > 0) { score += 4; reasons.push(["evCharging"]); } else score -= 6; }
     if (cp.district && (ctx.vehicle.preferredDistricts || []).includes(cp.district)) { score += 2; reasons.push(["preferredDistrict"]); }
@@ -665,7 +670,9 @@ export function reasonText(r, lang) {
     case "available": return v != null ? (en ? `${v} spaces` : `${v} 個位`) : (en ? "Spaces available" : "有位");
     case "limited": return v != null ? (en ? `Only ${v} left` : `淨返 ${v} 個`) : (en ? "Limited" : "少量");
     case "full": return en ? "Full" : "爆滿"; case "noLiveData": return en ? "No live data" : "冇即時資料"; case "stale": return en ? "Data is old" : "資料太舊";
-    case "nearby": return en ? "Close by" : "好近"; case "atLocation": return en ? "Right here" : "就喺呢度"; case "live": return en ? "Live" : "即時"; case "delayed": return en ? "May be delayed" : "或有延遲";
+    case "nearby": return en ? "Close by" : "好近";
+    case "parkOften": return en ? `You park here often (${v}×)` : `你成日泊呢度（${v} 次）`;
+    case "parkedBefore": return en ? "You parked here before" : "你泊過呢度"; case "atLocation": return en ? "Right here" : "就喺呢度"; case "live": return en ? "Live" : "即時"; case "delayed": return en ? "May be delayed" : "或有延遲";
     case "fits": return en ? "Height OK" : "高度合適"; case "tight": return en ? "Tight clearance" : "限高好貼"; case "tooTall": return en ? "Too tall" : "入唔到";
     case "heightUnknown": return en ? "Height not confirmed" : "限高未確認"; case "closed": return en ? "Closed now" : "而家閂咗"; case "open": return en ? "Open now" : "開放中";
     case "withinBudget": return en ? `~$${Math.round(v)}/hr` : `約 $${Math.round(v)}/小時`; case "overBudget": return en ? `$${Math.round(v)}/hr, over budget` : `$${Math.round(v)}/小時，超預算`;
@@ -786,7 +793,7 @@ export function districtsMatching(query) {
 
 // Everything a user would be sad to lose, in one copyable code. Feed
 // payloads are deliberately excluded: they are re-downloaded.
-export const BACKUP_KEYS = ["favs", "vehicles", "activeVehicleId", "places", "searches", "recents", "filter", "sort", "lang", "navApp", "alerts"];
+export const BACKUP_KEYS = ["favs", "vehicles", "activeVehicleId", "places", "searches", "recents", "visits", "filter", "sort", "lang", "navApp", "alerts"];
 const BACKUP_PREFIX = "CPHK1.";
 const utf8ToB64url = (s) => { const bytes = new TextEncoder().encode(s); let bin = ""; for (const b of bytes) bin += String.fromCharCode(b); return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
 const b64urlToUtf8 = (s) => { const b = s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - s.length % 4) % 4); const bin = atob(b); const bytes = Uint8Array.from(bin, c => c.charCodeAt(0)); return new TextDecoder().decode(bytes); };

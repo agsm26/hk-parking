@@ -10,7 +10,7 @@ const FEEDS = {
   meterOcc: "https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv",
 };
 const REFRESH = { info: 6 * 3600e3, meters: 24 * 3600e3, metersSnapshot: 7 * 86400e3, vacancy: 60e3, meterVac: 120e3 };
-const APP_VERSION = "2026-09-06c";                       // stamped by bump.py together with sw.js
+const APP_VERSION = "2026-09-11b";                       // stamped by bump.py together with sw.js
 const REPO_URL = "https://github.com/agsm26/hk-parking";  // issue reports go here
 const FETCH_TIMEOUT = 8000;
 // Map tiles: the Lands Department basemap through the CSDI portal (free, no
@@ -64,6 +64,8 @@ const S = {
   geo: { pos: null, status: "unknown", error: null },
   now: Date.now(), fixed: null,
   errors: LS.get("errors", []), online: navigator.onLine !== false, onboarded: LS.get("onboarded", false), metersFromSnapshot: false,
+  visits: LS.get("visits", {}),          // {carParkId: {n, lastAt}} — where you actually parked
+  heading: LS.get("heading", null),      // {id, name, at} — set on Navigate, used by the arrival check
 };
 if (qs.get("lat") && qs.get("lng")) S.fixed = { lat: parseFloat(qs.get("lat")), lng: parseFloat(qs.get("lng")) };
 const vehicle = () => S.vehicles.find(v => v.id === S.activeVehicleId) || S.vehicles[0] || null;
@@ -141,6 +143,7 @@ async function restoreCode() {
   if (!r.ok) { toast(r.error === "corrupt" ? L_("That code is damaged", "代碼已損壞") : L_("That is not a backup code", "唔係備份代碼")); return; }
   for (const [k, val] of Object.entries(r.data)) { S[k] = val; save(k); }
   S.filter = { ...C.DEFAULT_FILTER(), ...(S.filter || {}) };
+  S.visits = S.visits && typeof S.visits === "object" ? S.visits : {};
   document.documentElement.lang = S.lang === "en" ? "en-HK" : "zh-HK";
   const n = C.backupSummary(r.data); rerank(); render();
   toast(L_(`Restored ${n.favs} favourites, ${n.vehicles} vehicles, ${n.places} places`, `已還原 ${n.favs} 個常用、${n.vehicles} 架車、${n.places} 個地點`));
@@ -185,7 +188,7 @@ function startGeo() {
   if (S.fixed || !("geolocation" in navigator) || geoWatch != null) return;
   S.geo.status = "asking";
   geoWatch = navigator.geolocation.watchPosition(p => {
-    S.geo.pos = { lat: p.coords.latitude, lng: p.coords.longitude }; S.geo.status = "ok"; S.geo.error = null; rerank(); render();
+    S.geo.pos = { lat: p.coords.latitude, lng: p.coords.longitude }; S.geo.status = "ok"; S.geo.error = null; rerank(); render(); checkArrival();
   }, e => {
     S.geo.status = e.code === 1 ? "denied" : "error"; S.geo.error = e.message; render();
   }, { enableHighAccuracy: true, maximumAge: 60e3, timeout: 15e3 });
@@ -292,7 +295,7 @@ async function refresh(force = false) {
 function rerank() {
   S.now = Date.now();
   const records = S.carparks.map(cp => ({ cp, vac: S.vac[cp.id] || {} }));
-  const ctx = { origin: originPoint(), now: S.now, vehicle: vehicle() };
+  const ctx = { origin: originPoint(), now: S.now, vehicle: vehicle(), visits: S.visits };
   S.all = C.rank(records, ctx, S.sort);
   S.ranked = ctx.origin ? C.applyFilter(S.filter, S.all) : [];
 }
@@ -339,6 +342,8 @@ function cardHTML(r, extra = "") {
   if (r.estHourly != null) tags.push(`<span class="tag">$ ${esc(fmtHourly(r.estHourly, r.hourlyIsEstimate))}</span>`);
   if (cp.facilities.includes("evCharger")) tags.push(`<span class="tag">⚡ ${esc(L_("EV", "充電"))}</span>`);
   if (cp.isMall) tags.push(`<span class="tag">🛍 ${esc(L_("Mall", "商場"))}</span>`);
+  const vc = visitCount(cp.id);
+  if (vc) tags.push(`<span class="tag ok">Ⓟ ${esc(vc >= 2 ? L_(`Parked ${vc}×`, `泊過 ${vc} 次`) : L_("Parked before", "泊過"))}</span>`);
   if (C.isInfoOnly(cp)) tags.push(`<span class="tag">📄 ${esc(L_("Info only", "只有資料"))}</span>`);
   if (r.isOpen === false) tags.push(`<span class="tag full">${esc(L_("Closed", "閂咗"))}</span>`);
   if (!C.hasEntrance(cp)) tags.push(`<span class="tag">📍 ${esc(L_("Location approximate", "位置為約略"))}</span>`);
@@ -490,12 +495,35 @@ function closeSheet() { $("sheet").classList.remove("on"); $("scrim").classList.
 // ---------------------------------------------------------- actions ------
 function navigateTo(id) {
   const r = rec(id); if (!r) return; const p = C.navPoint(r.cp), name = T_(r.cp.name);
-  noteRecent(r.cp);
+  noteRecent(r.cp); setHeading(id, r.cp.name); arrivalAsked = false;
   const url = S.navApp === "google" ? `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=driving`
     : S.navApp === "waze" ? `https://waze.com/ul?ll=${p.lat},${p.lng}&navigate=yes`
     : `https://maps.apple.com/?daddr=${p.lat},${p.lng}&dirflg=d&q=${encodeURIComponent(name)}`;
   window.open(url, "_blank", "noopener");
 }
+function noteVisit(id) { const v = S.visits[id] || { n: 0, lastAt: null }; S.visits[id] = { n: v.n + 1, lastAt: Date.now() }; save("visits"); }
+const visitCount = (id) => S.visits[id]?.n || 0;
+
+// When you tap Navigate we remember where you were going. If the phone then
+// reaches that car park while the app is open, offer to start the session
+// instead of making you find the button. Asked once, then forgotten.
+const HEADING_RADIUS_M = 150, HEADING_TTL = 3 * 3600e3;
+function setHeading(id, name) { S.heading = { id, name, at: Date.now() }; save("heading"); }
+function clearHeading() { if (S.heading) { S.heading = null; save("heading"); } }
+async function checkArrival() {
+  const h = S.heading; if (!h || S.session || arrivalAsked) return;
+  if (Date.now() - h.at > HEADING_TTL) { clearHeading(); return; }
+  const me = S.fixed || (S.geo.status === "ok" ? S.geo.pos : null), r = rec(h.id); if (!me || !r) return;
+  if (C.distM(me, C.navPoint(r.cp)) > HEADING_RADIUS_M) return;
+  arrivalAsked = true; clearHeading();
+  const v = await dialog({ title: L_("Did you park here?", "泊咗喺度？"), text: T_(r.cp.name),
+    fields: [{ id: "floor", label: L_("Floor / zone / spot (optional)", "樓層／區域／車位（可選）"), placeholder: L_("e.g. P2 · B12", "例如 P2 · B12") },
+      { id: "hrs", label: L_("Remind me before paid time ends", "收費時間完結前提醒"), type: "select", value: "0", options: [["0", L_("No reminder", "唔提醒")], ["1", L_("After 1 hour", "1 小時後")], ["2", L_("After 2 hours", "2 小時後")], ["3", L_("After 3 hours", "3 小時後")], ["4", L_("After 4 hours", "4 小時後")], ["8", L_("After 8 hours", "8 小時後")]] }],
+    ok: L_("Yes, start timer", "係，開始計時"), cancel: L_("Not here", "唔喺度") });
+  if (!v) return;
+  startSession(h.id, v.floor.trim(), parseFloat(v.hrs) || 0); setTab("saved");
+}
+let arrivalAsked = false;
 function noteRecent(cp) { S.recents = [{ id: cp.id, name: cp.name, at: Date.now() }, ...S.recents.filter(x => x.id !== cp.id)].slice(0, 20); save("recents"); }
 function toggleFav(id) { const r = rec(id); if (!r) return; if (S.favs.some(f => f.id === id)) { S.favs = S.favs.filter(f => f.id !== id); toast(L_("Removed from saved", "已由常用移除")); } else { S.favs.push({ id, name: r.cp.name, pinned: false, watch: false, at: Date.now() }); toast(L_("Saved", "已加入常用")); } save("favs"); }
 async function shareCP(id) { const r = rec(id); if (!r) return; const p = C.navPoint(r.cp); const text = `${T_(r.cp.name)}\n${T_(r.cp.address)}\nhttps://maps.apple.com/?daddr=${p.lat},${p.lng}&dirflg=d`;
@@ -504,7 +532,7 @@ let reminderTimer = null;
 function startSession(id, floor, reminderHours) {
   const r = rec(id); if (!r) return;
   S.session = { id, name: r.cp.name, lat: r.cp.lat, lng: r.cp.lng, startedAt: Date.now(), floor: floor || null, reminderAt: reminderHours > 0 ? Date.now() + reminderHours * 3600e3 - 600e3 : null };
-  save("session"); noteRecent(r.cp); scheduleReminder(); toast(L_("Parking session started", "已開始泊車紀錄"));
+  save("session"); noteRecent(r.cp); noteVisit(id); clearHeading(); scheduleReminder(); toast(L_("Parking session started", "已開始泊車紀錄"));
 }
 function endSession() { if (S.session) { S.lastSession = { ...S.session, endedAt: Date.now() }; save("lastSession"); } S.session = null; save("session"); clearTimeout(reminderTimer); }
 function scheduleReminder() {
@@ -645,6 +673,12 @@ function renderSaved() {
     clearInterval(tick); tick = setInterval(() => { const t = $("timer"); if (t && S.session) t.textContent = fmtDur(Date.now() - S.session.startedAt); else clearInterval(tick); }, 1000);
   } else if (S.lastSession) h += `<div class="sect"><span>${esc(L_("Last parked", "上次泊車"))}</span></div><button class="list-item" data-cp="${esc(S.lastSession.id)}"><span>Ⓟ</span><span class="txt">${esc(T_(S.lastSession.name))}<small>${new Date(S.lastSession.startedAt).toLocaleString(S.lang === "en" ? "en-HK" : "zh-HK")}</small></span></button>`;
   h += storageTip();
+  const often = Object.entries(S.visits).map(([id, v]) => ({ id, ...v })).sort((a, b) => (b.n - a.n) || (b.lastAt - a.lastAt)).slice(0, 5);
+  if (often.length) {
+    h += `<div class="sect"><span>Ⓟ ${esc(L_("Where you park", "你常泊嘅地方"))}</span></div>`;
+    for (const o of often) { const r = rec(o.id), nm = r ? T_(r.cp.name) : (S.recents.find(x => x.id === o.id) ? T_(S.recents.find(x => x.id === o.id).name) : o.id);
+      h += `<button class="list-item" data-cp="${esc(o.id)}"><span>Ⓟ</span><span class="txt">${esc(nm)}<small>${esc(L_(`${o.n} time${o.n > 1 ? "s" : ""}`, `${o.n} 次`))}${o.lastAt ? " · " + esc(L_("last", "上次")) + " " + new Date(o.lastAt).toLocaleDateString(S.lang === "en" ? "en-HK" : "zh-HK") : ""}</small></span>${r ? badge(r) : ""}</button>`; }
+  }
   h += `<div class="sect"><span>★ ${esc(L_("Favourite car parks", "常用停車場"))}</span></div>`;
   const favs = [...S.favs].sort((a, b) => (b.pinned - a.pinned) || (b.at - a.at));
   if (!favs.length) h += `<p class="note">${esc(L_("Tap the star on any car park to keep it here.", "喺任何停車場撳星星就會存喺度。"))}</p>`;
@@ -825,6 +859,7 @@ window.addEventListener("hashchange", () => { const h = location.hash.slice(1); 
   if (S.origin.type === "current" && !S.fixed && S.onboarded) startGeo();   // first run explains before the permission prompt
   if (S.session) scheduleReminder();
   await refresh(false);
+  checkArrival();   // reopening the app inside the car park you drove to counts as arriving
   if (h.startsWith("cp/")) openDetail(decodeURIComponent(h.slice(3)));
   else if (qs.get("cp")) openDetail(qs.get("cp"));
   setInterval(() => { if (!document.hidden) refresh(false); }, REFRESH.vacancy);

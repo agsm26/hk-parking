@@ -34,7 +34,7 @@ make-icons.py   redraws the icons (pure Python, no dependencies)
 | Address Lookup Service (OGCIO) | `www.als.gov.hk/lookup?q=…` | place search by building, estate or street name, Chinese or English (Nominatim as fallback) |
 | OpenStreetMap (ODbL) | bundled `data/osm_carparks.json`, `osm_entrances.json`; Nominatim fallback | every other car park and mall car park, vehicle entrances |
 | Transport Department meters, pre-built | bundled `data/meter_zones.json` (1.7 MB, from the 4.8 MB CSV) | first open is fast; the CSV itself is re-read once a week |
-| Operator pages | bundled `data/curated_carparks.json` | tariffs, hours, phone with source URL and check date |
+| Operator pages | bundled `data/curated_carparks.json` | tariffs, hours, phone with source URL and check date (17 car parks) |
 
 All government endpoints send `Access-Control-Allow-Origin: *`, so the browser
 reads them directly. Every request has an 8 s timeout and one retry (60 s for
@@ -42,11 +42,25 @@ the meter CSV); failures are kept in a ten-entry log under More ▸ Diagnostics.
 shown with their age when offline. A reading older than an hour is "no live
 data". Everything is bounded to Hong Kong (`core.js` → `HK`).
 
-Refresh the OpenStreetMap snapshot with the native project's
-`Scripts/build_osm_carparks.py` and copy the three JSON files into `data/`.
-Rebuild `data/meter_zones.json` with `core.js` → `meterZones()` on a fresh CSV
-(see DEPLOY.md). Run `python3 bump.py` before every upload: it stamps `sw.js`
-and `app.js` with a new version so phones pick up the change.
+Refresh everything with one command, every few months:
+
+```bash
+python3 refresh_data.py       # meters + OpenStreetMap tags, then a staleness report
+python3 refresh_data.py --check   # report only
+```
+
+`refresh_data.py` rebuilds `data/meter_zones.json` from the Transport Department
+CSV and re-reads height, capacity, hours and operator tags from OpenStreetMap
+(`enrich_osm.py`), then lists the operator facts older than 180 days so you know
+which pages to re-read by hand. It never edits `curated_carparks.json`: those
+figures are copied from operator pages by a person, with the URL and date.
+
+To rebuild the OpenStreetMap car park list itself (new car parks, not just new
+tags), run the native project's `Scripts/build_osm_carparks.py` and copy the
+three JSON files into `data/`, then run `refresh_data.py` again.
+
+Run `python3 bump.py` before every upload: it stamps `sw.js` and `app.js` with a
+new version so phones pick up the change.
 
 ## Test locally
 
@@ -80,6 +94,10 @@ files stay under ODbL, Leaflet is BSD, government data follows DATA.GOV.HK terms
   list footer and each detail say so.
 - The parking reminder fires only while the app is open (iOS gives web apps no
   background timers). Real push reminders would need a small server.
+- Where you park is remembered on the device (a small count per car park) and
+  nudges the ranking; it is recorded only when you start a parking session.
+- After you tap Navigate, the app offers to start the session if the phone
+  reaches that car park while the app is open. It asks once, then forgets.
 - Favourites and vehicles live in one browser on one phone. More ▸ Backup
   produces a code that Restore reads on another device, or in the Home Screen
   app after saving in Safari.
