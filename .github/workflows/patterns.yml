@@ -1,0 +1,47 @@
+# Records what the parking feeds say, once an hour, forever.
+#
+# The app can tell you there are 14 spaces now; this is what lets it tell you
+# whether 14 is normal for a Friday evening. Each run folds one sample into one
+# bucket (day type x hour) and rewrites a single ~7 KB file, so the history
+# costs the repository about 150 KB a day.
+#
+# GitHub pauses scheduled workflows on a repository with 60 days of no human
+# activity, and emails you first. Any commit or a manual "Run workflow" here
+# starts it again.
+name: patterns
+on:
+  schedule:
+    - cron: "7 * * * *"     # every hour, at 7 past (UTC; the script converts to Hong Kong time)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: patterns           # never let two runs write the same slice
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Sample the feeds
+        run: node collect_patterns.mjs
+      - name: Commit the slice
+        run: |
+          if [ -z "$(git status --porcelain data/patterns)" ]; then
+            echo "nothing changed (the feeds gave nothing this hour)"; exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/patterns
+          git commit -m "patterns: $(date -u '+%Y-%m-%d %H:%M') UTC sample"
+          # A person may have uploaded files in the meantime; rebase rather than clobber.
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin main && git push origin HEAD:main && exit 0
+            sleep $((i * 5))
+          done
+          echo "could not push after 3 tries"; exit 1
