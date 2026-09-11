@@ -502,43 +502,103 @@ export const hasEntrance = (cp) => !!cp.entrance || cp.kind === "onStreetMeter";
 export const navPoint = (cp) => cp.entrance ? { lat: cp.entrance.lat, lng: cp.entrance.lng } : { lat: cp.lat, lng: cp.lng };
 
 /** Drop static records within 80 m of, or sharing a name with, a live-feed record. */
-export function dedupe(primary, extras, radius = 80) {
-  const names = new Set(primary.flatMap(cp => Object.values(cp.name)).map(normText).filter(n => n.length >= 4));
+// "Car park", "停車場" and friends say nothing about which car park this is.
+const GENERIC_NAME = /^(car ?parks?|parking|carpark ?\d*|停車場|停车場|停车场|地下停車場|多層停車場)$/i;
+const isGenericName = (n) => !n || GENERIC_NAME.test(String(n).trim());
+// Two records describe the same car park if a name matches outright, or if one
+// name contains the other ("V City" inside "Vcity Commerical Carpark"). Short
+// or generic names are excluded, or "Car park" would swallow everything.
+export function namesOverlap(a, b) {
+  const A = Object.values(a.name || {}).filter(n => !isGenericName(n)).map(normText).filter(n => n.length >= 4);
+  const B = Object.values(b.name || {}).filter(n => !isGenericName(n)).map(normText).filter(n => n.length >= 4);
+  for (const x of A) for (const y of B) {
+    if (x === y) return true;
+    const [short, long] = x.length <= y.length ? [x, y] : [y, x];
+    if (short.length >= 6 && long.includes(short)) return true;
+  }
+  return false;
+}
+
+export function dedupe(primary, extras, radius = 80, tightRadius = 25) {
+  // Only real car parks can stand in for one another. A metered street section
+  // is a different thing entirely, and its centroid sits within 80 m of plenty
+  // of off-street car parks — letting meters suppress them erased 119 car parks,
+  // Three Pacific Place and KOLOUR Yuen Long among them.
+  const rivals = primary.filter(cp => cp.kind !== "onStreetMeter");
+  const names = new Set(rivals.flatMap(cp => Object.values(cp.name)).map(normText).filter(n => n.length >= 4));
   const grid = new Map(); const cell = (p) => `${Math.floor(p.lat / 0.001)}_${Math.floor(p.lng / 0.001)}`;
-  for (const p of primary) { const k = cell(p); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(p); }
+  for (const p of rivals) { const k = cell(p); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(p); }
   const out = [...primary], seen = new Set(primary.map(p => p.id));
+  // OpenStreetMap sometimes holds the same car park twice (Cityplaza is a node
+  // and a relation 6 m apart). Collapse those, but only when the name matches
+  // too: in a dense city two different car parks can sit 80 m apart.
+  const kept = new Map();
   outer: for (const e of extras) {
     if (seen.has(e.id)) continue;
     if (Object.values(e.name).map(normText).some(n => names.has(n))) continue;
     const [cx, cy] = cell(e).split("_").map(Number);
-    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++)
-      for (const p of grid.get(`${cx + dx}_${cy + dy}`) || []) if (distM(p, e) <= radius) continue outer;
+    const eGeneric = Object.values(e.name).every(isGenericName);
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+      // A car park whose name matches, or which has no real name of its own, is
+      // the same place. One with a different name is only the same if it is
+      // practically on top of it — otherwise MegaBox disappears into Manhattan
+      // Place next door, and Tuen Mun Town Plaza loses a whole phase.
+      for (const p of grid.get(`${cx + dx}_${cy + dy}`) || []) {
+        const d = distM(p, e); if (d > radius) continue;
+        if (eGeneric || namesOverlap(p, e) || d <= tightRadius) continue outer;
+      }
+      for (const k of kept.get(`${cx + dx}_${cy + dy}`) || [])
+        if (distM(k, e) <= radius && namesOverlap(k, e)) continue outer;
+    }
     out.push(e); seen.add(e.id);
+    const k = cell(e); if (!kept.has(k)) kept.set(k, []); kept.get(k).push(e);
   }
   return out;
 }
 
+export const curatedIds = (e) => [e?.carParkId, ...(e?.carParkIds || [])].filter(Boolean);
 export function applyCurated(carparks, curatedDoc) {
   const entries = curatedDoc?.entries || []; if (!entries.length) return carparks;
-  const byId = new Map(entries.map(e => [e.carParkId, e]));
-  const byName = new Map(); for (const e of entries) for (const n of e.matchNames || []) byName.set(normText(n), e);
+  const byId = new Map(); for (const e of entries) for (const id of curatedIds(e)) byId.set(id, e);
+  // Matching by name is ONLY a fallback for an entry that names no car park id.
+  // An entry that does name one must never also attach by name: "時代廣場停車場"
+  // also names a car park 30 km from Causeway Bay, which would have worn
+  // Causeway Bay's tariff. An entry may add `near` to fence its name matching.
+  const byName = new Map();
+  for (const e of entries) if (!curatedIds(e).length) for (const n of e.matchNames || []) byName.set(normText(n), e);
+  const nameMatch = (cp) => {
+    for (const n of Object.values(cp.name).map(normText)) {
+      const e = byName.get(n); if (!e) continue;
+      if (e.near && distM(cp, e.near) > (e.near.radiusMetres ?? 1500)) continue;
+      return e;
+    }
+    return null;
+  };
   return carparks.map(cp => {
-    const e = byId.get(cp.id) || Object.values(cp.name).map(normText).map(n => byName.get(n)).find(Boolean);
+    const e = byId.get(cp.id) || nameMatch(cp);
     if (!e) return cp;
     const m = { ...cp, name: { ...cp.name }, fees: { ...cp.fees }, sources: [...cp.sources] };
     if (!m.name.tc && e.nameTC) m.name.tc = e.nameTC;
     if (!m.operatorName && (e.operatorEN || e.operatorTC)) m.operatorName = lt(e.operatorEN, e.operatorTC);
-    if (m.height.metres == null && e.heightMetres) m.height = { metres: e.heightMetres, note: m.height.note };
-    if (e.feeEN || e.feeTC) { const ex = m.fees.privateCar; if (!ex || (!ex.hourly.length && !ex.flat.length)) m.fees.privateCar = { hourly: [], flat: [], privileges: ex?.privileges || [], note: [e.feeEN, e.feeTC].filter(Boolean).join(" · ") }; }
+    let supplied = false;   // did this entry actually contribute a height, fee or hours?
+    if (m.height.metres == null && e.heightMetres) { m.height = { metres: e.heightMetres, note: m.height.note }; supplied = true; }
+    if (e.feeEN || e.feeTC) { const ex = m.fees.privateCar; if (!ex || (!ex.hourly.length && !ex.flat.length)) { supplied = true; m.fees.privateCar = { hourly: [], flat: [], privileges: ex?.privileges || [], note: [e.feeEN, e.feeTC].filter(Boolean).join(" · ") }; } }
     const notes = [];
-    if ((e.hoursEN || e.hoursTC) && !m.openingHours.length) notes.push(lt(e.hoursEN ? `Hours: ${e.hoursEN}` : null, e.hoursTC ? `開放時間：${e.hoursTC}` : null));
+    if ((e.hoursEN || e.hoursTC) && !m.openingHours.length) { supplied = true; notes.push(lt(e.hoursEN ? `Hours: ${e.hoursEN}` : null, e.hoursTC ? `開放時間：${e.hoursTC}` : null)); }
     if (e.notesEN || e.notesTC) notes.push(lt(e.notesEN, e.notesTC));
     for (const n of notes) m.infoNote = m.infoNote ? lt([m.infoNote.en, n.en].filter(Boolean).join(" · "), [m.infoNote.tc, n.tc].filter(Boolean).join(" · ")) : n;
     if (!m.contact && e.phone) m.contact = e.phone;
     if (!m.website && e.website) m.website = e.website;
     if (e.entranceLatitude != null && e.entranceLongitude != null) m.entrance = { lat: e.entranceLatitude, lng: e.entranceLongitude, note: lt(e.entranceNoteEN, e.entranceNoteTC), source: "curated" };
-    m.factsProvenance = { publisher: (e.operatorEN || e.operatorTC) ? lt(e.operatorEN, e.operatorTC) : lt("Operator", "營運商"), sourceURL: e.sourceURL || null, checkedOn: e.checkedOn || null };
+    // Only claim the operator published these facts when the entry really did
+    // supply them. Where the government feed already carries the fees, saying
+    // "fees as published by X" would put the operator's name on someone else's
+    // figures.
+    if (supplied) m.factsProvenance = { publisher: (e.operatorEN || e.operatorTC) ? lt(e.operatorEN, e.operatorTC) : lt("Operator", "營運商"), sourceURL: e.sourceURL || null, checkedOn: e.checkedOn || null };
     if (!m.sources.includes("curated")) m.sources.push("curated");
+    // The mall's own name is how people search, not the car park's: nobody
+    // looks for "Ocean Terminal" when they mean Harbour City.
+    m.searchAliases = [...new Set([...(cp.searchAliases || []), ...(e.matchNames || [])])];
     return m;
   });
 }
@@ -811,7 +871,7 @@ export function backupDecode(code) {
     return { ok: true, at: doc.at || null, data };
   } catch { return { ok: false, error: "corrupt" }; }
 }
-export const backupSummary = (data) => ({ favs: (data.favs || []).length, vehicles: (data.vehicles || []).length, places: (data.places || []).length });
+export const backupSummary = (data) => ({ favs: (data.favs || []).length, vehicles: (data.vehicles || []).length, places: (data.places || []).length, visits: Object.keys(data?.visits || {}).length });
 
 // Newest first, capped; kept on the device so a user can read what failed.
 export function pushError(log, entry, cap = 10) { return [entry, ...(Array.isArray(log) ? log : [])].slice(0, cap); }

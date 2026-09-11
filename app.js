@@ -10,7 +10,7 @@ const FEEDS = {
   meterOcc: "https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv",
 };
 const REFRESH = { info: 6 * 3600e3, meters: 24 * 3600e3, metersSnapshot: 7 * 86400e3, vacancy: 60e3, meterVac: 120e3 };
-const APP_VERSION = "2026-09-11c";                       // stamped by bump.py together with sw.js
+const APP_VERSION = "2026-09-11e";                       // stamped by bump.py together with sw.js
 const REPO_URL = "https://github.com/agsm26/hk-parking";  // issue reports go here
 const FETCH_TIMEOUT = 8000;
 // Map tiles: the Lands Department basemap through the CSDI portal (free, no
@@ -132,7 +132,7 @@ function trapTab(container, e) {
 // ---- backup & restore: the only way data crosses phones, or Safari ↔ Home Screen ----
 async function backupCode() {
   const code = C.backupEncode(S), n = C.backupSummary(S);
-  const text = L_(`搵車位 backup (${n.favs} favourites, ${n.vehicles} vehicles, ${n.places} places). On the other phone open the app → More → Restore and paste this code:\n\n${code}`, `搵車位 備份（${n.favs} 個常用、${n.vehicles} 架車、${n.places} 個地點）。喺另一部手機開 app → 更多 → 還原，貼上此代碼：\n\n${code}`);
+  const text = L_(`搵車位 backup (${n.favs} favourites, ${n.vehicles} vehicles, ${n.places} places, ${n.visits} parked). On the other phone open the app → More → Restore and paste this code:\n\n${code}`, `搵車位 備份（${n.favs} 個常用、${n.vehicles} 架車、${n.places} 個地點、${n.visits} 個泊過嘅地方）。喺另一部手機開 app → 更多 → 還原，貼上此代碼：\n\n${code}`);
   if (navigator.share) { try { await navigator.share({ text }); } catch {} return; }
   try { await navigator.clipboard.writeText(text); toast(L_("Backup code copied", "已複製備份代碼")); }
   catch { await dialog({ title: L_("Backup code", "備份代碼"), fields: [{ id: "code", label: L_("Copy this text", "複製呢段文字"), type: "textarea", value: code }], okOnly: true }); }
@@ -147,7 +147,7 @@ async function restoreCode() {
   S.visits = S.visits && typeof S.visits === "object" ? S.visits : {};
   document.documentElement.lang = S.lang === "en" ? "en-HK" : "zh-HK";
   const n = C.backupSummary(r.data); rerank(); render();
-  toast(L_(`Restored ${n.favs} favourites, ${n.vehicles} vehicles, ${n.places} places`, `已還原 ${n.favs} 個常用、${n.vehicles} 架車、${n.places} 個地點`));
+  toast(L_(`Restored ${n.favs} favourites, ${n.vehicles} vehicles, ${n.places} places, ${n.visits} parked`, `已還原 ${n.favs} 個常用、${n.vehicles} 架車、${n.places} 個地點、${n.visits} 個泊過嘅地方`));
 }
 
 // ---- issue reports reach the developer as a prefilled GitHub issue (no server, no e-mail exposed) ----
