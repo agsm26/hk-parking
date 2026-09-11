@@ -252,3 +252,73 @@ test("backup code, error log, staleness, Address Lookup Service", () => {
   assert.equal(tc[0].title, "淘大商場"); assert.equal(tc[0].subtitle, "牛頭角道77號，觀塘區");
   assert.deepEqual(C.alsPlaces({}, "en"), []); assert.deepEqual(C.alsPlaces(null, "en"), []);
 });
+
+test("typical availability patterns", () => {
+  // Hong Kong time buckets: Mon-Fri share a shape, Saturday and Sunday do not.
+  const at = (iso) => Date.parse(iso);
+  assert.equal(C.dayType(at("2026-09-11T03:00:00Z")), 0);            // Friday 11:00 HK
+  assert.equal(C.hourOf(at("2026-09-11T03:00:00Z")), 11);
+  assert.equal(C.dayType(at("2026-09-12T04:00:00Z")), 1);            // Saturday
+  assert.equal(C.dayType(at("2026-09-13T04:00:00Z")), 2);            // Sunday
+  assert.equal(C.hourOf(at("2026-09-11T16:30:00Z")), 0);             // 00:30 HK next day
+  assert.equal(C.dayType(at("2026-09-11T16:30:00Z")), 1);            // ...which is Saturday
+  assert.equal(C.sliceFor(at("2026-09-11T03:00:00Z")), "0-11");
+  assert.equal(C.sliceName(2, 7), "2-07");
+
+  // Folding: first sample lands whole, later ones average in.
+  let p = C.foldSample(null, 10, true);
+  assert.deepEqual(p, { typ: 10, tight: 0, n: 1 });
+  p = C.foldSample(p, 0, false);
+  assert.equal(p.n, 2); assert.equal(p.typ, 5); assert.equal(p.tight, 50);
+  // A feed that only says yes/no never invents a count.
+  let q = C.foldSample(null, null, false);
+  assert.equal(q.typ, C.PATTERN.unknown); assert.equal(q.tight, 100);
+  q = C.foldSample(q, null, true); assert.equal(q.typ, C.PATTERN.unknown); assert.equal(q.tight, 50);
+  // A sample with nothing in it changes nothing.
+  assert.deepEqual(C.foldSample(p, null, null), p);
+  // Counts stay inside a byte, and the bucket keeps following recent behaviour.
+  let big = C.foldSample(null, 999, true); assert.equal(big.typ, 254);
+  let many = null; for (let i = 0; i < 400; i++) many = C.foldSample(many, 40, true);
+  assert.equal(many.n, 255); assert.equal(many.typ, 40);
+  for (let i = 0; i < 200; i++) many = C.foldSample(many, 0, false);
+  assert.equal(many.typ, 0, "a bucket must follow the new normal, never freeze on the old one");
+  assert.equal(many.tight, 100);
+  // and back up again, so the decay is not one-way
+  for (let i = 0; i < 300; i++) many = C.foldSample(many, 50, true);
+  assert.equal(many.typ, 50); assert.equal(many.tight, 0);
+
+  // Positional encoding: ids give the order, three bytes each.
+  const ids = ["cp1", "cp2", "cp3", "meter:x|y"];
+  const map = { cp1: { typ: 12, tight: 0, n: 9 }, cp3: { typ: 255, tight: 100, n: 4 }, "meter:x|y": { typ: 0, tight: 100, n: 255 } };
+  const enc = C.encodeSlice(ids, map);
+  assert.equal(C.base64ToBytes(enc).length, ids.length * 3);
+  const dec = C.decodeSlice(ids, enc);
+  assert.deepEqual(dec.cp1, map.cp1); assert.deepEqual(dec.cp3, map.cp3); assert.deepEqual(dec["meter:x|y"], map["meter:x|y"]);
+  assert.equal(dec.cp2, undefined, "a place with no samples must not appear");
+  // Appending an id must not disturb the ones already stored.
+  const grown = C.decodeSlice([...ids, "cp4"], enc + "AAAA");
+  assert.deepEqual(grown.cp1, map.cp1); assert.equal(grown.cp4, undefined);
+  for (const s of ["", "!!!!", null]) assert.deepEqual(C.decodeSlice(ids, s), {});
+
+  // Silence until there is enough evidence.
+  assert.equal(C.patternText({ typ: 3, tight: 90, n: 2 }, "en"), null);
+  assert.equal(C.patternVerdict({ typ: 3, tight: 90, n: 2 }), null);
+  assert.equal(C.patternText(null, "en"), null);
+  const tightV = C.patternVerdict({ typ: 3, tight: 90, n: 12 });
+  assert.equal(tightV.kind, "usuallyTight"); assert.equal(tightV.confident, true);
+  assert.equal(C.patternVerdict({ typ: 40, tight: 50, n: 5 }).kind, "mixed");
+  assert.equal(C.patternVerdict({ typ: 40, tight: 5, n: 5 }).kind, "usuallyFree");
+  assert.equal(C.patternVerdict({ typ: 40, tight: 255, n: 5 }).kind, "unknown");
+  assert.match(C.patternText({ typ: 3, tight: 90, n: 12 }, "en"), /Usually tight .*about 3 free/);
+  assert.match(C.patternText({ typ: 255, tight: 90, n: 12 }, "en"), /Usually full/);
+  assert.match(C.patternText({ typ: 30, tight: 5, n: 12 }, "tc"), /通常有位/);
+  assert.equal(C.patternTag({ typ: 3, tight: 90, n: 12 }, "en"), "Usually tight now");
+  assert.equal(C.patternTag({ typ: 40, tight: 255, n: 9 }, "en"), null);
+
+  // "Better later" only speaks when now is bad, later is good, and both are known.
+  const busy = { typ: 2, tight: 95, n: 20 }, calm = { typ: 40, tight: 5, n: 20 };
+  assert.match(C.betterLater(busy, [{ inHours: 1, p: busy }, { inHours: 2, p: calm }], "en"), /easier in 2 h/);
+  assert.equal(C.betterLater(calm, [{ inHours: 1, p: calm }], "en"), null, "no advice when now is already fine");
+  assert.equal(C.betterLater(busy, [{ inHours: 1, p: { typ: 40, tight: 5, n: 1 } }], "en"), null, "later bucket needs evidence too");
+  assert.equal(C.betterLater(busy, [{ inHours: 1, p: null }], "en"), null);
+});
