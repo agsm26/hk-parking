@@ -1,306 +1,344 @@
 {
- "version": 1,
- "_readme": "Facts published by car park operators on their own websites, read by hand and recorded with the page URL and the date checked. Only what the page says; no guessed heights or fees. Re-check every few months: tariffs change. Match by carParkId (one-stop park_Id or osm:… id) or by matchNames.",
- "entries": [
-  {
-   "carParkId": "osm:way/1444260590",
-   "matchNames": [
-    "Ocean Terminal",
-    "Ocean Terminal Car Park",
-    "海運大廈"
-   ],
-   "nameTC": "海運大廈停車場 (P5)",
-   "operatorEN": "Harbour City",
-   "operatorTC": "海港城",
-   "feeEN": "Ocean Terminal Car Park (P5): HK$17 per 30 min, 07:00–22:59; HK$6 per 30 min, 23:00–06:59. 30 EV charging facilities.",
-   "feeTC": "海運大廈停車場（P5）：07:00–22:59 每 30 分鐘 HK$17；23:00–06:59 每 30 分鐘 HK$6。設 30 個電動車充電設施。",
-   "website": "https://www.harbourcity.com.hk/en/explore-hc/services-facilities/parking/",
-   "sourceURL": "https://www.harbourcity.com.hk/en/explore-hc/services-facilities/parking/",
-   "checkedOn": "2026-09-10"
-  },
-  {
-   "carParkId": "osm:way/1444260591",
-   "matchNames": [
-    "Ocean Centre",
-    "海洋中心"
-   ],
-   "nameTC": "海洋中心停車場 (P6)",
-   "operatorEN": "Harbour City",
-   "operatorTC": "海港城",
-   "feeEN": "Ocean Centre Car Park (P6): HK$19 per 30 min, 07:00–22:59; HK$6 per 30 min, 23:00–06:59.",
-   "feeTC": "海洋中心停車場（P6）：07:00–22:59 每 30 分鐘 HK$19；23:00–06:59 每 30 分鐘 HK$6。",
-   "website": "https://www.harbourcity.com.hk/en/explore-hc/services-facilities/parking/",
-   "sourceURL": "https://www.harbourcity.com.hk/en/explore-hc/services-facilities/parking/",
-   "checkedOn": "2026-09-10"
-  },
-  {
-   "carParkId": "osm:way/1444260592",
-   "matchNames": [
-    "The Gateway",
-    "港威大廈"
-   ],
-   "nameTC": "港威大廈停車場 (P1)",
-   "operatorEN": "Harbour City",
-   "operatorTC": "海港城",
-   "feeEN": "The Gateway Car Park (P1): HK$19 per 30 min, 07:00–22:59; HK$6 per 30 min, 23:00–06:59.",
-   "feeTC": "港威大廈停車場（P1）：07:00–22:59 每 30 分鐘 HK$19；23:00–06:59 每 30 分鐘 HK$6。",
-   "website": "https://www.harbourcity.com.hk/en/explore-hc/services-facilities/parking/",
-   "sourceURL": "https://www.harbourcity.com.hk/en/explore-hc/services-facilities/parking/",
-   "checkedOn": "2026-09-10"
-  },
-  {
-   "carParkId": "osm:way/583453339",
-   "matchNames": [
-    "Pier No.3",
-    "3號碼頭",
-    "Pier 3"
-   ],
-   "nameTC": "3 號碼頭停車場 (P3)",
-   "operatorEN": "Harbour City",
-   "operatorTC": "海港城",
-   "feeEN": "Pier 3 Car Park (P3): HK$19 per 30 min, 07:00–22:59; HK$6 per 30 min, 23:00–06:59.",
-   "feeTC": "3 號碼頭停車場（P3）：07:00–22:59 每 30 分鐘 HK$19；23:00–06:59 每 30 分鐘 HK$6。",
-   "website": "https://www.harbourcity.com.hk/en/explore-hc/services-facilities/parking/",
-   "sourceURL": "https://www.harbourcity.com.hk/en/explore-hc/services-facilities/parking/",
-   "checkedOn": "2026-09-10"
-  },
-  {
-   "carParkId": "osm:node/6217175675",
-   "matchNames": [
-    "International Finance Centre Mall car park",
-    "ifc mall",
-    "國際金融中心商場停車場"
-   ],
-   "nameTC": "國際金融中心商場停車場",
-   "operatorEN": "ifc mall",
-   "operatorTC": "國際金融中心商場",
-   "feeEN": "HK$32 per hour, 07:01–23:00; HK$18 per hour, 23:01–07:00. Valet parking HK$60 per hour (minimum 1 hour), 10:00–02:00 daily.",
-   "feeTC": "07:01–23:00 每小時 HK$32；23:01–07:00 每小時 HK$18。代客泊車每小時 HK$60（最少 1 小時），每日 10:00–02:00。",
-   "notesEN": "EV charging: One ifc B3 one medium-speed charger; Two ifc B4 seven DC quick chargers, B5 twenty-one medium-speed, three DC quick and three Tesla V3 Superchargers. HK$3 per kWh plus HK$5 per minute idle fee 15 minutes after charging completes. Complimentary parking: HK$300 same-day electronic spending for 2 hours, HK$500 for 3 hours.",
-   "notesTC": "電動車充電：一期 B3 設 1 個中速充電器；二期 B4 設 7 個直流快速充電器，B5 設 21 個中速、3 個直流快速及 3 個 Tesla V3 超級充電站。每度電 HK$3，充電完成 15 分鐘後每分鐘收 HK$5 佔用費。免費泊車：即日電子消費滿 HK$300 可享 2 小時，滿 HK$500 可享 3 小時。",
-   "phone": "3416 3112",
-   "website": "https://ifc.com.hk/en/mall/parking/",
-   "sourceURL": "https://ifc.com.hk/en/mall/parking/",
-   "checkedOn": "2026-09-10"
-  },
-  {
-   "carParkId": "osm:node/1026827532",
-   "matchNames": [
-    "Pacific Place",
-    "Three Pacific Place",
-    "太古廣場",
-    "太古廣場三座"
-   ],
-   "nameTC": "太古廣場停車場",
-   "operatorEN": "Pacific Place",
-   "operatorTC": "太古廣場",
-   "feeEN": "HK$39 per hour, effective 1 January 2026.",
-   "feeTC": "每小時 HK$39，2026 年 1 月 1 日起生效。",
-   "notesEN": "More than 400 parking spaces. Car park entrances: Level 4 of Pacific Place Drive off Justice Drive, or Wing Fung Street from Queen's Road East. Complimentary parking: 3 hours for HK$500 cumulative same-day electronic spending, or HK$300 after 5pm, for loyalty programme members, with a maximum of 3 machine-printed receipts of at least HK$100 each. Entry card must be an Octopus, Visa, UnionPay or Mastercard.",
-   "notesTC": "超過 400 個車位。入口：法院道旁太古廣場道 4 樓，或皇后大道東永豐街。免費泊車：會員即日電子消費滿 HK$500，或下午 5 時後滿 HK$300，可享 3 小時；最多 3 張機印單據，每張至少 HK$100。入場須用八達通、Visa、銀聯或 Mastercard。",
-   "phone": "2844 8988",
-   "website": "https://www.pacificplace.com.hk/en/locationandparking",
-   "sourceURL": "https://www.pacificplace.com.hk/en/locationandparking",
-   "checkedOn": "2026-09-10"
-  },
-  {
-   "carParkId": "osm:node/1161336799",
-   "matchNames": [
-    "Cityplaza Carpark",
-    "Cityplaza",
-    "太古城中心停車場"
-   ],
-   "nameTC": "太古城中心停車場",
-   "operatorEN": "Cityplaza",
-   "operatorTC": "太古城中心",
-   "feeEN": "Cityplaza Car Park: HK$31 per hour. Sing Fai Terrace (Stage X) Car Park: HK$27 per hour. Part of an hour is charged as an hour.",
-   "feeTC": "太古城中心停車場：每小時 HK$31。承褔臺（第十期）停車場：每小時 HK$27。不足一小時亦作一小時計算。",
-   "notesEN": "Over 1,800 parking spaces around the community. Octopus, Visa, UnionPay and Mastercard accepted.",
-   "notesTC": "區內合共超過 1,800 個車位。接受八達通、Visa、銀聯及 Mastercard。",
-   "website": "https://www.cityplaza.com/en/location-and-parking/parking-fees",
-   "sourceURL": "https://www.cityplaza.com/en/location-and-parking/parking-fees",
-   "checkedOn": "2026-09-10"
-  },
-  {
-   "matchNames": [
-    "Elements",
-    "ELEMENTS",
-    "圓方",
-    "圓方停車場",
-    "Elements car park"
-   ],
-   "nameTC": "圓方停車場",
-   "operatorEN": "ELEMENTS",
-   "operatorTC": "圓方",
-   "feeEN": "HK$26 per hour, 24 hours, Monday to Sunday and public holidays.",
-   "feeTC": "每小時 HK$26，24 小時，星期一至日及公眾假期。",
-   "notesEN": "About 131 EV charging stations across the North and South car parks: DC charger HK$3 per kWh, AC charger HK$2.6 per kWh (effective 2 May 2025), idle fee HK$5 per minute after 15 minutes. Complimentary parking: 1 hour for every HK$100 single spend, 3 hours for two PREMIERE CINEMAS tickets, up to 5 hours a day.",
-   "notesTC": "南北停車場合共約 131 個電動車充電站：直流每度電 HK$3，交流每度電 HK$2.6（2025 年 5 月 2 日起），超時 15 分鐘後每分鐘 HK$5。免費泊車：單一消費每滿 HK$100 送 1 小時，兩張 PREMIERE 戲票送 3 小時，每日最多 5 小時。",
-   "phone": "2735 5234",
-   "website": "https://www.elementshk.com/eng/elements/location/parking",
-   "sourceURL": "https://www.elementshk.com/eng/elements/location/parking",
-   "checkedOn": "2026-09-10"
-  },
-  {
-   "carParkId": "osm:way/102411832",
-   "matchNames": [
-    "Langham Place Shopping Mall car park",
-    "Langham Place",
-    "朗豪坊",
-    "朗豪坊購物商場停車場"
-   ],
-   "nameTC": "朗豪坊停車場",
-   "operatorEN": "Langham Place",
-   "operatorTC": "朗豪坊",
-   "feeEN": "Monday to Thursday HK$37 per hour; Friday to Sunday and public holidays HK$41 per hour; night parking 22:00–08:00 HK$120.",
-   "feeTC": "星期一至四每小時 HK$37；星期五至日及公眾假期每小時 HK$41；夜泊 22:00–08:00 HK$120。",
-   "notesEN": "EV charging stations on Basement 4. A maximum of two same-day electronic-payment receipts from two different merchants are accepted for the free parking privilege.",
-   "notesTC": "B4 設電動車充電站。免費泊車優惠最多接受兩張即日、由兩間不同商戶發出的電子付款單據。",
-   "website": "https://www.langhamplace.com.hk/visit-us/parking",
-   "sourceURL": "https://www.langhamplace.com.hk/visit-us/parking",
-   "checkedOn": "2026-09-10"
-  },
-  {
-   "carParkId": "osm:node/12422362172",
-   "matchNames": [
-    "New Town Plaza car park",
-    "New Town Plaza",
-    "新城市廣場",
-    "新城市廣場停車場"
-   ],
-   "nameTC": "新城市廣場停車場",
-   "operatorEN": "New Town Plaza",
-   "operatorTC": "新城市廣場",
-   "feeEN": "Monday to Friday HK$22 per hour; Saturday, Sunday and public holidays HK$28 per hour.",
-   "feeTC": "星期一至五每小時 HK$22；星期六、日及公眾假期每小時 HK$28。",
-   "notesEN": "EV and Tesla charging stations available. Complimentary parking: 1 hour for every HK$100 single electronic spend at F&B outlets from 7am, or a same-day Movie Town ticket, for The Point members.",
-   "notesTC": "設電動車及 Tesla 充電站。免費泊車：The Point 會員早上 7 時起於餐飲商戶單一電子消費每滿 HK$100，或憑即日 Movie Town 戲票，可享 1 小時。",
-   "website": "https://www.newtownplaza.com.hk/parking/",
-   "sourceURL": "https://www.newtownplaza.com.hk/parking/",
-   "checkedOn": "2026-09-10"
-  },
-  {
-   "matchNames": [
-    "MOKO",
-    "MOKO car park",
-    "新世紀廣場",
-    "新世紀廣場停車場"
-   ],
-   "nameTC": "新世紀廣場停車場",
-   "operatorEN": "MOKO",
-   "operatorTC": "新世紀廣場",
-   "feeEN": "Monday to Friday HK$32 per hour; Saturday, Sunday and public holidays HK$37 per hour.",
-   "feeTC": "星期一至五每小時 HK$32；星期六、日及公眾假期每小時 HK$37。",
-   "notesEN": "Payment by credit card, EPS, debit card, Apple Pay, BoC Pay, Google Pay, PayMe, Samsung Pay, UnionPay, Alipay and WeChat Pay. Complimentary parking for The Point members: 3 hours for HK$200 same-day electronic spending on weekdays, 2 hours for HK$400 at weekends and on public holidays.",
-   "notesTC": "接受信用卡、易辦事、借記卡、Apple Pay、BoC Pay、Google Pay、PayMe、Samsung Pay、銀聯、支付寶及微信支付。The Point 會員免費泊車：平日即日電子消費滿 HK$200 享 3 小時，週末及公眾假期滿 HK$400 享 2 小時。",
-   "website": "https://www.moko.com.hk/about-moko/parking/",
-   "sourceURL": "https://www.moko.com.hk/about-moko/parking/",
-   "checkedOn": "2026-09-10"
-  },
-  {
-   "carParkId": "osm:way/26469269",
-   "matchNames": [
-    "Times Square car park",
-    "Times Square",
-    "時代廣場",
-    "時代廣場停車場"
-   ],
-   "nameTC": "時代廣場停車場",
-   "operatorEN": "Times Square",
-   "operatorTC": "時代廣場",
-   "feeEN": "Monday to Friday: HK$18 per 30 min, 07:00–23:00; HK$8 per 30 min, 23:00–07:00. Saturday, Sunday and public holidays: HK$19 per 30 min, 07:00–23:00; HK$8 per 30 min overnight.",
-   "feeTC": "星期一至五：07:00–23:00 每 30 分鐘 HK$18；23:00–07:00 每 30 分鐘 HK$8。星期六、日及公眾假期：07:00–23:00 每 30 分鐘 HK$19；通宵每 30 分鐘 HK$8。",
-   "hoursEN": "Open 24 hours",
-   "hoursTC": "24 小時開放",
-   "notesEN": "700 parking spaces. Up to 3 hours free parking with designated spending at Times Square.",
-   "notesTC": "共 700 個車位。於時代廣場消費指定金額最多可享 3 小時免費泊車。",
-   "phone": "2118 6911",
-   "website": "https://timessquare.com.hk/parking/",
-   "sourceURL": "https://timessquare.com.hk/parking/",
-   "checkedOn": "2026-09-10"
-  },
-  {
-   "carParkId": "osm:node/8974710866",
-   "matchNames": [
-    "K11 MUSEA car park",
-    "K11 MUSEA",
-    "K11 MUSEA 停車場"
-   ],
-   "nameTC": "K11 MUSEA 停車場",
-   "operatorEN": "K11 MUSEA",
-   "operatorTC": "K11 MUSEA",
-   "feeEN": "Monday to Thursday (except public holidays) HK$30 per hour; Friday to Sunday and public holidays HK$41 per hour. Overnight HK$90 for 21:00–10:00. Day park HK$150 for 08:00–19:00, Monday to Friday.",
-   "feeTC": "星期一至四（公眾假期除外）每小時 HK$30；星期五至日及公眾假期每小時 HK$41。夜泊 21:00–10:00 HK$90。日泊星期一至五 08:00–19:00 HK$150。",
-   "notesEN": "EV chargers on B4 for public use; charging fees are not covered by parking privileges.",
-   "notesTC": "B4 設公眾電動車充電器；充電費用不包括在泊車優惠內。",
-   "phone": "3892 3890",
-   "website": "https://www.k11musea.com/parking",
-   "sourceURL": "https://www.k11musea.com/parking",
-   "checkedOn": "2026-09-10"
-  },
-  {
-   "carParkId": "osm:way/185084369",
-   "matchNames": [
-    "Olympian City 2 Car Park",
-    "Olympian City",
-    "奧海城",
-    "奧海城第2期停車場"
-   ],
-   "nameTC": "奧海城停車場",
-   "operatorEN": "Olympian City",
-   "operatorTC": "奧海城",
-   "feeEN": "Monday to Friday: OC1 HK$22, OC2 HK$20, OC3 HK$23 per hour. Saturday, Sunday and public holidays: OC1 HK$20, OC2 HK$24, OC3 HK$28 per hour. OC1 day park HK$145 (07:00–20:00), night park HK$88 (20:00–07:00). MTR Park & Ride HK$16 per hour (05:30–01:00).",
-   "feeTC": "星期一至五：一期每小時 HK$22、二期 HK$20、三期 HK$23。星期六、日及公眾假期：一期 HK$20、二期 HK$24、三期 HK$28。一期日泊 HK$145（07:00–20:00），夜泊 HK$88（20:00–07:00）。港鐵泊車轉乘每小時 HK$16（05:30–01:00）。",
-   "hoursEN": "Open 24 hours",
-   "hoursTC": "24 小時開放",
-   "notesEN": "Octopus payment only. EV charging by Tesla Destination and Supercharger, Shell Recharge and Sime Darby; see the operators' own apps for prices. Complimentary parking Monday to Friday: 1 hour for HK$200, 2 hours for HK$400. Concierge: OC1 2271 4168, OC2 2740 4108, OC3 2273 4582.",
-   "notesTC": "只接受八達通付款。電動車充電由 Tesla Destination 及超級充電站、Shell Recharge 及森那美提供，收費請參閱其應用程式。星期一至五免費泊車：消費滿 HK$200 享 1 小時，滿 HK$400 享 2 小時。禮賓部：一期 2271 4168、二期 2740 4108、三期 2273 4582。",
-   "phone": "2271 4168",
-   "website": "https://www.olympiancity.com.hk/en/Parking",
-   "sourceURL": "https://www.olympiancity.com.hk/en/Parking",
-   "checkedOn": "2026-09-10"
-  },
-  {
-   "carParkId": "osm:node/1688143469",
-   "matchNames": [
-    "MegaBox car park",
-    "MegaBox",
-    "MegaBox 停車場"
-   ],
-   "nameTC": "MegaBox 停車場",
-   "operatorEN": "MegaBox",
-   "operatorTC": "MegaBox",
-   "notesEN": "The operator publishes parking privileges but not an hourly rate. Complimentary parking: 3 hours for a single same-day HK$100 restaurant spend or HK$200 retail spend by electronic payment; 2 hours for two same-day CineArt or Mega Ice tickets; up to 5 hours a day.",
-   "notesTC": "營運商公佈泊車優惠但未有公佈每小時收費。免費泊車：即日以電子貨幣單一消費，餐飲滿 HK$100 或零售滿 HK$200 享 3 小時；兩張即日 CineArt 戲票或 Mega Ice 門票享 2 小時；每日最多 5 小時。",
-   "website": "https://www.megabox.com.hk/en/carpark",
-   "sourceURL": "https://www.megabox.com.hk/en/carpark",
-   "checkedOn": "2026-09-10"
-  },
-  {
-   "carParkId": "osm:node/1203030599",
-   "matchNames": [
-    "Festival Walk",
-    "又一城停車場"
-   ],
-   "nameTC": "又一城停車場",
-   "feeEN": "Mon–Thu HK$24/hour; Fri–Sun & public holidays HK$26/hour. First hour free on entry after 5 pm; up to 3 hours free with electronic spending. 830 spaces on three levels; EV fast chargers at P1, medium chargers at P3, Tesla Superchargers at P1.",
-   "feeTC": "星期一至四每小時 HK$24；星期五至日及公眾假期每小時 HK$26。下午 5 時後入場首小時免費；電子消費最多免泊 3 小時。三層共 830 個車位；P1 設快速充電器及 Tesla 超級充電站，P3 設中速充電器。",
-   "website": "https://www.festivalwalk.com.hk/en/parking",
-   "sourceURL": "https://www.festivalwalk.com.hk/en/parking",
-   "checkedOn": "2026-09-05"
-  },
-  {
-   "carParkId": "osm:way/51256967",
-   "matchNames": [
-    "Mira Place 1 car park",
-    "Mira Place car park",
-    "美麗華廣場一期停車場"
-   ],
-   "feeEN": "Hourly 7 am–11 pm: Mon–Thu HK$41, Fri–Sun & public holidays HK$43; 11 pm–7 am HK$16. Day park HK$200 (7 am–6:30 pm, Mon–Fri); night park HK$80 (11 pm–7 am). Minimum charge one hour. Rates effective 1 Jan 2026.",
-   "feeTC": "時租早上 7 時至晚上 11 時：星期一至四 HK$41，星期五至日及公眾假期 HK$43；晚上 11 時至早上 7 時 HK$16。日泊 HK$200（星期一至五 7:00–18:30）；夜泊 HK$80（23:00–07:00）。最少收費一小時。2026 年 1 月 1 日起生效。",
-   "website": "https://www.miraplace.com.hk/en/parking",
-   "sourceURL": "https://www.miraplace.com.hk/en/parking",
-   "checkedOn": "2026-09-05"
-  }
- ]
+  "version": 1,
+  "_readme": "Facts published by car park operators on their own websites, read by hand and recorded with the page URL and the date checked. Only what the page says; no guessed heights or fees. Re-check every few months: tariffs change. Match by carParkId or carParkIds (one-stop park_Id or osm:… id). An entry that names an id attaches ONLY to that id; matchNames are then just extra search terms. An entry with no id falls back to matching those names, and should set `near` {lat,lng,radiusMetres} to fence that match to the right place.",
+  "entries": [
+    {
+      "carParkId": "osm:way/1444260590",
+      "matchNames": [
+        "Ocean Terminal",
+        "Ocean Terminal Car Park",
+        "海運大廈",
+        "Harbour City",
+        "海港城"
+      ],
+      "nameTC": "海運大廈停車場 (P5)",
+      "operatorEN": "Harbour City",
+      "operatorTC": "海港城",
+      "feeEN": "Ocean Terminal Car Park (P5): HK$17 per 30 min, 07:00–22:59; HK$6 per 30 min, 23:00–06:59. 30 EV charging facilities.",
+      "feeTC": "海運大廈停車場（P5）：07:00–22:59 每 30 分鐘 HK$17；23:00–06:59 每 30 分鐘 HK$6。設 30 個電動車充電設施。",
+      "website": "https://www.harbourcity.com.hk/en/explore-hc/services-facilities/parking/",
+      "sourceURL": "https://www.harbourcity.com.hk/en/explore-hc/services-facilities/parking/",
+      "checkedOn": "2026-09-10"
+    },
+    {
+      "carParkId": "osm:way/1444260591",
+      "matchNames": [
+        "Ocean Centre",
+        "海洋中心",
+        "Harbour City",
+        "海港城"
+      ],
+      "nameTC": "海洋中心停車場 (P6)",
+      "operatorEN": "Harbour City",
+      "operatorTC": "海港城",
+      "feeEN": "Ocean Centre Car Park (P6): HK$19 per 30 min, 07:00–22:59; HK$6 per 30 min, 23:00–06:59.",
+      "feeTC": "海洋中心停車場（P6）：07:00–22:59 每 30 分鐘 HK$19；23:00–06:59 每 30 分鐘 HK$6。",
+      "website": "https://www.harbourcity.com.hk/en/explore-hc/services-facilities/parking/",
+      "sourceURL": "https://www.harbourcity.com.hk/en/explore-hc/services-facilities/parking/",
+      "checkedOn": "2026-09-10"
+    },
+    {
+      "carParkId": "osm:way/1444260592",
+      "matchNames": [
+        "The Gateway",
+        "港威大廈",
+        "Harbour City",
+        "海港城"
+      ],
+      "nameTC": "港威大廈停車場 (P1)",
+      "operatorEN": "Harbour City",
+      "operatorTC": "海港城",
+      "feeEN": "The Gateway Car Park (P1): HK$19 per 30 min, 07:00–22:59; HK$6 per 30 min, 23:00–06:59.",
+      "feeTC": "港威大廈停車場（P1）：07:00–22:59 每 30 分鐘 HK$19；23:00–06:59 每 30 分鐘 HK$6。",
+      "website": "https://www.harbourcity.com.hk/en/explore-hc/services-facilities/parking/",
+      "sourceURL": "https://www.harbourcity.com.hk/en/explore-hc/services-facilities/parking/",
+      "checkedOn": "2026-09-10"
+    },
+    {
+      "carParkId": "osm:way/583453339",
+      "matchNames": [
+        "Pier No.3",
+        "3號碼頭",
+        "Pier 3",
+        "Harbour City",
+        "海港城"
+      ],
+      "nameTC": "3 號碼頭停車場 (P3)",
+      "operatorEN": "Harbour City",
+      "operatorTC": "海港城",
+      "feeEN": "Pier 3 Car Park (P3): HK$19 per 30 min, 07:00–22:59; HK$6 per 30 min, 23:00–06:59.",
+      "feeTC": "3 號碼頭停車場（P3）：07:00–22:59 每 30 分鐘 HK$19；23:00–06:59 每 30 分鐘 HK$6。",
+      "website": "https://www.harbourcity.com.hk/en/explore-hc/services-facilities/parking/",
+      "sourceURL": "https://www.harbourcity.com.hk/en/explore-hc/services-facilities/parking/",
+      "checkedOn": "2026-09-10"
+    },
+    {
+      "carParkId": "osm:node/6217175675",
+      "matchNames": [
+        "International Finance Centre Mall car park",
+        "ifc mall",
+        "國際金融中心商場停車場",
+        "IFC",
+        "ifc",
+        "國際金融中心",
+        "ifc商場"
+      ],
+      "nameTC": "國際金融中心商場停車場",
+      "operatorEN": "ifc mall",
+      "operatorTC": "國際金融中心商場",
+      "feeEN": "HK$32 per hour, 07:01–23:00; HK$18 per hour, 23:01–07:00. Valet parking HK$60 per hour (minimum 1 hour), 10:00–02:00 daily.",
+      "feeTC": "07:01–23:00 每小時 HK$32；23:01–07:00 每小時 HK$18。代客泊車每小時 HK$60（最少 1 小時），每日 10:00–02:00。",
+      "notesEN": "EV charging: One ifc B3 one medium-speed charger; Two ifc B4 seven DC quick chargers, B5 twenty-one medium-speed, three DC quick and three Tesla V3 Superchargers. HK$3 per kWh plus HK$5 per minute idle fee 15 minutes after charging completes. Complimentary parking: HK$300 same-day electronic spending for 2 hours, HK$500 for 3 hours.",
+      "notesTC": "電動車充電：一期 B3 設 1 個中速充電器；二期 B4 設 7 個直流快速充電器，B5 設 21 個中速、3 個直流快速及 3 個 Tesla V3 超級充電站。每度電 HK$3，充電完成 15 分鐘後每分鐘收 HK$5 佔用費。免費泊車：即日電子消費滿 HK$300 可享 2 小時，滿 HK$500 可享 3 小時。",
+      "phone": "3416 3112",
+      "website": "https://ifc.com.hk/en/mall/parking/",
+      "sourceURL": "https://ifc.com.hk/en/mall/parking/",
+      "checkedOn": "2026-09-10"
+    },
+    {
+      "matchNames": [
+        "Pacific Place",
+        "Pacific Place car park",
+        "太古廣場",
+        "太古廣場停車場"
+      ],
+      "nameTC": "太古廣場停車場",
+      "operatorEN": "Pacific Place",
+      "operatorTC": "太古廣場",
+      "feeEN": "HK$39 per hour, effective 1 January 2026.",
+      "feeTC": "每小時 HK$39，2026 年 1 月 1 日起生效。",
+      "notesEN": "More than 400 parking spaces. Car park entrances: Level 4 of Pacific Place Drive off Justice Drive, or Wing Fung Street from Queen's Road East. Complimentary parking: 3 hours for HK$500 cumulative same-day electronic spending, or HK$300 after 5pm, for loyalty programme members, with a maximum of 3 machine-printed receipts of at least HK$100 each. Entry card must be an Octopus, Visa, UnionPay or Mastercard.",
+      "notesTC": "超過 400 個車位。入口：法院道旁太古廣場道 4 樓，或皇后大道東永豐街。免費泊車：會員即日電子消費滿 HK$500，或下午 5 時後滿 HK$300，可享 3 小時；最多 3 張機印單據，每張至少 HK$100。入場須用八達通、Visa、銀聯或 Mastercard。",
+      "phone": "2844 8988",
+      "website": "https://www.pacificplace.com.hk/en/locationandparking",
+      "sourceURL": "https://www.pacificplace.com.hk/en/locationandparking",
+      "checkedOn": "2026-09-10",
+      "near": {
+        "lat": 22.2775,
+        "lng": 114.1655,
+        "radiusMetres": 400
+      },
+      "_note": "No OpenStreetMap record for the Pacific Place mall car park yet; osm:node/1026827532 is Three Pacific Place, a different building. Attaches automatically once OSM has it."
+    },
+    {
+      "carParkId": "osm:node/1161336799",
+      "matchNames": [
+        "Cityplaza Carpark",
+        "Cityplaza",
+        "太古城中心停車場",
+        "太古城",
+        "Taikoo Shing"
+      ],
+      "nameTC": "太古城中心停車場",
+      "operatorEN": "Cityplaza",
+      "operatorTC": "太古城中心",
+      "feeEN": "Cityplaza Car Park: HK$31 per hour. Sing Fai Terrace (Stage X) Car Park: HK$27 per hour. Part of an hour is charged as an hour.",
+      "feeTC": "太古城中心停車場：每小時 HK$31。承褔臺（第十期）停車場：每小時 HK$27。不足一小時亦作一小時計算。",
+      "notesEN": "Over 1,800 parking spaces around the community. Octopus, Visa, UnionPay and Mastercard accepted.",
+      "notesTC": "區內合共超過 1,800 個車位。接受八達通、Visa、銀聯及 Mastercard。",
+      "website": "https://www.cityplaza.com/en/location-and-parking/parking-fees",
+      "sourceURL": "https://www.cityplaza.com/en/location-and-parking/parking-fees",
+      "checkedOn": "2026-09-10"
+    },
+    {
+      "matchNames": [
+        "Elements",
+        "ELEMENTS",
+        "圓方",
+        "圓方停車場",
+        "Elements car park"
+      ],
+      "nameTC": "圓方停車場",
+      "operatorEN": "ELEMENTS",
+      "operatorTC": "圓方",
+      "feeEN": "HK$26 per hour, 24 hours, Monday to Sunday and public holidays.",
+      "feeTC": "每小時 HK$26，24 小時，星期一至日及公眾假期。",
+      "notesEN": "About 131 EV charging stations across the North and South car parks: DC charger HK$3 per kWh, AC charger HK$2.6 per kWh (effective 2 May 2025), idle fee HK$5 per minute after 15 minutes. Complimentary parking: 1 hour for every HK$100 single spend, 3 hours for two PREMIERE CINEMAS tickets, up to 5 hours a day.",
+      "notesTC": "南北停車場合共約 131 個電動車充電站：直流每度電 HK$3，交流每度電 HK$2.6（2025 年 5 月 2 日起），超時 15 分鐘後每分鐘 HK$5。免費泊車：單一消費每滿 HK$100 送 1 小時，兩張 PREMIERE 戲票送 3 小時，每日最多 5 小時。",
+      "phone": "2735 5234",
+      "website": "https://www.elementshk.com/eng/elements/location/parking",
+      "sourceURL": "https://www.elementshk.com/eng/elements/location/parking",
+      "checkedOn": "2026-09-10",
+      "carParkIds": [
+        "osm:node/12886553270",
+        "osm:node/12886553271",
+        "tdc8p10"
+      ]
+    },
+    {
+      "carParkId": "osm:way/102411832",
+      "matchNames": [
+        "Langham Place Shopping Mall car park",
+        "Langham Place",
+        "朗豪坊",
+        "朗豪坊購物商場停車場"
+      ],
+      "nameTC": "朗豪坊停車場",
+      "operatorEN": "Langham Place",
+      "operatorTC": "朗豪坊",
+      "feeEN": "Monday to Thursday HK$37 per hour; Friday to Sunday and public holidays HK$41 per hour; night parking 22:00–08:00 HK$120.",
+      "feeTC": "星期一至四每小時 HK$37；星期五至日及公眾假期每小時 HK$41；夜泊 22:00–08:00 HK$120。",
+      "notesEN": "EV charging stations on Basement 4. A maximum of two same-day electronic-payment receipts from two different merchants are accepted for the free parking privilege.",
+      "notesTC": "B4 設電動車充電站。免費泊車優惠最多接受兩張即日、由兩間不同商戶發出的電子付款單據。",
+      "website": "https://www.langhamplace.com.hk/visit-us/parking",
+      "sourceURL": "https://www.langhamplace.com.hk/visit-us/parking",
+      "checkedOn": "2026-09-10"
+    },
+    {
+      "carParkId": "osm:node/12422362172",
+      "matchNames": [
+        "New Town Plaza car park",
+        "New Town Plaza",
+        "新城市廣場",
+        "新城市廣場停車場"
+      ],
+      "nameTC": "新城市廣場停車場",
+      "operatorEN": "New Town Plaza",
+      "operatorTC": "新城市廣場",
+      "feeEN": "Monday to Friday HK$22 per hour; Saturday, Sunday and public holidays HK$28 per hour.",
+      "feeTC": "星期一至五每小時 HK$22；星期六、日及公眾假期每小時 HK$28。",
+      "notesEN": "EV and Tesla charging stations available. Complimentary parking: 1 hour for every HK$100 single electronic spend at F&B outlets from 7am, or a same-day Movie Town ticket, for The Point members.",
+      "notesTC": "設電動車及 Tesla 充電站。免費泊車：The Point 會員早上 7 時起於餐飲商戶單一電子消費每滿 HK$100，或憑即日 Movie Town 戲票，可享 1 小時。",
+      "website": "https://www.newtownplaza.com.hk/parking/",
+      "sourceURL": "https://www.newtownplaza.com.hk/parking/",
+      "checkedOn": "2026-09-10"
+    },
+    {
+      "matchNames": [
+        "MOKO",
+        "MOKO car park",
+        "新世紀廣場",
+        "新世紀廣場停車場"
+      ],
+      "nameTC": "新世紀廣場停車場",
+      "operatorEN": "MOKO",
+      "operatorTC": "新世紀廣場",
+      "feeEN": "Monday to Friday HK$32 per hour; Saturday, Sunday and public holidays HK$37 per hour.",
+      "feeTC": "星期一至五每小時 HK$32；星期六、日及公眾假期每小時 HK$37。",
+      "notesEN": "Payment by credit card, EPS, debit card, Apple Pay, BoC Pay, Google Pay, PayMe, Samsung Pay, UnionPay, Alipay and WeChat Pay. Complimentary parking for The Point members: 3 hours for HK$200 same-day electronic spending on weekdays, 2 hours for HK$400 at weekends and on public holidays.",
+      "notesTC": "接受信用卡、易辦事、借記卡、Apple Pay、BoC Pay、Google Pay、PayMe、Samsung Pay、銀聯、支付寶及微信支付。The Point 會員免費泊車：平日即日電子消費滿 HK$200 享 3 小時，週末及公眾假期滿 HK$400 享 2 小時。",
+      "website": "https://www.moko.com.hk/about-moko/parking/",
+      "sourceURL": "https://www.moko.com.hk/about-moko/parking/",
+      "checkedOn": "2026-09-10",
+      "_note": "The government feed carries this car park (tdc368p1) with its own fees, so only the phone, website and source link come from here.",
+      "carParkIds": [
+        "tdc368p1"
+      ]
+    },
+    {
+      "carParkId": "osm:way/26469269",
+      "matchNames": [
+        "Times Square car park",
+        "Times Square",
+        "時代廣場",
+        "時代廣場停車場"
+      ],
+      "nameTC": "時代廣場停車場",
+      "operatorEN": "Times Square",
+      "operatorTC": "時代廣場",
+      "feeEN": "Monday to Friday: HK$18 per 30 min, 07:00–23:00; HK$8 per 30 min, 23:00–07:00. Saturday, Sunday and public holidays: HK$19 per 30 min, 07:00–23:00; HK$8 per 30 min overnight.",
+      "feeTC": "星期一至五：07:00–23:00 每 30 分鐘 HK$18；23:00–07:00 每 30 分鐘 HK$8。星期六、日及公眾假期：07:00–23:00 每 30 分鐘 HK$19；通宵每 30 分鐘 HK$8。",
+      "hoursEN": "Open 24 hours",
+      "hoursTC": "24 小時開放",
+      "notesEN": "700 parking spaces. Up to 3 hours free parking with designated spending at Times Square.",
+      "notesTC": "共 700 個車位。於時代廣場消費指定金額最多可享 3 小時免費泊車。",
+      "phone": "2118 6911",
+      "website": "https://timessquare.com.hk/parking/",
+      "sourceURL": "https://timessquare.com.hk/parking/",
+      "checkedOn": "2026-09-10"
+    },
+    {
+      "carParkId": "osm:node/8974710866",
+      "matchNames": [
+        "K11 MUSEA car park",
+        "K11 MUSEA",
+        "K11 MUSEA 停車場",
+        "K11",
+        "尖沙咀K11",
+        "Victoria Dockside"
+      ],
+      "nameTC": "K11 MUSEA 停車場",
+      "operatorEN": "K11 MUSEA",
+      "operatorTC": "K11 MUSEA",
+      "feeEN": "Monday to Thursday (except public holidays) HK$30 per hour; Friday to Sunday and public holidays HK$41 per hour. Overnight HK$90 for 21:00–10:00. Day park HK$150 for 08:00–19:00, Monday to Friday.",
+      "feeTC": "星期一至四（公眾假期除外）每小時 HK$30；星期五至日及公眾假期每小時 HK$41。夜泊 21:00–10:00 HK$90。日泊星期一至五 08:00–19:00 HK$150。",
+      "notesEN": "EV chargers on B4 for public use; charging fees are not covered by parking privileges.",
+      "notesTC": "B4 設公眾電動車充電器；充電費用不包括在泊車優惠內。",
+      "phone": "3892 3890",
+      "website": "https://www.k11musea.com/parking",
+      "sourceURL": "https://www.k11musea.com/parking",
+      "checkedOn": "2026-09-10"
+    },
+    {
+      "carParkId": "osm:way/185084369",
+      "matchNames": [
+        "Olympian City 2 Car Park",
+        "Olympian City",
+        "奧海城",
+        "奧海城第2期停車場"
+      ],
+      "nameTC": "奧海城停車場",
+      "operatorEN": "Olympian City",
+      "operatorTC": "奧海城",
+      "feeEN": "Monday to Friday: OC1 HK$22, OC2 HK$20, OC3 HK$23 per hour. Saturday, Sunday and public holidays: OC1 HK$20, OC2 HK$24, OC3 HK$28 per hour. OC1 day park HK$145 (07:00–20:00), night park HK$88 (20:00–07:00). MTR Park & Ride HK$16 per hour (05:30–01:00).",
+      "feeTC": "星期一至五：一期每小時 HK$22、二期 HK$20、三期 HK$23。星期六、日及公眾假期：一期 HK$20、二期 HK$24、三期 HK$28。一期日泊 HK$145（07:00–20:00），夜泊 HK$88（20:00–07:00）。港鐵泊車轉乘每小時 HK$16（05:30–01:00）。",
+      "hoursEN": "Open 24 hours",
+      "hoursTC": "24 小時開放",
+      "notesEN": "Octopus payment only. EV charging by Tesla Destination and Supercharger, Shell Recharge and Sime Darby; see the operators' own apps for prices. Complimentary parking Monday to Friday: 1 hour for HK$200, 2 hours for HK$400. Concierge: OC1 2271 4168, OC2 2740 4108, OC3 2273 4582.",
+      "notesTC": "只接受八達通付款。電動車充電由 Tesla Destination 及超級充電站、Shell Recharge 及森那美提供，收費請參閱其應用程式。星期一至五免費泊車：消費滿 HK$200 享 1 小時，滿 HK$400 享 2 小時。禮賓部：一期 2271 4168、二期 2740 4108、三期 2273 4582。",
+      "phone": "2271 4168",
+      "website": "https://www.olympiancity.com.hk/en/Parking",
+      "sourceURL": "https://www.olympiancity.com.hk/en/Parking",
+      "checkedOn": "2026-09-10"
+    },
+    {
+      "carParkId": "osm:node/1688143469",
+      "matchNames": [
+        "MegaBox car park",
+        "MegaBox",
+        "MegaBox 停車場",
+        "九龍灣MegaBox",
+        "企業廣場"
+      ],
+      "nameTC": "MegaBox 停車場",
+      "operatorEN": "MegaBox",
+      "operatorTC": "MegaBox",
+      "notesEN": "The operator publishes parking privileges but not an hourly rate. Complimentary parking: 3 hours for a single same-day HK$100 restaurant spend or HK$200 retail spend by electronic payment; 2 hours for two same-day CineArt or Mega Ice tickets; up to 5 hours a day.",
+      "notesTC": "營運商公佈泊車優惠但未有公佈每小時收費。免費泊車：即日以電子貨幣單一消費，餐飲滿 HK$100 或零售滿 HK$200 享 3 小時；兩張即日 CineArt 戲票或 Mega Ice 門票享 2 小時；每日最多 5 小時。",
+      "website": "https://www.megabox.com.hk/en/carpark",
+      "sourceURL": "https://www.megabox.com.hk/en/carpark",
+      "checkedOn": "2026-09-10"
+    },
+    {
+      "carParkId": "osm:node/1203030599",
+      "matchNames": [
+        "Festival Walk",
+        "又一城停車場",
+        "又一城",
+        "Festival Walk car park"
+      ],
+      "nameTC": "又一城停車場",
+      "feeEN": "Mon–Thu HK$24/hour; Fri–Sun & public holidays HK$26/hour. First hour free on entry after 5 pm; up to 3 hours free with electronic spending. 830 spaces on three levels; EV fast chargers at P1, medium chargers at P3, Tesla Superchargers at P1.",
+      "feeTC": "星期一至四每小時 HK$24；星期五至日及公眾假期每小時 HK$26。下午 5 時後入場首小時免費；電子消費最多免泊 3 小時。三層共 830 個車位；P1 設快速充電器及 Tesla 超級充電站，P3 設中速充電器。",
+      "website": "https://www.festivalwalk.com.hk/en/parking",
+      "sourceURL": "https://www.festivalwalk.com.hk/en/parking",
+      "checkedOn": "2026-09-05"
+    },
+    {
+      "carParkId": "osm:way/51256967",
+      "matchNames": [
+        "Mira Place 1 car park",
+        "Mira Place car park",
+        "美麗華廣場一期停車場",
+        "Mira Place",
+        "美麗華廣場",
+        "美麗華"
+      ],
+      "feeEN": "Hourly 7 am–11 pm: Mon–Thu HK$41, Fri–Sun & public holidays HK$43; 11 pm–7 am HK$16. Day park HK$200 (7 am–6:30 pm, Mon–Fri); night park HK$80 (11 pm–7 am). Minimum charge one hour. Rates effective 1 Jan 2026.",
+      "feeTC": "時租早上 7 時至晚上 11 時：星期一至四 HK$41，星期五至日及公眾假期 HK$43；晚上 11 時至早上 7 時 HK$16。日泊 HK$200（星期一至五 7:00–18:30）；夜泊 HK$80（23:00–07:00）。最少收費一小時。2026 年 1 月 1 日起生效。",
+      "website": "https://www.miraplace.com.hk/en/parking",
+      "sourceURL": "https://www.miraplace.com.hk/en/parking",
+      "checkedOn": "2026-09-05"
+    }
+  ]
 }
