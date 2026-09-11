@@ -63,6 +63,23 @@ The `.github/workflows/test.yml` file uploads through
 meter and OpenStreetMap refresh for you; `enrich_osm.py` can also be run on its
 own if you already have an Overpass dump.
 
+## The hourly history job
+
+`.github/workflows/patterns.yml` commits to `data/patterns/` every hour by
+itself. Two things follow from that:
+
+- **Never delete `data/patterns/`** when uploading. `check_deploy.py` ignores
+  that folder on purpose, because GitHub is meant to be ahead of your copy
+  there; run `python3 check_deploy.py --patterns` if you ever want to compare it.
+- If you have not touched the repository for two months, GitHub emails you to
+  say scheduled workflows are about to pause. Open
+  https://github.com/agsm26/hk-parking/actions/workflows/patterns.yml and click
+  **Run workflow**, or just upload any change, and it carries on.
+
+To check it is alive: that same page should show a green run within the last
+hour, and `data/patterns/index.json` should list a growing number of hours (72
+once a full week has been seen).
+
 ## If something is wrong on the phone
 
 - Blank page: open Safari, go to the address, reload. If still blank, the

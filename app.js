@@ -10,7 +10,7 @@ const FEEDS = {
   meterOcc: "https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv",
 };
 const REFRESH = { info: 6 * 3600e3, meters: 24 * 3600e3, metersSnapshot: 7 * 86400e3, vacancy: 60e3, meterVac: 120e3 };
-const APP_VERSION = "2026-09-11b";                       // stamped by bump.py together with sw.js
+const APP_VERSION = "2026-09-11c";                       // stamped by bump.py together with sw.js
 const REPO_URL = "https://github.com/agsm26/hk-parking";  // issue reports go here
 const FETCH_TIMEOUT = 8000;
 // Map tiles: the Lands Department basemap through the CSDI portal (free, no
@@ -63,6 +63,7 @@ const S = {
   ranked: [], all: [], lastError: null, phase: "idle", busy: false,
   geo: { pos: null, status: "unknown", error: null },
   now: Date.now(), fixed: null,
+  patterns: { ids: [], now: {}, later: [], key: null, at: null },
   errors: LS.get("errors", []), online: navigator.onLine !== false, onboarded: LS.get("onboarded", false), metersFromSnapshot: false,
   visits: LS.get("visits", {}),          // {carParkId: {n, lastAt}} — where you actually parked
   heading: LS.get("heading", null),      // {id, name, at} — set on Navigate, used by the arrival check
@@ -200,13 +201,13 @@ function logError(url, msg) { S.errors = C.pushError(S.errors, { at: Date.now(),
 // response used to freeze the refresh silently), one retry, and a local log
 // the user can read under More ▸ Diagnostics.
 async function fetchRaw(url, opts = {}) {
-  const { timeout = FETCH_TIMEOUT, retries = 1, ...init } = opts;
+  const { timeout = FETCH_TIMEOUT, retries = 1, quiet = false, ...init } = opts;
   for (let attempt = 0; ; attempt++) {
     const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), timeout);
     try { const r = await fetch(url, { cache: "no-store", ...init, signal: ctl.signal }); if (!r.ok) throw new Error("HTTP " + r.status); return r; }
     catch (e) {
       const msg = e.name === "AbortError" ? `timeout ${timeout / 1000}s` : (e.message || String(e));
-      if (attempt >= retries || !S.online) { logError(url, msg); throw new Error(msg); }
+      if (attempt >= retries || !S.online) { if (!quiet) logError(url, msg); throw new Error(msg); }
       await new Promise(res => setTimeout(res, 700 * (attempt + 1)));
     } finally { clearTimeout(timer); }
   }
@@ -259,6 +260,38 @@ async function loadMeters(force) {
 }
 
 let lastMeterVac = 0;
+// Typical availability, recorded hourly by .github/workflows/patterns.yml.
+// Four small slices: this hour and the next three, so the app can say both
+// "usually tight now" and "usually easier in two hours".
+async function loadPatterns() {
+  const key = C.sliceFor(Date.now());
+  if (S.patterns.key === key && S.patterns.ids.length) return false;
+  try {
+    if (!S.patterns.ids.length) {
+      const idx = await fetchJSON("data/patterns/index.json", { timeout: 8000, retries: 0, quiet: true });
+      S.patterns.ids = Array.isArray(idx?.ids) ? idx.ids : [];
+      S.patterns.have = Array.isArray(idx?.slices) ? new Set(idx.slices) : null;   // null = older index, just try
+    }
+    if (!S.patterns.ids.length) return false;
+    const now = Date.now();
+    const have = S.patterns.have;
+    const got = await Promise.all([0, 1, 2, 3].map(async (inHours) => {
+      const name = C.sliceFor(now + inHours * 3600e3);
+      if (have && !have.has(name)) return { inHours, map: {}, at: null };   // that hour has not been recorded yet
+      try {
+        const j = await fetchJSON(`data/patterns/${name}.json`, { timeout: 8000, retries: 0, quiet: true });
+        return { inHours, map: C.decodeSlice(S.patterns.ids, j?.d), at: j?.at || null };
+      } catch { return { inHours, map: {}, at: null }; }
+    }));
+    S.patterns = { ids: S.patterns.ids, have, now: got[0].map, later: got.slice(1), key, at: got[0].at };
+    return Object.keys(S.patterns.now).length > 0;
+  } catch { /* the app is fully usable without any history */ }
+  return false;
+}
+const pat = (id) => S.patterns.now?.[id] || null;
+const patLater = (id) => (S.patterns.later || []).map(x => ({ inHours: x.inHours, p: x.map?.[id] || null }));
+const dayTypeLabel = () => [L_("weekdays", "平日"), L_("Saturdays", "星期六"), L_("Sundays", "星期日")][C.dayType(Date.now())];
+
 async function loadVacancy(force) {
   const cached = await IDB.get("vac");
   if (cached && !Object.keys(S.vac).length) { S.vac = cached.vac; S.vacAt = cached.at; S.vacFromCache = true; }
@@ -279,6 +312,7 @@ async function refresh(force = false) {
   render();
   try {
     await loadStatic();
+    loadPatterns().then(got => { if (got) render(); });   // a bonus: never hold the list for it, but do show it when it lands
     await loadInfo(all);
     rebuildCarParks(); rerank(); render();
     await loadMeters(all);
@@ -345,6 +379,7 @@ function cardHTML(r, extra = "") {
   const vc = visitCount(cp.id);
   if (vc) tags.push(`<span class="tag ok">Ⓟ ${esc(vc >= 2 ? L_(`Parked ${vc}×`, `泊過 ${vc} 次`) : L_("Parked before", "泊過"))}</span>`);
   if (C.isInfoOnly(cp)) tags.push(`<span class="tag">📄 ${esc(L_("Info only", "只有資料"))}</span>`);
+  const ptag = C.patternTag(pat(cp.id), S.lang); if (ptag) tags.push(`<span class="tag hist">📈 ${esc(ptag)}</span>`);
   if (r.isOpen === false) tags.push(`<span class="tag full">${esc(L_("Closed", "閂咗"))}</span>`);
   if (!C.hasEntrance(cp)) tags.push(`<span class="tag">📍 ${esc(L_("Location approximate", "位置為約略"))}</span>`);
   return `<button class="card ${extra}" data-cp="${esc(cp.id)}">
@@ -450,6 +485,12 @@ function openDetail(id) {
       ${types.map(k => { const rd = r.rec.vac?.[k]; const rr = { level: C.level(rd, S.now), reading: rd }; const cap = cp.capacity?.[k]?.total;
         return `<div class="dl"><div><dt>${esc(T_(C.VEHICLE_NAME[k]))}</dt><dd style="display:flex;justify-content:flex-end;align-items:center;gap:10px">${cap ? `<small style="color:var(--ink-soft)">${esc(L_(`of ${cap}`, `／${cap}`))}</small>` : ""}${badge(rr)}</dd></div></div>`; }).join("")}
     </div>
+    ${(() => { const p = pat(id), v = C.patternVerdict(p); if (!v) return "";
+      const later = C.betterLater(p, patLater(id), S.lang);
+      return `<div class="section"><h3>📈 ${esc(L_("Typical at this hour", "呢個時段通常點"))}</h3>
+        <p class="hist-line ${esc(v.kind)}">${esc(C.patternText(p, S.lang))}</p>
+        ${later ? `<p class="hist-later">↻ ${esc(later)}</p>` : ""}
+        <p class="note">${esc(L_(`From ${v.samples} readings taken at this hour on ${dayTypeLabel()}. A guide from past weeks, not a promise — the live count above is what is true now.`, `根據 ${dayTypeLabel()}呢個時段嘅 ${v.samples} 次紀錄。只係過往幾星期嘅參考，唔係保證，上面嘅即時數字先係現況。`))}</p></div>`; })()}
     <div class="section"><h3>↕ ${esc(L_("Will my vehicle fit?", "我架車入唔入到？"))}</h3>
       ${v ? `<div style="display:flex;justify-content:space-between;gap:10px"><b>${esc(v.nickname)}</b><span style="color:var(--ink-soft)">${esc(C.dimensionsText(v) || "")}</span></div><p class="fit ${r.fit.kind}">${esc(C.fitText(r.fit, S.lang))}</p>
         ${r.fit.kind === "doesNotFit" ? `<p class="note" style="color:var(--full)">${esc(L_("Do not enter. The posted clearance is lower than your vehicle.", "唔好入。標示限高低過你架車。"))}</p>` : ""}
@@ -752,6 +793,7 @@ function renderMore() {
       <p class="note"><b>${esc(T_(C.SOURCE_ATTRIBUTION.transportDepartmentMeters))}</b><br>${esc(L_("Every private-car meter bay, grouped by street section; the count is bays whose sensor reports vacant.", "所有私家車咪錶位，按路段分組；數字係感應器報「吉」嘅泊位數。"))}</p>
       <p class="note"><b>${esc(T_(C.SOURCE_ATTRIBUTION.openStreetMap))}</b> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">openstreetmap.org/copyright</a><br>${esc(L_("Car parks and mall car parks no feed covers (Harbour City, Times Square, IFC, Pacific Place, Festival Walk and hundreds more), plus mapped vehicle entrances and the map itself.", "所有資料來源未涵蓋嘅停車場及商場停車場（海港城、時代廣場、國金、太古廣場、又一城等數百個），以及入口點同地圖本身。"))}</p>
       <p class="note"><b>${esc(L_("Operator-published facts", "營運商公佈資料"))}</b><br>${esc(L_("Tariffs, hours and phone numbers read from operators' own parking pages, stored with the page address and the date checked, shown on each detail.", "收費、時間及電話由營運商官方泊車網頁抄錄，記錄網址同核對日期，詳情頁會顯示。"))}</p>
+      <p class="note"><b>${esc(L_("Typical availability", "時段參考"))}</b><br>${esc(L_("Recorded by this app's own scheduled job, which reads the Transport Department feeds once an hour and keeps an average per hour of the day. It appears only after at least three readings for that hour, and never for a car park with no live feed.", "由本 app 嘅定時程式每小時讀取運輸署資料並按時段計算平均值。同一時段最少三次紀錄先會顯示，冇即時資料嘅停車場唔會有。"))}</p>
       <p class="note"><b>${esc(L_("Map", "地圖"))}</b><br>${esc(L_("Basemap and labels © Lands Department, through the Common Spatial Data Infrastructure portal (free government map service). Falls back to OpenStreetMap tiles if unavailable.", "底圖及標注 © 地政總署，經空間數據共享平台提供（免費政府地圖服務）。如無法連接則改用 OpenStreetMap 地圖。"))}</p>
       <p class="note"><b>${esc(L_("Address search", "地址搜尋"))}</b><br>${esc(L_("Government Address Lookup Service (als.gov.hk), with OpenStreetMap Nominatim as fallback. Only Hong Kong results are accepted.", "政府地址查詢服務（als.gov.hk），OpenStreetMap Nominatim 作後備。只接受香港結果。"))}</p></div>
     <div class="section"><h3>${esc(L_("Privacy", "私隱"))}</h3><p class="note">${esc(L_("Location is used only while the app is open, only to show nearby car parks and distances, and is never uploaded. Favourites, vehicles, parking sessions and reports stay in this browser. The app talks to DATA.GOV.HK, OpenStreetMap tiles and Nominatim. No account, no analytics, no ads.", "定位只會喺 app 開啟時使用，用嚟顯示附近停車場同距離，唔會上傳。常用、車輛、泊車紀錄同報告只存喺呢個瀏覽器。本 app 只連接資料一線通、OpenStreetMap 地圖及 Nominatim。唔使登入、冇分析追蹤、冇廣告。"))}</p></div>

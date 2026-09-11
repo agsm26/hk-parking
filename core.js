@@ -845,3 +845,133 @@ export function alsPlaces(json, lang = "en") {
   }
   return out.sort((a, b) => b.score - a.score);   // best match first; ALS itself does not order by score
 }
+
+// ====================================================================
+// Typical availability ("patterns").
+//
+// Nobody records what the government feed says minute to minute, so the app
+// can tell you there are 14 spaces now but not whether 14 is normal for a
+// Friday evening. A scheduled job (collect_patterns.mjs) samples the feed once
+// an hour and folds each reading into a bucket: day type × hour of day.
+//
+// Storage is positional and tiny. data/patterns/index.json holds the ordered
+// list of car park ids; each data/patterns/<dayType>-<hour>.json holds three
+// bytes per id, base64-encoded, so one hourly sample rewrites one ~7 KB file
+// instead of the whole history:
+//   byte 0  typ    typical free spaces, 0-254 (255 = never a count, e.g. a
+//                  feed that only says yes/no)
+//   byte 1  tight  % of samples at this hour with 5 or fewer spaces, 0-100
+//                  (255 = unknown)
+//   byte 2  n      samples folded in, capped at 255
+// A bucket with fewer than MIN_SAMPLES observations says nothing at all: an
+// estimate from two Fridays is a guess, and guesses are what this app refuses
+// to make.
+// ====================================================================
+
+export const PATTERN = { dayTypes: 3, hours: 24, bytes: 3, unknown: 255, minSamples: 3, confident: 8, tightAtOrBelow: 5, memory: 60 };
+
+// Mon-Fri share a shape; Saturday and Sunday each have their own.
+export function dayType(ms) { const w = hkClock(ms).weekday; return w === 0 ? 2 : w === 6 ? 1 : 0; }
+export function hourOf(ms) { return Math.floor(hkClock(ms).minutes / 60); }
+export const sliceName = (dt, hour) => `${dt}-${String(hour).padStart(2, "0")}`;
+export const sliceFor = (ms) => sliceName(dayType(ms), hourOf(ms));
+
+// One sample folded into one bucket. Early samples count fully; after `memory`
+// the bucket becomes a rolling average, so a car park that changes its habits
+// is followed rather than anchored to its first month.
+// Rounding toward the new sample, never to nearest: a plain round freezes the
+// average (30 blended with 0 at weight 1/60 rounds back to 30, for ever), so a
+// car park that changed its habits would keep reporting its old figure.
+function blend(old, sample, w) {
+  if (sample === old) return old;                       // exact, and dodges float drift
+  const v = old + (sample - old) * w;
+  return sample > old ? Math.ceil(v) : Math.floor(v);
+}
+export function foldSample(prev, count, hasSpace) {
+  const p = prev || { typ: PATTERN.unknown, tight: PATTERN.unknown, n: 0 };
+  if (count == null && hasSpace == null) return p;
+  const n = Math.min(p.n + 1, 255), w = 1 / Math.min(n, PATTERN.memory);
+  const isTight = count != null ? count <= PATTERN.tightAtOrBelow : !hasSpace, tightNow = isTight ? 100 : 0;
+  const tight = p.tight === PATTERN.unknown ? tightNow : blend(p.tight, tightNow, w);
+  let typ = p.typ;
+  if (count != null) { const c = Math.min(254, count); typ = p.typ === PATTERN.unknown ? c : Math.min(254, blend(p.typ, c, w)); }
+  return { typ, tight: Math.max(0, Math.min(100, tight)), n };
+}
+
+const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+export function bytesToBase64(bytes) {
+  let out = "";
+  for (let i = 0; i < bytes.length; i += 3) {
+    const a = bytes[i], b = bytes[i + 1], c = bytes[i + 2];
+    out += B64[a >> 2] + B64[((a & 3) << 4) | ((b ?? 0) >> 4)];
+    out += b === undefined ? "==" : B64[((b & 15) << 2) | ((c ?? 0) >> 6)] + (c === undefined ? "=" : B64[c & 63]);
+  }
+  return out;
+}
+export function base64ToBytes(s) {
+  const clean = String(s || "").replace(/[^A-Za-z0-9+/]/g, ""); const out = new Uint8Array(Math.floor(clean.length * 3 / 4));
+  let o = 0;
+  for (let i = 0; i < clean.length; i += 4) {
+    const n = (B64.indexOf(clean[i]) << 18) | (B64.indexOf(clean[i + 1]) << 12) | ((clean[i + 2] ? B64.indexOf(clean[i + 2]) : 0) << 6) | (clean[i + 3] ? B64.indexOf(clean[i + 3]) : 0);
+    if (o < out.length) out[o++] = (n >> 16) & 255;
+    if (clean[i + 2] && o < out.length) out[o++] = (n >> 8) & 255;
+    if (clean[i + 3] && o < out.length) out[o++] = n & 255;
+  }
+  return out;
+}
+
+export function encodeSlice(ids, map) {
+  const b = new Uint8Array(ids.length * PATTERN.bytes);
+  ids.forEach((id, i) => { const p = map[id] || { typ: PATTERN.unknown, tight: PATTERN.unknown, n: 0 };
+    b[i * 3] = p.typ; b[i * 3 + 1] = p.tight; b[i * 3 + 2] = p.n; });
+  return bytesToBase64(b);
+}
+export function decodeSlice(ids, b64) {
+  const b = base64ToBytes(b64), out = {};
+  ids.forEach((id, i) => { const n = b[i * 3 + 2] ?? 0; if (n > 0) out[id] = { typ: b[i * 3], tight: b[i * 3 + 1], n }; });
+  return out;
+}
+
+export const patternUsable = (p) => !!p && p.n >= PATTERN.minSamples;
+// What the pattern says, in the app's own vocabulary, or null when it has
+// nothing worth saying.
+export function patternVerdict(p) {
+  if (!patternUsable(p)) return null;
+  const typ = p.typ === PATTERN.unknown ? null : p.typ, tight = p.tight === PATTERN.unknown ? null : p.tight;
+  const kind = tight == null ? "unknown" : tight >= 70 ? "usuallyTight" : tight >= 35 ? "mixed" : "usuallyFree";
+  return { kind, typical: typ, tightPct: tight, samples: p.n, confident: p.n >= PATTERN.confident };
+}
+export function patternText(p, lang) {
+  const v = patternVerdict(p); if (!v) return null;
+  const en = lang === "en";
+  if (v.kind === "usuallyTight") return v.typical != null && v.typical > 0
+    ? (en ? `Usually tight at this hour (about ${v.typical} free)` : `呢個時段通常好緊張（約 ${v.typical} 個位）`)
+    : (en ? "Usually full at this hour" : "呢個時段通常爆滿");
+  if (v.kind === "mixed") return v.typical != null
+    ? (en ? `Hit and miss at this hour (about ${v.typical} free)` : `呢個時段時有時冇（約 ${v.typical} 個位）`)
+    : (en ? "Hit and miss at this hour" : "呢個時段時有時冇");
+  if (v.kind === "usuallyFree") return v.typical != null
+    ? (en ? `Usually has spaces at this hour (about ${v.typical})` : `呢個時段通常有位（約 ${v.typical} 個）`)
+    : (en ? "Usually has spaces at this hour" : "呢個時段通常有位");
+  return null;
+}
+// Short form for a list card.
+export function patternTag(p, lang) {
+  const v = patternVerdict(p); if (!v || v.kind === "unknown") return null;
+  const en = lang === "en";
+  return { usuallyTight: en ? "Usually tight now" : "呢陣通常好緊", mixed: en ? "Hit and miss now" : "呢陣時有時冇", usuallyFree: en ? "Usually free now" : "呢陣通常有位" }[v.kind];
+}
+// "Better in an hour" — the earliest of the next few hours that looks clearly
+// easier than now. Only speaks when both buckets are trustworthy.
+export function betterLater(nowP, laterPs, lang) {
+  const now = patternVerdict(nowP); if (!now || now.kind === "usuallyFree" || now.kind === "unknown") return null;
+  for (const { inHours, p } of laterPs) {
+    const v = patternVerdict(p); if (!v || v.kind === "unknown") continue;
+    const better = (now.tightPct ?? 0) - (v.tightPct ?? 0);
+    if (v.kind === "usuallyFree" && better >= 25) {
+      const en = lang === "en";
+      return en ? `Usually easier in ${inHours} h` : `通常 ${inHours} 小時後鬆啲`;
+    }
+  }
+  return null;
+}
