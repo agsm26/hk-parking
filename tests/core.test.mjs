@@ -393,3 +393,41 @@ test("curated facts attach to the right car park, and duplicates collapse", () =
   assert.deepEqual(merged.map(x => x.id).sort(), ["osm:node/1161336799", "osm:node/999"], "same name + close = one; different name = both");
   assert.equal(C.dedupe([], [a]).length, 1);
 });
+
+test("links from third-party data cannot carry a script scheme", () => {
+  assert.equal(C.safeURL("https://www.elementshk.com/x"), "https://www.elementshk.com/x");
+  assert.equal(C.safeURL("http://www.kolour-yuenlong.com.hk/"), "https://www.kolour-yuenlong.com.hk/");
+  assert.equal(C.safeURL("www.example.com"), "https://www.example.com", "a bare host is just a missing scheme");
+  assert.equal(C.safeURL("  https://x.hk  "), "https://x.hk");
+  for (const bad of ["javascript:alert(1)", "JavaScript:alert(1)", "data:text/html,<script>x</script>", "vbscript:msgbox", "file:///etc/passwd"])
+    assert.equal(C.safeURL(bad), null, `${bad} must be refused, not patched into a link`);
+  for (const empty of ["", null, undefined, "   "]) assert.equal(C.safeURL(empty), null);
+
+  // OpenStreetMap is world-editable and its snapshot is re-ingested automatically.
+  const osm = C.osmCarParks({ records: [
+    { id: "osm:node/1", nameEN: "Evil Car Park", lat: 22.32, lng: 114.17, website: "javascript:alert(document.cookie)" },
+    { id: "osm:node/2", nameEN: "Fine Car Park", lat: 22.33, lng: 114.18, website: "http://example.hk" },
+  ] });
+  assert.equal(osm.find(c => c.id === "osm:node/1").website, null);
+  assert.equal(osm.find(c => c.id === "osm:node/2").website, "https://example.hk");
+
+  const cur = C.applyCurated([{ ...osm[0], website: null }], { entries: [{ carParkId: "osm:node/1", website: "javascript:alert(1)", feeEN: "x", checkedOn: "2026-09-11" }] });
+  assert.equal(cur[0].website, null, "a hand-copied entry gets the same treatment");
+});
+
+test("a backup code with the wrong shapes is refused, not restored", () => {
+  // restoreCode writes straight into state and into storage, so a bad shape
+  // would throw on every later render and survive a reload.
+  const good = C.backupEncode({ favs: [{ id: "a" }], vehicles: [], places: [], visits: { a: { n: 1 } }, lang: "en" });
+  assert.equal(C.backupDecode(good).ok, true);
+  for (const hostile of [
+    { favs: "not-an-array" }, { vehicles: { nope: 1 } }, { places: 5 },
+    { searches: "x" }, { recents: 0 }, { visits: "x" }, { visits: [] }, { filter: [] }, { filter: "x" },
+  ]) {
+    const r = C.backupDecode(C.backupEncode(hostile));
+    assert.equal(r.ok, false, `${JSON.stringify(hostile)} must be refused`);
+    assert.equal(r.error, "corrupt");
+  }
+  // absent keys are fine; only present-and-wrong is refused
+  assert.equal(C.backupDecode(C.backupEncode({ lang: "tc" })).ok, true);
+});
