@@ -10,7 +10,7 @@ const FEEDS = {
   meterOcc: "https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv",
 };
 const REFRESH = { info: 6 * 3600e3, meters: 24 * 3600e3, metersSnapshot: 7 * 86400e3, vacancy: 60e3, meterVac: 120e3 };
-const APP_VERSION = "2026-09-11e";                       // stamped by bump.py together with sw.js
+const APP_VERSION = "2026-09-11f";                       // stamped by bump.py together with sw.js
 const REPO_URL = "https://github.com/agsm26/hk-parking";  // issue reports go here
 const FETCH_TIMEOUT = 8000;
 // Map tiles: the Lands Department basemap through the CSDI portal (free, no
@@ -753,9 +753,9 @@ function renderVehicle() {
 }
 function openVehicleEditor(v) {
   const isNew = !v; v = v || { id: "v" + Date.now(), nickname: L_("My car", "我架車"), type: "privateCar", heightMetres: null, lengthMetres: null, widthMetres: null, needsEVCharging: false, prefersAccessible: false, maxHourlyRateHKD: null, avoidNoLiveData: false, preferredDistricts: [] };
-  const sw = (k, label) => `<div class="field"><label>${esc(label)}</label><button class="switch" role="switch" aria-checked="${!!v[k]}" data-sw="${k}"></button></div>`;
+  const sw = (k, label) => `<div class="field"><label>${esc(label)}</label><button type="button" class="switch" role="switch" aria-checked="${!!v[k]}" data-sw="${k}"></button></div>`;
   $("sheet").innerHTML = `<div class="sheet-head"><span class="grab"></span><button class="quiet" data-close>${esc(L_("Cancel", "取消"))}</button><h2>${esc(isNew ? L_("New vehicle", "新車輛") : L_("Edit vehicle", "編輯車輛"))}</h2><button class="quiet" id="veh-save" style="color:var(--accent)">${esc(L_("Save", "儲存"))}</button></div>
-    <form class="form" id="veh-form" onsubmit="return false">
+    <form class="form" id="veh-form">
       <div class="section"><div class="field"><label for="v-name">${esc(L_("Nickname", "暱稱"))}</label><input id="v-name" type="text" value="${esc(v.nickname)}" placeholder="MIFA 9"></div>
         <div class="field"><label for="v-type">${esc(L_("Type", "車種"))}</label><select id="v-type">${C.VEHICLE_TYPES.map(k => `<option value="${k}" ${v.type === k ? "selected" : ""}>${esc(T_(C.VEHICLE_NAME[k]))}</option>`).join("")}</select></div>
         <div class="field"><label for="v-h">${esc(L_("Height (m)", "車高（米）"))}</label><input id="v-h" type="number" step="0.01" inputmode="decimal" placeholder="1.84" value="${v.heightMetres ?? ""}"></div>
@@ -765,9 +765,10 @@ function openVehicleEditor(v) {
       <div class="section">${sw("needsEVCharging", L_("Needs EV charging", "需要電動車充電"))}${sw("prefersAccessible", L_("Prefer accessible parking", "優先傷健車位"))}
         <div class="field"><label for="v-rate">${esc(L_("Max hourly rate (HK$)", "每小時上限（港元）"))}</label><input id="v-rate" type="number" inputmode="numeric" placeholder="${esc(L_("Any", "不限"))}" value="${v.maxHourlyRateHKD ?? ""}"></div>
         ${sw("avoidNoLiveData", L_("Rank car parks without live data lower", "冇即時資料嘅停車場排後啲"))}</div>
-      <div class="section"><h3>${esc(L_("Frequent districts", "常去地區"))}</h3>${Object.entries(C.REGIONS).map(([rid, rn]) => `<details><summary style="min-height:40px;display:flex;align-items:center">${esc(T_(rn))}</summary>${C.DISTRICTS.filter(d => d.region === rid).map(d => `<div class="field"><label>${esc(T_(d.name))}</label><button class="switch" role="switch" aria-checked="${v.preferredDistricts.includes(d.id)}" data-dist="${d.id}"></button></div>`).join("")}</details>`).join("")}</div>
+      <div class="section"><h3>${esc(L_("Frequent districts", "常去地區"))}</h3>${Object.entries(C.REGIONS).map(([rid, rn]) => `<details><summary style="min-height:40px;display:flex;align-items:center">${esc(T_(rn))}</summary>${C.DISTRICTS.filter(d => d.region === rid).map(d => `<div class="field"><label>${esc(T_(d.name))}</label><button type="button" class="switch" role="switch" aria-checked="${v.preferredDistricts.includes(d.id)}" data-dist="${d.id}"></button></div>`).join("")}</details>`).join("")}</div>
     </form>`;
   $("sheet").hidden = false; requestAnimationFrame(() => { $("sheet").classList.add("on"); $("scrim").classList.add("on"); }); focusSheet();
+  $("veh-form").addEventListener("submit", (e) => e.preventDefault());   // script-src 'self' blocks an inline onsubmit
   $("veh-save").onclick = () => {
     const n = (id, lo, hi) => { const x = parseFloat($(id).value.replace(",", ".")); return Number.isFinite(x) && x >= lo && x <= hi ? x : null; };
     const nv = { ...v, nickname: $("v-name").value.trim() || v.nickname, type: $("v-type").value, heightMetres: n("v-h", 0.5, 6), lengthMetres: n("v-l", 1, 20), widthMetres: n("v-w", 0.5, 4), maxHourlyRateHKD: n("v-rate", 1, 999) };

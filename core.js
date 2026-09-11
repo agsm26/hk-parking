@@ -273,6 +273,20 @@ export function hourlyRateAt(fee, ms) {
   return fee.hourly.find(r => r.window.weekdays.includes(wd)) || fee.hourly[0];
 }
 
+// Links come from third parties: the government feed, OpenStreetMap (anyone can
+// edit it) and hand-copied operator pages. esc() keeps a value inside its
+// attribute but does nothing about the scheme, so "javascript:…" would run on
+// tap. A bare host is treated as a missing https://; anything carrying its own
+// scheme that is not http(s) is refused outright.
+export function safeURL(s) {
+  s = String(s ?? "").trim();
+  if (!s) return null;
+  if (/^https:\/\//i.test(s)) return s;
+  if (/^http:\/\//i.test(s)) return "https://" + s.slice(7);
+  if (/^[a-z][a-z0-9+.-]*:/i.test(s)) return null;
+  return "https://" + s;
+}
+
 export function normalizeInfoRow(r, lang) {
   const lat = num(r?.latitude), lng = num(r?.longitude);
   if (lat == null || lng == null || (lat === 0 && lng === 0) || !inHK({ lat, lng })) return null;
@@ -290,7 +304,7 @@ export function normalizeInfoRow(r, lang) {
   const capacity = {}; for (const [k, v] of Object.entries(vehicles)) { const c = { total: int(v.space), ev: int(v.spaceEV), disabled: int(v.spaceDIS), unloading: int(v.spaceUNL) }; if (Object.values(c).some(x => x != null)) capacity[k] = c; }
   const enriched = Object.keys(vehicles).length > 0 || !!str(r?.nature) || strArr(r?.facilities).length > 0;
   const sources = ["transportDepartmentOneStop"]; if (enriched) sources.push("kowloonEast");
-  const url = (s) => { s = str(s); if (!s) return null; if (/^http:\/\//i.test(s)) s = "https://" + s.slice(7); else if (!/^https:\/\//i.test(s)) s = "https://" + s; return s; };
+  const url = safeURL;
   const facilities = strArr(r?.facilities).map(f => f.toLowerCase()).filter(f => ["evcharger", "disabilities", "unloading", "washing"].includes(f)).map(f => f === "evcharger" ? "evCharger" : f);
   return {
     id, kind: "offStreet", name: T(name), address: T(address), district: matchDistrict(districtRaw) || matchDistrict(a.dcDistrict),
@@ -487,7 +501,7 @@ export function osmCarParks(doc) {
       id: r.id, kind: "offStreet", name, address: lt(r.street, r.streetTC), district: null, districtText: {}, lat: r.lat, lng: r.lng, entrance: null,
       height: { metres: r.maxHeightMetres ?? null, note: null }, openingStatus: "unknown", openingHours: [], fees,
       facilities: (r.capacityDisabled ?? 0) > 0 ? ["disabilities"] : [], paymentMethods: [], capacity, nature: null,
-      carParkType: r.parkingType ? r.parkingType.replace(/_/g, " ") : null, contact: r.phone ?? null, website: r.website ?? null, photoURL: null,
+      carParkType: r.parkingType ? r.parkingType.replace(/_/g, " ") : null, contact: r.phone ?? null, website: safeURL(r.website), photoURL: null,
       isMall: !!r.isMall, isEnriched: false, sources: ["openStreetMap"], modifiedAt: null, bayCount: null,
       infoNote: info.length ? lt(info.join(" · "), info.join(" · ")) : null, operatorName: isEmptyLT(op) ? null : op, factsProvenance: null,
       searchAliases: r.aliases || [],
@@ -588,7 +602,7 @@ export function applyCurated(carparks, curatedDoc) {
     if (e.notesEN || e.notesTC) notes.push(lt(e.notesEN, e.notesTC));
     for (const n of notes) m.infoNote = m.infoNote ? lt([m.infoNote.en, n.en].filter(Boolean).join(" · "), [m.infoNote.tc, n.tc].filter(Boolean).join(" · ")) : n;
     if (!m.contact && e.phone) m.contact = e.phone;
-    if (!m.website && e.website) m.website = e.website;
+    if (!m.website && e.website) m.website = safeURL(e.website);
     if (e.entranceLatitude != null && e.entranceLongitude != null) m.entrance = { lat: e.entranceLatitude, lng: e.entranceLongitude, note: lt(e.entranceNoteEN, e.entranceNoteTC), source: "curated" };
     // Only claim the operator published these facts when the entry really did
     // supply them. Where the government feed already carries the fees, saying
@@ -867,7 +881,17 @@ export function backupDecode(code) {
   try {
     const doc = JSON.parse(b64urlToUtf8(s.slice(BACKUP_PREFIX.length)));
     if (doc.app !== "carparkhk" || typeof doc.data !== "object" || !doc.data) return { ok: false, error: "notBackup" };
-    const data = {}; for (const k of BACKUP_KEYS) if (doc.data[k] !== undefined) data[k] = doc.data[k];
+    // Shapes matter: restore writes straight into state AND into storage, so a
+    // string where an array belongs makes every later render throw, and the bad
+    // value survives a reload.
+    const ARRAYS = ["favs", "vehicles", "places", "searches", "recents"], OBJECTS = ["visits", "filter"];
+    const data = {};
+    for (const k of BACKUP_KEYS) {
+      const v = doc.data[k]; if (v === undefined) continue;
+      if (ARRAYS.includes(k) && !Array.isArray(v)) return { ok: false, error: "corrupt" };
+      if (OBJECTS.includes(k) && (typeof v !== "object" || v === null || Array.isArray(v))) return { ok: false, error: "corrupt" };
+      data[k] = v;
+    }
     return { ok: true, at: doc.at || null, data };
   } catch { return { ok: false, error: "corrupt" }; }
 }

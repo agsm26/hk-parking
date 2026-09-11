@@ -8,7 +8,7 @@
 //
 // Bump VERSION whenever any shell file changes; the old cache is dropped on
 // activate and the page is told an update is ready.
-const VERSION = "2026-09-11e";
+const VERSION = "2026-09-11f";
 const SHELL = `carpark-shell-${VERSION}`;
 const SHELL_FILES = [
   "./", "./index.html", "./app.js", "./core.js", "./manifest.json",
