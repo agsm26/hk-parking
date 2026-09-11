@@ -125,10 +125,31 @@ test("OpenStreetMap layer, aliases, dedup, entrances, curated facts", () => {
     assert.ok(C.searchCarParks(q, osm, 3).length > 0, `no OSM car park for ${q}`);
   const feed = C.normalizeInfo(infoEN, infoTC);
   const amoy = feed.find(p => p.id === "12");
-  const dupPlace = { ...osm[0], id: "osm:dup1", name: C.lt("Some car park"), lat: amoy.lat + 0.0003, lng: amoy.lng, searchAliases: [] };
+  // Practically on top of the feed car park, so the same place however it is named.
+  const dupPlace = { ...osm[0], id: "osm:dup1", name: C.lt("Some car park"), lat: amoy.lat + 0.0001, lng: amoy.lng, searchAliases: [] };
   const dupName = { ...osm[0], id: "osm:dup2", name: C.lt("Amoy Plaza"), lat: 22.40, lng: 114.10, searchAliases: [] };
-  const merged = C.dedupe(feed, [dupPlace, dupName, osm.find(p => p.id === "osm:node/1203030599")]);
-  assert.equal(merged.length, feed.length + 1);
+  // A different building 33 m away is NOT the same car park — merging these
+  // erased MegaBox into Manhattan Place next door, and a whole phase of Tuen
+  // Mun Town Plaza.
+  const neighbour = { ...osm[0], id: "osm:neighbour", name: C.lt("Kowloon Bay Neighbour Tower Carpark"), lat: amoy.lat + 0.0003, lng: amoy.lng, searchAliases: [] };
+  // A nameless record next door is a duplicate: it claims nothing of its own.
+  const nameless = { ...osm[0], id: "osm:nameless", name: C.lt("Car park"), lat: amoy.lat + 0.0004, lng: amoy.lng, searchAliases: [] };
+  // Spelt differently, same place: one name contains the other.
+  const spelt = { ...osm[0], id: "osm:spelt", name: C.lt("Amoy Plaza Carpark"), lat: amoy.lat + 0.0006, lng: amoy.lng, searchAliases: [] };
+  const merged = C.dedupe(feed, [dupPlace, dupName, neighbour, nameless, spelt, osm.find(p => p.id === "osm:node/1203030599")]);
+  const ids = new Set(merged.map(p => p.id));
+  assert.ok(!ids.has("osm:dup1"), "same spot = same car park");
+  assert.ok(!ids.has("osm:dup2"), "same name = same car park");
+  assert.ok(!ids.has("osm:nameless"), "a nameless record next door is a duplicate");
+  assert.ok(!ids.has("osm:spelt"), "one name containing the other = same car park");
+  assert.ok(ids.has("osm:neighbour"), "a differently named building 33 m away must survive");
+  assert.ok(ids.has("osm:node/1203030599"), "Festival Walk is nowhere near the feed car parks");
+  assert.equal(merged.length, feed.length + 2);
+  assert.ok(C.namesOverlap({ name: C.lt("Amoy Plaza") }, { name: C.lt("Amoy Plaza Carpark") }));
+  // Containment needs six characters: below that "Plaza" would swallow "Grand Plaza".
+  assert.ok(!C.namesOverlap({ name: C.lt("Plaza") }, { name: C.lt("Grand Plaza") }));
+  assert.ok(!C.namesOverlap({ name: C.lt("Car park") }, { name: C.lt("MegaBox car park") }), "a generic name must not swallow a named car park");
+  assert.ok(!C.namesOverlap({ name: C.lt("MegaBox") }, { name: C.lt("Manhattan Place") }));
   const withEnt = C.attachEntrances(merged, entDoc);
   assert.ok(withEnt.some(p => p.entrance?.source === "openStreetMap"));
   assert.ok(withEnt.filter(p => p.kind === "onStreetMeter").every(p => !p.entrance));
@@ -226,7 +247,8 @@ test("backup code, error log, staleness, Address Lookup Service", () => {
   assert.equal(back.ok, true); assert.equal(back.at, 1000);
   assert.deepEqual(back.data.favs, state.favs); assert.equal(back.data.vehicles[0].nickname, "MIFA 9"); assert.equal(back.data.lang, "tc");
   assert.equal(back.data.vac, undefined); assert.equal(back.data.feed, undefined);
-  assert.deepEqual(C.backupSummary(back.data), { favs: 1, vehicles: 1, places: 0 });
+  assert.deepEqual(C.backupSummary(back.data), { favs: 1, vehicles: 1, places: 0, visits: 0 });
+  assert.equal(C.backupSummary({ visits: { a: { n: 2 }, b: { n: 1 } } }).visits, 2, "a restore that brought visits back must not report zero");
   assert.equal(C.backupDecode("hello").error, "notBackup"); assert.equal(C.backupDecode("CPHK1.!!!").error, "corrupt"); assert.equal(C.backupDecode("").ok, false);
 
   let log = []; for (let i = 0; i < 12; i++) log = C.pushError(log, { at: i });
@@ -321,4 +343,53 @@ test("typical availability patterns", () => {
   assert.equal(C.betterLater(calm, [{ inHours: 1, p: calm }], "en"), null, "no advice when now is already fine");
   assert.equal(C.betterLater(busy, [{ inHours: 1, p: { typ: 40, tight: 5, n: 1 } }], "en"), null, "later bucket needs evidence too");
   assert.equal(C.betterLater(busy, [{ inHours: 1, p: null }], "en"), null);
+});
+
+
+test("curated facts attach to the right car park, and duplicates collapse", () => {
+  const mk = (id, en, tc, lat, lng) => ({ id, name: { en, tc }, address: {}, lat, lng, kind: "offStreet", sources: ["openStreetMap"],
+    height: { metres: null, note: null }, fees: {}, facilities: [], paymentMethods: [], openingHours: [], capacity: {}, district: null, entrance: null });
+
+  // An entry that names an id must never also attach by name. The real case:
+  // "時代廣場停車場" also names a car park 30 km from Causeway Bay.
+  const causeway = mk("osm:way/26469269", "Times Square car park", "時代廣場停車場", 22.2783, 114.1822);
+  const faraway = mk("osm:way/1424632143", "时代广场停車場", "時代廣場停車場", 22.5213, 114.0604);
+  const doc = { entries: [{ carParkId: "osm:way/26469269", matchNames: ["Times Square car park", "時代廣場停車場"], feeEN: "HK$19 per 30 min", sourceURL: "https://x", checkedOn: "2026-09-11" }] };
+  const out = C.applyCurated([causeway, faraway], doc);
+  assert.ok(out[0].factsProvenance, "the named car park keeps its facts");
+  assert.equal(out[1].factsProvenance, undefined, "a same-named car park 30 km away must get nothing");
+
+  // Several ids for one entry (Elements has a north and a south car park).
+  const north = mk("osm:node/1", "North Carpark", "", 22.3045, 114.1615), south = mk("osm:node/2", "South Carpark", "", 22.3040, 114.1620);
+  const two = C.applyCurated([north, south], { entries: [{ carParkIds: ["osm:node/1", "osm:node/2"], matchNames: ["Elements", "圓方"], feeEN: "HK$28/hour", checkedOn: "2026-09-11" }] });
+  assert.ok(two[0].factsProvenance && two[1].factsProvenance);
+  assert.deepEqual(C.curatedIds({ carParkId: "a", carParkIds: ["b", "c"] }), ["a", "b", "c"]);
+
+  // The mall's name becomes searchable on its car parks: nobody looks for
+  // "Ocean Terminal" when they mean Harbour City.
+  assert.ok(two[0].searchAliases.includes("Elements"));
+  assert.ok(C.searchCarParks("圓方", two).some(h => h.cp.id === "osm:node/1"));
+  assert.ok(C.searchCarParks("Elements", two).length >= 1);
+
+  // An entry with no id may be fenced to a place, so a namesake elsewhere is safe.
+  const here = mk("osm:node/3", "MOKO", "新世紀廣場", 22.3175, 114.1715), namesake = mk("osm:node/4", "MOKO", "新世紀廣場", 22.45, 114.00);
+  const fenced = C.applyCurated([here, namesake], { entries: [{ matchNames: ["MOKO"], near: { lat: 22.3175, lng: 114.1715, radiusMetres: 1500 }, feeEN: "x", checkedOn: "2026-09-11" }] });
+  assert.ok(fenced[0].factsProvenance); assert.equal(fenced[1].factsProvenance, undefined);
+
+  // OpenStreetMap holds Cityplaza twice, 6 m apart; two different car parks can
+  // legitimately sit as close, so only a matching name collapses them.
+  const a = mk("osm:node/1161336799", "Cityplaza Carpark", "太古城中心停車場", 22.2865, 114.2160);
+  const b = mk("osm:relation/10347751", "Cityplaza Carpark", "太古城中心停車場", 22.28655, 114.21603);
+  const c = mk("osm:node/999", "Somewhere Else Carpark", "另一個停車場", 22.28652, 114.21601);
+  // A metered street section must never suppress an off-street car park: its
+  // centroid lands within 80 m of many of them.
+  const meter = { ...mk("meter:x|y", "Some Street (near Star Street)", "", 22.28651, 114.21602), kind: "onStreetMeter" };
+  const withMeter = C.dedupe([meter], [a]);
+  assert.ok(withMeter.some(x => x.id === a.id), "a meter section must not erase a car park 1 m away");
+  const realRival = C.dedupe([{ ...mk("feed:1", "Cityplaza", "太古城中心", 22.28651, 114.21602), kind: "offStreet" }], [a]);
+  assert.ok(!realRival.some(x => x.id === a.id), "but a real car park at the same spot still wins");
+
+  const merged = C.dedupe([], [a, b, c]);
+  assert.deepEqual(merged.map(x => x.id).sort(), ["osm:node/1161336799", "osm:node/999"], "same name + close = one; different name = both");
+  assert.equal(C.dedupe([], [a]).length, 1);
 });
