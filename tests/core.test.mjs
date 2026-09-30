@@ -60,6 +60,9 @@ test("height, legacy tariff and mall rules", () => {
   const fee = C.feeSchedule(null, "每小時 $18 (Mon-Fri)");
   assert.equal(fee.hourly[0].isEstimate, true); assert.equal(C.hourlyEquivalent(fee.hourly[0]), 18);
   assert.ok(C.isMallName("Telford Plaza I Carpark", "")); assert.ok(C.isMallName("淘大商場", "")); assert.ok(!C.isMallName("Phase 1 Carpark of Tin Ching Estate", "Yuen Long"));
+  // malls the feed names without any mall word
+  for (const n of ["Vcity Commerical Carpark", "港鐵青衣城停車場", "MTR Maritime Square Car Park", "Ocean PopWalk", "Mikiki", "Popcorn I Carpark", "愉景新城", "北角匯二至三期 B2/F A 區", "V Walk Carpark", "裕民坊"]) assert.ok(C.isMallName(n, ""), n);
+  for (const n of ["Kai Ching Estate Car Park", "Hopewell Centre", "Shek Kip Mei Park Sports Centre", "Wood Park Car Park", "Shap Mun Street"]) assert.ok(!C.isMallName(n, ""), n);
   assert.equal(C.matchDistrict("Kwun Tong District"), "kwunTong"); assert.equal(C.matchDistrict("觀塘區"), "kwunTong"); assert.equal(C.matchDistrict("Central and Western District"), "centralAndWestern"); assert.equal(C.matchDistrict("Atlantis"), null);
 });
 
@@ -204,11 +207,16 @@ test("fit, size advice, ranking, filters, chips", () => {
   assert.deepEqual(ids({ includeMeters: false }), ["closed", "estate", "mall"]);
   assert.deepEqual(ids({ onlyCompatible: true }), ["closed", "estate", "meter"]);
   assert.equal(C.filterActiveCount({ ...f, availableNow: true, evCharging: true, includeMeters: false }), 3);
-  // distance bands: rings from the origin, one filter regardless of bounds
+  // distance bands: "within X" from the origin (never rings: 500 m must include
+  // the mall 110 m away), one filter regardless of bounds
   const far = C.rank([{ cp: cp({ id: "here", lat: origin.lat + 0.001, lng: origin.lng }), vac: rd(3) }, { cp: cp({ id: "mid", lat: origin.lat + 0.0035, lng: origin.lng }), vac: rd(3) }, { cp: cp({ id: "far", lat: origin.lat + 0.007, lng: origin.lng }), vac: rd(3) }], { origin, now });
   const inBand = (id) => C.applyFilter(C.applyBand(C.DEFAULT_FILTER(), id), far).map(r => r.id).sort();
-  assert.deepEqual(inBand("all"), ["far", "here", "mid"]); assert.deepEqual(inBand("b250"), ["here"]); assert.deepEqual(inBand("b500"), ["mid"]); assert.deepEqual(inBand("b1k"), ["far"]); assert.deepEqual(inBand("b2k"), []);
+  assert.deepEqual(inBand("all"), ["far", "here", "mid"]); assert.deepEqual(inBand("b250"), ["here"]); assert.deepEqual(inBand("b500"), ["here", "mid"]); assert.deepEqual(inBand("b1k"), ["far", "here", "mid"]); assert.deepEqual(inBand("b2k"), ["far", "here", "mid"]);
+  assert.deepEqual(C.applyFilter({ ...C.applyBand(C.DEFAULT_FILTER(), "b500"), mallOnly: true }, C.rank([{ cp: cp({ id: "mallNextDoor", isMall: true, lat: origin.lat + 0.001, lng: origin.lng }), vac: rd(3) }], { origin, now })).map(r => r.id), ["mallNextDoor"]);
   assert.equal(C.bandOf(C.applyBand(C.DEFAULT_FILTER(), "b500")), "b500"); assert.equal(C.bandOf(C.DEFAULT_FILTER()), "all"); assert.equal(C.bandOf({ minDistanceMetres: 10, maxDistanceMetres: 20 }), "custom");
+  // a filter saved while bands were rings (250–500 m) comes back as "within 500 m"
+  assert.equal(C.bandOf(C.migrateFilter({ ...C.DEFAULT_FILTER(), minDistanceMetres: 250, maxDistanceMetres: 500 })), "b500");
+  assert.equal(C.migrateFilter(C.DEFAULT_FILTER()).minDistanceMetres, null);
   assert.equal(C.filterActiveCount(C.applyBand(C.DEFAULT_FILTER(), "b1k")), 1); assert.equal(C.filterActiveCount(C.applyBand(C.DEFAULT_FILTER(), "all")), 0);
   // familiarity: somewhere you park often is nudged up, but never past a full car park
   const visits = { mall: { n: 4 }, estate: { n: 1 } };
@@ -389,6 +397,14 @@ test("curated facts attach to the right car park, and duplicates collapse", () =
   const realRival = C.dedupe([{ ...mk("feed:1", "Cityplaza", "太古城中心", 22.28651, 114.21602), kind: "offStreet" }], [a]);
   assert.ok(!realRival.some(x => x.id === a.id), "but a real car park at the same spot still wins");
 
+  // the feed's "合和中心" swallows OpenStreetMap's "合和商場停車場" 24 m away; the
+  // mall flag must survive, or the 商場 filter loses Hopewell
+  const hopewellFeed = { ...mk("feed:hw", "Hopewell Centre", "合和中心", 22.27470, 114.17200), kind: "offStreet", isMall: false };
+  const hopewellOSM = { ...mk("osm:node/hw", "", "合和商場停車場", 22.27480, 114.17190), isMall: true };
+  const hw = C.dedupe([hopewellFeed], [hopewellOSM]);
+  assert.equal(hw.length, 1); assert.equal(hw[0].id, "feed:hw"); assert.equal(hw[0].isMall, true);
+  assert.equal(hopewellFeed.isMall, false, "the input record is not mutated");
+  assert.equal(C.dedupe([hopewellFeed], [{ ...hopewellOSM, isMall: false }])[0].isMall, false, "no flag to carry, none invented");
   const merged = C.dedupe([], [a, b, c]);
   assert.deepEqual(merged.map(x => x.id).sort(), ["osm:node/1161336799", "osm:node/999"], "same name + close = one; different name = both");
   assert.equal(C.dedupe([], [a]).length, 1);

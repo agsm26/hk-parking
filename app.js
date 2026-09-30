@@ -10,7 +10,7 @@ const FEEDS = {
   meterOcc: "https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv",
 };
 const REFRESH = { info: 6 * 3600e3, meters: 24 * 3600e3, metersSnapshot: 7 * 86400e3, vacancy: 60e3, meterVac: 120e3 };
-const APP_VERSION = "2026-09-11f";                       // stamped by bump.py together with sw.js
+const APP_VERSION = "2026-09-30a";                       // stamped by bump.py together with sw.js
 const REPO_URL = "https://github.com/agsm26/hk-parking";  // issue reports go here
 const FETCH_TIMEOUT = 8000;
 // Map tiles: the Lands Department basemap through the CSDI portal (free, no
@@ -49,7 +49,7 @@ const S = {
   lang: qs.get("lang") || LS.get("lang", null) || (/^(zh|yue)/i.test(navigator.language) ? "tc" : "en"),
   tab: qs.get("tab") || "find",
   origin: LS.get("origin", { type: "current" }),            // {type:'current'} | {type:'place', place}
-  filter: { ...C.DEFAULT_FILTER(), ...LS.get("filter", {}) },
+  filter: C.migrateFilter({ ...C.DEFAULT_FILTER(), ...LS.get("filter", {}) }),
   sort: LS.get("sort", "bestMatch"),
   vehicles: LS.get("vehicles", []), activeVehicleId: LS.get("activeVehicleId", null),
   favs: LS.get("favs", []), recents: LS.get("recents", []), places: LS.get("places", []), searches: LS.get("searches", []),
@@ -143,7 +143,7 @@ async function restoreCode() {
   const m = String(v.code).match(/CPHK1\.[A-Za-z0-9_\-\s]+/), r = C.backupDecode(m ? m[0] : v.code);
   if (!r.ok) { toast(r.error === "corrupt" ? L_("That code is damaged", "代碼已損壞") : L_("That is not a backup code", "唔係備份代碼")); return; }
   for (const [k, val] of Object.entries(r.data)) { S[k] = val; save(k); }
-  S.filter = { ...C.DEFAULT_FILTER(), ...(S.filter || {}) };
+  S.filter = C.migrateFilter({ ...C.DEFAULT_FILTER(), ...(S.filter || {}) }); save("filter");
   S.visits = S.visits && typeof S.visits === "object" ? S.visits : {};
   document.documentElement.lang = S.lang === "en" ? "en-HK" : "zh-HK";
   const n = C.backupSummary(r.data); rerank(); render();
@@ -438,7 +438,8 @@ function emptyStateHTML(reason) {
       : `<div class="card"><div class="state"><div class="ic" aria-hidden="true">📍</div><h3>${esc(L_("Find spaces near you", "搵附近車位"))}</h3><p>${esc(L_("The app asks for your location to rank car parks by distance. It is used only while the app is open and never leaves this phone.", "app 會要求定位，用嚟按距離排列停車場。只會喺開啟時使用，唔會離開呢部手機。"))}</p><button class="primary" data-act="locate">${esc(L_("Allow location", "允許定位"))}</button><p style="margin:10px 0 0"><button data-act="search" style="color:var(--accent);font-weight:600;min-height:44px">${esc(L_("Search a destination instead", "改為搜尋目的地"))}</button></p></div></div>`;
     case "offline": return st("📡", L_("Can't reach the parking feed", "連唔到車位資料"), L_("Check your connection and try again. Nothing is cached yet.", "請檢查網絡再試。暫時未有快取資料。"), L_("Try again", "再試一次"), "retry");
     case "feedEmpty": return st("📭", L_("No car parks in the feed", "資料庫暫時冇停車場"), L_("The government feed returned nothing. Try again in a minute.", "政府資料暫時冇內容，請稍後再試。"), L_("Try again", "再試一次"), "retry");
-    case "outOfBand": return st("➤", L_("Nothing in this distance band", "呢個距離範圍內冇車位"), L_(`No car park between ${T_(C.DISTANCE_BANDS.find(b => b.id === C.bandOf(S.filter))?.label || C.lt("", ""))} from here. Pick a wider band.`, `由呢度起 ${T_(C.DISTANCE_BANDS.find(b => b.id === C.bandOf(S.filter))?.label || C.lt("", ""))} 範圍內冇停車場，請揀闊一點。`), L_("Any distance", "不限距離"), "clearBand");
+    case "outOfBand": { const lbl = T_(C.DISTANCE_BANDS.find(b => b.id === C.bandOf(S.filter))?.label || C.lt("", "")), others = C.filterActiveCount(S.filter) - 1;
+      return st("➤", L_("Nothing within this distance", "呢個距離內冇車位"), L_(`No car park ${lbl.toLowerCase()}${others > 0 ? ` matches your other ${others === 1 ? "filter" : `${others} filters`}` : ""}. Pick a wider distance.`, `${lbl}冇${others > 0 ? `符合另外 ${others} 個篩選嘅` : ""}停車場，請揀遠一點。`), L_("Any distance", "不限距離"), "clearBand"); }
     case "noCompatible": return st("🚐", L_("Nothing compatible nearby", "附近冇啱你車嘅車位"), L_("No car park here confirms it fits your vehicle. Show all and check the height yourself?", "附近冇停車場確認啱你架車，可以顯示全部再自己核對限高。"), L_("Show all", "顯示全部"), "resetFilters");
     default: { const n = C.filterActiveCount(S.filter); return st("⚙︎", L_("No car parks match", "冇符合嘅停車場"), n ? L_(`${n} filters are on. Loosen them or widen the distance.`, `開咗 ${n} 個篩選，試下放寬或者加大範圍。`) : L_("Nothing within range. Try a destination.", "範圍內冇車位，試下搜尋目的地。"), n ? L_("Clear filters", "清除篩選") : null, "resetFilters"); }
   }

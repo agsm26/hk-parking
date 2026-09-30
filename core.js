@@ -217,11 +217,17 @@ const str = (v) => { if (v == null) return null; const s = String(v).trim(); ret
 const arr = (v) => v == null ? [] : Array.isArray(v) ? v : [v];
 const strArr = (v) => Array.isArray(v) ? v.map(str).filter(Boolean) : (typeof v === "string" ? v.split(",").map(s => s.trim()).filter(Boolean) : []);
 
-const MALL_WORDS = ["商場", "廣場", "購物", "百貨", "名店", "mall", "plaza", "outlet", "shopping", "arcade"];
-const MALL_NAMES = ["海港城", "又一城", "時代廣場", "朗豪坊", "圓方", "太古城", "希慎", "apm", "megabox", "d2 place", "v city", "yoho", "東薈城", "新城市", "置地", "ifc", "k11", "the one", "崇光", "sogo", "olympian", "moko", "poplaza", "t town", "airside", "telford", "德福", "amoy", "淘大", "domain", "大本型", "landmark", "harbour city", "festival walk", "times square", "langham place", "elements", "cityplaza", "pacific place", "太古廣場"];
+const MALL_WORDS = ["商場", "廣場", "購物", "百貨", "名店", "mall", "plaza", "outlet", "shopping", "arcade", "square", "galleria", "walk"];
+// Malls whose names carry none of the words above (the feed calls Maritime
+// Square "港鐵青衣城停車場", D·PARK "愉景新城", and so on).
+const MALL_NAMES = ["海港城", "又一城", "時代廣場", "朗豪坊", "圓方", "太古城", "希慎", "apm", "megabox", "d2 place", "v city", "yoho", "東薈城", "新城市", "置地", "ifc", "k11", "the one", "崇光", "sogo", "olympian", "moko", "poplaza", "t town", "airside", "telford", "德福", "amoy", "淘大", "domain", "大本型", "landmark", "harbour city", "times square", "langham place", "elements", "cityplaza", "pacific place", "太古廣場",
+  "青衣城", "popcorn", "mikiki", "lohas", "康城", "北角匯", "harbour north", "愉景新城", "d.park", "南昌薈", "nam cheong place", "裕民坊", "翩滙坊", "海天晉滙", "利園", "lee garden", "lok fu place", "新都城", "metro city", "東港城", "east point city", "荃新天地", "奧海城", "grand century place"];
+// A name with a space also matches written without it ("V City" = "Vcity"),
+// but single words never match across a word gap.
+const MALL_KEYS = [...MALL_WORDS, ...MALL_NAMES].map(w => ({ plain: w.toLowerCase(), packed: w.includes(" ") ? normText(w) : null }));
 export function isMallName(name, address) {
-  const s = ((name || "") + " " + (address || "")).toLowerCase();
-  return MALL_WORDS.some(w => s.includes(w)) || MALL_NAMES.some(w => s.includes(w));
+  const s = ((name || "") + " " + (address || "")).toLowerCase(), packed = normText(s);
+  return MALL_KEYS.some(k => s.includes(k.plain) || (k.packed && packed.includes(k.packed)));
 }
 
 /** Prefer a row marked for private cars, else the lowest positive height; 0/missing = not confirmed. */
@@ -539,17 +545,24 @@ export function dedupe(primary, extras, radius = 80, tightRadius = 25) {
   // of off-street car parks — letting meters suppress them erased 119 car parks,
   // Three Pacific Place and KOLOUR Yuen Long among them.
   const rivals = primary.filter(cp => cp.kind !== "onStreetMeter");
-  const names = new Set(rivals.flatMap(cp => Object.values(cp.name)).map(normText).filter(n => n.length >= 4));
+  const byName = new Map();
+  for (const cp of rivals) for (const n of Object.values(cp.name).map(normText)) if (n.length >= 4 && !byName.has(n)) byName.set(n, cp);
   const grid = new Map(); const cell = (p) => `${Math.floor(p.lat / 0.001)}_${Math.floor(p.lng / 0.001)}`;
   for (const p of rivals) { const k = cell(p); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(p); }
   const out = [...primary], seen = new Set(primary.map(p => p.id));
+  // When a record is dropped as a duplicate, the one that stands in for it keeps
+  // its "mall" flag: the feed calls Hopewell Centre's car park "合和中心", which
+  // no name rule recognises, but OpenStreetMap knows it serves the mall.
+  const mallIds = new Set();
+  const absorb = (keeper, e) => { if (e.isMall && !keeper.isMall) mallIds.add(keeper.id); };
   // OpenStreetMap sometimes holds the same car park twice (Cityplaza is a node
   // and a relation 6 m apart). Collapse those, but only when the name matches
   // too: in a dense city two different car parks can sit 80 m apart.
   const kept = new Map();
   outer: for (const e of extras) {
     if (seen.has(e.id)) continue;
-    if (Object.values(e.name).map(normText).some(n => names.has(n))) continue;
+    const namesake = Object.values(e.name).map(normText).map(n => byName.get(n)).find(Boolean);
+    if (namesake) { absorb(namesake, e); continue; }
     const [cx, cy] = cell(e).split("_").map(Number);
     const eGeneric = Object.values(e.name).every(isGenericName);
     for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
@@ -559,15 +572,15 @@ export function dedupe(primary, extras, radius = 80, tightRadius = 25) {
       // Place next door, and Tuen Mun Town Plaza loses a whole phase.
       for (const p of grid.get(`${cx + dx}_${cy + dy}`) || []) {
         const d = distM(p, e); if (d > radius) continue;
-        if (eGeneric || namesOverlap(p, e) || d <= tightRadius) continue outer;
+        if (eGeneric || namesOverlap(p, e) || d <= tightRadius) { absorb(p, e); continue outer; }
       }
       for (const k of kept.get(`${cx + dx}_${cy + dy}`) || [])
-        if (distM(k, e) <= radius && namesOverlap(k, e)) continue outer;
+        if (distM(k, e) <= radius && namesOverlap(k, e)) { absorb(k, e); continue outer; }
     }
     out.push(e); seen.add(e.id);
     const k = cell(e); if (!kept.has(k)) kept.set(k, []); kept.get(k).push(e);
   }
-  return out;
+  return mallIds.size ? out.map(cp => mallIds.has(cp.id) ? { ...cp, isMall: true } : cp) : out;
 }
 
 export const curatedIds = (e) => [e?.carParkId, ...(e?.carParkIds || [])].filter(Boolean);
@@ -801,17 +814,22 @@ export function matchesFilter(f, r) {
 }
 export const applyFilter = (f, ranked) => ranked.filter(r => matchesFilter(f, r));
 
-// Distance bands the user can pick on the Find and Map screens. "all" clears both
-// bounds; the others are rings measured straight-line from the origin.
+// Distance bands the user can pick on the Find and Map screens, measured
+// straight-line from the origin. Each one means "within": 500 m includes the
+// car park 100 m away. (They used to be rings, and "250–500 m" hid the mall
+// next door.)
 export const DISTANCE_BANDS = [
   { id: "all", min: null, max: null, label: lt("Any distance", "不限距離") },
-  { id: "b250", min: null, max: 250, label: lt("≤ 250 m", "≤ 250 米") },
-  { id: "b500", min: 250, max: 500, label: lt("250–500 m", "250–500 米") },
-  { id: "b1k", min: 500, max: 1000, label: lt("500 m – 1 km", "500 米 – 1 公里") },
-  { id: "b2k", min: 1000, max: 2000, label: lt("1 – 2 km", "1 – 2 公里") },
+  { id: "b250", min: null, max: 250, label: lt("Within 250 m", "250 米內") },
+  { id: "b500", min: null, max: 500, label: lt("Within 500 m", "500 米內") },
+  { id: "b1k", min: null, max: 1000, label: lt("Within 1 km", "1 公里內") },
+  { id: "b2k", min: null, max: 2000, label: lt("Within 2 km", "2 公里內") },
 ];
 export function bandOf(f) { return DISTANCE_BANDS.find(b => (b.min ?? null) === (f.minDistanceMetres ?? null) && (b.max ?? null) === (f.maxDistanceMetres ?? null))?.id || "custom"; }
 export function applyBand(f, id) { const b = DISTANCE_BANDS.find(x => x.id === id) || DISTANCE_BANDS[0]; return { ...f, minDistanceMetres: b.min, maxDistanceMetres: b.max }; }
+// A filter saved while bands were rings still carries an inner bound that
+// nothing on screen can clear. Drop it; the outer bound stays as chosen.
+export function migrateFilter(f) { return f && f.minDistanceMetres != null ? { ...f, minDistanceMetres: null } : f; }
 
 export const CHIPS = [
   { id: "nearMe", label: lt("Near me", "附近"), icon: "◎" }, { id: "cheapest", label: lt("Cheapest", "最平"), icon: "$" },
