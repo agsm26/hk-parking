@@ -10,7 +10,7 @@ const FEEDS = {
   meterOcc: "https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv",
 };
 const REFRESH = { info: 6 * 3600e3, meters: 24 * 3600e3, metersSnapshot: 7 * 86400e3, vacancy: 60e3, meterVac: 120e3 };
-const APP_VERSION = "2026-09-30c";                       // stamped by bump.py together with sw.js
+const APP_VERSION = "2026-09-30d";                       // stamped by bump.py together with sw.js
 const REPO_URL = "https://github.com/agsm26/hk-parking";  // issue reports go here
 const FETCH_TIMEOUT = 8000;
 // Map tiles: the Lands Department basemap through the CSDI portal (free, no
@@ -392,13 +392,19 @@ function cardHTML(r, extra = "") {
 }
 const fmtHourly = (hkd, est) => { const v = Number.isInteger(hkd) ? `$${hkd}` : `$${hkd.toFixed(1)}`; const b = L_(`${v}/hr`, `${v}/小時`); return est ? L_(`${b} est.`, `約 ${b}`) : b; };
 
-function bandsHTML() {
-  const cur = C.bandOf(S.filter);
-  return `<div class="bands" role="radiogroup" aria-label="${esc(L_("Distance", "距離"))}"><span class="lbl">➤</span>${C.DISTANCE_BANDS.map(b => `<button role="radio" data-band="${b.id}" aria-checked="${cur === b.id}">${esc(T_(b.label))}</button>`).join("")}</div>`;
-}
-function chipsHTML(ids) {
-  return `<div class="chips" role="group">${ids.map(id => { const c = C.CHIPS.find(x => x.id === id); const on = C.chipIsOn(id, S.filter, S.sort);
-    return `<button class="chip" data-chip="${id}" aria-pressed="${on}"><span aria-hidden="true">${c.icon}</span>${esc(T_(c.label))}</button>`; }).join("")}</div>`;
+// Every sort, filter and distance on screen at once, no sideways scrolling:
+// a labelled row each, so the one you want is found by its row name.
+function filtersHTML(withSort) {
+  const f = S.filter, band = C.bandOf(f), n = C.filterActiveCount(f);
+  const row = (label, body) => `<div class="frow"><span class="flbl" aria-hidden="true">${esc(label)}</span>${body}</div>`;
+  let h = `<div class="filters">`;
+  if (withSort) h += row(L_("Sort", "排序"), `<div class="seg" role="radiogroup" aria-label="${esc(L_("Sort", "排序"))}">${C.SORT_CHOICES.map(s => `<button role="radio" data-sort="${s.id}" aria-checked="${S.sort === s.id}">${esc(T_(s.label))}</button>`).join("")}</div>`);
+  h += row(L_("Show", "篩選"), `<div class="tiles" role="group" aria-label="${esc(L_("Filters", "篩選"))}">${C.FILTER_TILES.map(id => { const c = C.CHIPS.find(x => x.id === id);
+    return `<button class="tile" data-chip="${id}" aria-pressed="${C.chipIsOn(id, f, S.sort)}" aria-label="${esc(T_(c.label))}"><span class="ic" aria-hidden="true">${c.icon}</span><span>${esc(T_(c.short || c.label))}</span></button>`; }).join("")}</div>`);
+  h += row(L_("Within", "距離"), `<div class="seg" role="radiogroup" aria-label="${esc(L_("Distance", "距離"))}">${C.DISTANCE_BANDS.map(b => `<button role="radio" data-band="${b.id}" aria-checked="${band === b.id}" aria-label="${esc(T_(b.label))}">${esc(T_(b.short || b.label))}</button>`).join("")}</div>`);
+  if (n) { const d = f.districts?.length ? C.DISTRICTS.find(x => x.id === f.districts[0]) : null;
+    h += `<div class="factive"><span>${esc(L_(`${n} filter${n > 1 ? "s" : ""} on`, `已開 ${n} 個篩選`))}${d ? ` · ${esc(L_("District: ", "地區："))}${esc(T_(d.name))}` : ""}</span><button data-act="resetFilters">${esc(L_("Clear all", "全部清除"))}</button></div>`; }
+  return h + `</div>`;
 }
 
 function renderFind() {
@@ -424,8 +430,7 @@ function renderFind() {
   }
   el.innerHTML = `<h1 id="h-find">${esc(L_("Find Parking", "搵車位"))}</h1>
     <button class="searchbox" id="open-search"><span aria-hidden="true">🔍</span>${S.origin.type === "place" ? `<span class="val">${esc(originLabel())}</span><span class="loc" id="use-loc" role="button" aria-label="${esc(L_("Use current location", "用而家位置"))}">➤</span>` : `<span class="ph">${esc(L_("Where are you going?", "你去邊度？"))}</span>`}</button>
-    ${chipsHTML(C.CHIPS.map(c => c.id))}
-    ${bandsHTML()}
+    ${filtersHTML(true)}
     <button class="primary" id="find-now">Ⓟ ${esc(L_("Find Parking Now", "即刻搵位"))}</button>
     <div class="status"><span aria-live="polite">${S.vacFromCache ? "💾" : "●"} ${esc(lastUpdatedText())}</span><span><button data-sort-menu>⇅ ${esc(T_(C.SORT_LABEL[S.sort]))}</button> · <button data-tab="map">🗺 ${esc(L_("Map", "地圖"))}</button></span></div>
     ${offlineBar}${body}
@@ -699,8 +704,7 @@ function clusterize(items, span) {
 function renderMap() {
   ensureMap();
   $("map-top").innerHTML = `<button class="searchbox" id="map-search"><span aria-hidden="true">🔍</span><span class="${S.origin.type === "place" ? "val" : "ph"}">${esc(S.origin.type === "place" ? originLabel() : L_("Search destination", "搜尋目的地"))}</span><span class="loc" data-tab="find" role="button" aria-label="${esc(L_("Show list", "顯示清單"))}">☰</span></button>
-    ${chipsHTML(["nearMe", "mostSpaces", "streetMeters", "evCharging", "heightFits", "openNow"])}
-    ${bandsHTML()}
+    ${filtersHTML(false)}
     <div class="status"><span>${esc(lastUpdatedText())}</span><span data-count></span></div>`;
   $("map-here").textContent = L_("Search this area", "喺呢區搵位");
   setTimeout(() => { map.invalidateSize(); const o = originPoint(); if (o && !mapCentred) mapCentreOn(o, 16); paintMarkers(); }, 50);
@@ -835,6 +839,7 @@ document.addEventListener("click", async (e) => {
   if ((x = b("[data-tab]"))) { e.preventDefault(); setTab(x.dataset.tab); return; }
   if ((x = b("[data-band]"))) { S.filter = C.applyBand(S.filter, x.dataset.band); save("filter"); rerank(); render(); return; }
   if ((x = b("[data-chip]"))) { const on = !C.chipIsOn(x.dataset.chip, S.filter, S.sort); const r = C.applyChip(x.dataset.chip, S.filter, S.sort, on); S.filter = r.f; S.sort = r.sort; save("filter"); save("sort"); rerank(); render(); return; }
+  if ((x = b("[data-sort]"))) { S.sort = x.dataset.sort; save("sort"); rerank(); render(); return; }
   if ((x = b("[data-sort-menu]"))) { const i = C.SORTS.indexOf(S.sort); S.sort = C.SORTS[(i + 1) % C.SORTS.length]; save("sort"); rerank(); render(); toast(T_(C.SORT_LABEL[S.sort])); return; }
   if ((x = b("#use-loc"))) { e.stopPropagation(); S.origin = { type: "current" }; save("origin"); startGeo(); rerank(); render(); return; }
   if ((x = b("#open-search, #map-search"))) { openSearch("dest"); return; }

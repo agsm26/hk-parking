@@ -819,11 +819,11 @@ export const applyFilter = (f, ranked) => ranked.filter(r => matchesFilter(f, r)
 // car park 100 m away. (They used to be rings, and "250–500 m" hid the mall
 // next door.)
 export const DISTANCE_BANDS = [
-  { id: "all", min: null, max: null, label: lt("Any distance", "不限距離") },
-  { id: "b250", min: null, max: 250, label: lt("Within 250 m", "250 米內") },
-  { id: "b500", min: null, max: 500, label: lt("Within 500 m", "500 米內") },
-  { id: "b1k", min: null, max: 1000, label: lt("Within 1 km", "1 公里內") },
-  { id: "b2k", min: null, max: 2000, label: lt("Within 2 km", "2 公里內") },
+  { id: "all", min: null, max: null, label: lt("Any distance", "不限距離"), short: lt("Any", "不限") },
+  { id: "b250", min: null, max: 250, label: lt("Within 250 m", "250 米內"), short: lt("250 m", "250米內") },
+  { id: "b500", min: null, max: 500, label: lt("Within 500 m", "500 米內"), short: lt("500 m", "500米內") },
+  { id: "b1k", min: null, max: 1000, label: lt("Within 1 km", "1 公里內"), short: lt("1 km", "1公里內") },
+  { id: "b2k", min: null, max: 2000, label: lt("Within 2 km", "2 公里內"), short: lt("2 km", "2公里內") },
 ];
 export function bandOf(f) { return DISTANCE_BANDS.find(b => (b.min ?? null) === (f.minDistanceMetres ?? null) && (b.max ?? null) === (f.maxDistanceMetres ?? null))?.id || "custom"; }
 export function applyBand(f, id) { const b = DISTANCE_BANDS.find(x => x.id === id) || DISTANCE_BANDS[0]; return { ...f, minDistanceMetres: b.min, maxDistanceMetres: b.max }; }
@@ -833,10 +833,17 @@ export function migrateFilter(f) { return f && f.minDistanceMetres != null ? { .
 
 export const CHIPS = [
   { id: "nearMe", label: lt("Near me", "附近"), icon: "◎" }, { id: "cheapest", label: lt("Cheapest", "最平"), icon: "$" },
-  { id: "mostSpaces", label: lt("Most spaces", "最多位"), icon: "▦" }, { id: "streetMeters", label: lt("Meters", "咪錶"), icon: "P" },
-  { id: "evCharging", label: lt("EV charging", "充電"), icon: "⚡" }, { id: "heightFits", label: lt("Height fits", "啱車高"), icon: "↕" },
-  { id: "openNow", label: lt("Open now", "開放中"), icon: "◔" }, { id: "mallParking", label: lt("Mall parking", "商場"), icon: "🛍" },
+  { id: "mostSpaces", label: lt("Most spaces", "最多位"), icon: "▦" }, { id: "streetMeters", label: lt("Meters", "咪錶"), short: lt("Meters", "咪錶"), icon: "P" },
+  { id: "evCharging", label: lt("EV charging", "充電"), short: lt("EV", "充電"), icon: "⚡" }, { id: "heightFits", label: lt("Height fits", "啱車高"), short: lt("Height OK", "啱車高"), icon: "↕" },
+  { id: "openNow", label: lt("Open now", "開放中"), short: lt("Open now", "開放中"), icon: "◔" }, { id: "mallParking", label: lt("Mall parking", "商場"), short: lt("Malls", "商場"), icon: "🛍" },
 ];
+// The Find and Map screens show every option at once, no sideways scrolling:
+// one row to sort, one row of on/off filters, one row of distances.
+export const SORT_CHOICES = [
+  { id: "bestMatch", label: lt("Best", "最合適") }, { id: "nearest", label: lt("Nearest", "最近") },
+  { id: "lowestCost", label: lt("Cheapest", "最平") }, { id: "mostSpaces", label: lt("Most spaces", "最多位") },
+];
+export const FILTER_TILES = ["streetMeters", "evCharging", "heightFits", "openNow", "mallParking"];
 export function chipIsOn(id, f, sort) {
   return ({ nearMe: sort === "nearest", cheapest: sort === "lowestCost", mostSpaces: sort === "mostSpaces", streetMeters: !!f.includeMeters, evCharging: !!f.evCharging, heightFits: !!f.onlyCompatible, openNow: !!f.openNow, mallParking: !!f.mallOnly })[id];
 }
