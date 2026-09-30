@@ -10,7 +10,7 @@ const FEEDS = {
   meterOcc: "https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv",
 };
 const REFRESH = { info: 6 * 3600e3, meters: 24 * 3600e3, metersSnapshot: 7 * 86400e3, vacancy: 60e3, meterVac: 120e3 };
-const APP_VERSION = "2026-09-30b";                       // stamped by bump.py together with sw.js
+const APP_VERSION = "2026-09-30c";                       // stamped by bump.py together with sw.js
 const REPO_URL = "https://github.com/agsm26/hk-parking";  // issue reports go here
 const FETCH_TIMEOUT = 8000;
 // Map tiles: the Lands Department basemap through the CSDI portal (free, no
@@ -895,6 +895,9 @@ window.addEventListener("online", () => { S.online = true; toast(L_("Back online
 window.addEventListener("offline", () => { S.online = false; render(); });
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { S.now = Date.now(); refresh(false); } });
 window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (h.startsWith("cp/")) openDetail(decodeURIComponent(h.slice(3))); else if (TABS.some(t => t[0] === h) && h !== S.tab) setTab(h); });
+// Backup for the CSS rule on html/body: Safari's own pinch gesture events.
+// Stop them everywhere except on the map, which zooms itself.
+for (const ev of ["gesturestart", "gesturechange"]) document.addEventListener(ev, (e) => { if (!e.target?.closest?.(".leaflet-container")) e.preventDefault(); }, { passive: false });
 
 // -------------------------------------------------------------- boot -----
 (async function init() {

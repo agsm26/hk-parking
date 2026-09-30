@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://api.data.gov.hk https://resource.data.one.gov.hk https://www.als.gov.hk https://nominatim.openstreetmap.org; font-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'self'; form-action 'none'; object-src 'none'">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#1f70eb">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -37,6 +37,12 @@
 }}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;height:100%}
+/* The page never zooms: no double-tap zoom, no pinch zoom (iPhone ignores
+   user-scalable=no, but honours this). Scrolling still works both ways, and
+   the map zooms as before because Leaflet handles its own gestures. Do not
+   put touch-action:manipulation or pinch-zoom on anything: on iPhone that
+   switches page zoom back on everywhere. */
+html,body{touch-action:pan-x pan-y}
 body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"PingFang HK","PingFang TC","Noto Sans HK","Segoe UI",sans-serif;font-size:16px;line-height:1.45;-webkit-text-size-adjust:100%;overscroll-behavior-y:none}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer;border:0;background:none;padding:0;-webkit-tap-highlight-color:transparent}
