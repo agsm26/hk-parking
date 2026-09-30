@@ -10,7 +10,7 @@ const FEEDS = {
   meterOcc: "https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv",
 };
 const REFRESH = { info: 6 * 3600e3, meters: 24 * 3600e3, metersSnapshot: 7 * 86400e3, vacancy: 60e3, meterVac: 120e3 };
-const APP_VERSION = "2026-09-30a";                       // stamped by bump.py together with sw.js
+const APP_VERSION = "2026-09-30b";                       // stamped by bump.py together with sw.js
 const REPO_URL = "https://github.com/agsm26/hk-parking";  // issue reports go here
 const FETCH_TIMEOUT = 8000;
 // Map tiles: the Lands Department basemap through the CSDI portal (free, no
@@ -45,11 +45,14 @@ const IDB = (() => {
 })();
 
 // --------------------------------------------------------------- state ----
+// During an update the service worker can hand out a fresh app.js with the
+// previous core.js for one open. Never let a missing helper blank the screen.
+const migrateFilter = C.migrateFilter || ((f) => f);
 const S = {
   lang: qs.get("lang") || LS.get("lang", null) || (/^(zh|yue)/i.test(navigator.language) ? "tc" : "en"),
   tab: qs.get("tab") || "find",
   origin: LS.get("origin", { type: "current" }),            // {type:'current'} | {type:'place', place}
-  filter: C.migrateFilter({ ...C.DEFAULT_FILTER(), ...LS.get("filter", {}) }),
+  filter: migrateFilter({ ...C.DEFAULT_FILTER(), ...LS.get("filter", {}) }),
   sort: LS.get("sort", "bestMatch"),
   vehicles: LS.get("vehicles", []), activeVehicleId: LS.get("activeVehicleId", null),
   favs: LS.get("favs", []), recents: LS.get("recents", []), places: LS.get("places", []), searches: LS.get("searches", []),
@@ -143,7 +146,7 @@ async function restoreCode() {
   const m = String(v.code).match(/CPHK1\.[A-Za-z0-9_\-\s]+/), r = C.backupDecode(m ? m[0] : v.code);
   if (!r.ok) { toast(r.error === "corrupt" ? L_("That code is damaged", "代碼已損壞") : L_("That is not a backup code", "唔係備份代碼")); return; }
   for (const [k, val] of Object.entries(r.data)) { S[k] = val; save(k); }
-  S.filter = C.migrateFilter({ ...C.DEFAULT_FILTER(), ...(S.filter || {}) }); save("filter");
+  S.filter = migrateFilter({ ...C.DEFAULT_FILTER(), ...(S.filter || {}) }); save("filter");
   S.visits = S.visits && typeof S.visits === "object" ? S.visits : {};
   document.documentElement.lang = S.lang === "en" ? "en-HK" : "zh-HK";
   const n = C.backupSummary(r.data); rerank(); render();
