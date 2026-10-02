@@ -59,8 +59,9 @@ To rebuild the OpenStreetMap car park list itself (new car parks, not just new
 tags), run the native project's `Scripts/build_osm_carparks.py` and copy the
 three JSON files into `data/`, then run `refresh_data.py` again.
 
-Run `python3 bump.py` before every upload: it stamps `sw.js` and `app.js` with a
-new version so phones pick up the change.
+Phones only pick up a change when `sw.js` and `app.js` carry a new version.
+`publish.py` stamps one for you (it runs `bump.py`) whenever it publishes a file
+the app loads; run `python3 bump.py` yourself only when uploading by hand.
 
 ## Typical availability
 
@@ -91,9 +92,10 @@ starts it again.
 ## Test locally
 
 ```bash
-node --test tests/core.test.mjs          # logic (also runs on GitHub on every upload, .github/workflows)
+node --test tests/core.test.mjs          # logic (also runs on GitHub after every publish, .github/workflows)
 python3 -m http.server 8766              # then open http://localhost:8766/
-python3 check_deploy.py                  # after uploading: every file on GitHub, live version
+python3 publish.py --check               # what differs between this folder and GitHub (changes nothing)
+python3 check_deploy.py                  # every file on GitHub, live version
 node collect_patterns.mjs --dry          # what the hourly history job would record
 ```
 
@@ -104,9 +106,11 @@ Geolocation needs https or localhost.
 
 ## Publish (free, GitHub Pages)
 
-See DEPLOY.md. Short version: public repo `agsm26/hk-parking`, upload these
-files with the GitHub web uploader, enable Pages from `main`, open
-`https://agsm26.github.io/hk-parking/` on the phone, Share ▸ Add to Home Screen.
+See DEPLOY.md. Short version: public repo `agsm26/hk-parking`, Pages from
+`main`, `https://agsm26.github.io/hk-parking/` on the phone, Share ▸ Add to Home
+Screen. This Google Drive folder is where both accounts edit; `python3
+publish.py` publishes it to GitHub and brings back anything pushed to GitHub
+from elsewhere, so the two never drift apart.
 
 ## Licence
 
