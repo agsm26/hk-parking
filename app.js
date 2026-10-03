@@ -10,7 +10,7 @@ const FEEDS = {
   meterOcc: "https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv",
 };
 const REFRESH = { info: 6 * 3600e3, meters: 24 * 3600e3, metersSnapshot: 7 * 86400e3, vacancy: 60e3, meterVac: 120e3 };
-const APP_VERSION = "2026-09-30d";                       // stamped by bump.py together with sw.js
+const APP_VERSION = "2026-10-03a";                       // stamped by bump.py together with sw.js
 const REPO_URL = "https://github.com/agsm26/hk-parking";  // issue reports go here
 const FETCH_TIMEOUT = 8000;
 // Map tiles: the Lands Department basemap through the CSDI portal (free, no
@@ -295,6 +295,58 @@ const pat = (id) => S.patterns.now?.[id] || null;
 const patLater = (id) => (S.patterns.later || []).map(x => ({ inHours: x.inHours, p: x.map?.[id] || null }));
 const dayTypeLabel = () => [L_("weekdays", "平日"), L_("Saturdays", "星期六"), L_("Sundays", "星期日")][C.dayType(Date.now())];
 
+// The whole day at one day type, for the "typical day" chart on a car park's
+// page: 24 small slices, fetched the first time a page needs them and kept for
+// the session (the service worker keeps them for offline use too).
+const patternDays = {};
+let chartFor = null, chartDay = null, chartHour = null;
+async function loadPatternDay(dt) {
+  if (patternDays[dt]) return patternDays[dt];
+  if (!S.patterns.ids.length) await loadPatterns();
+  if (!S.patterns.ids.length) return null;
+  const have = S.patterns.have;
+  const day = await Promise.all(Array.from({ length: C.PATTERN.hours }, async (_, h) => {
+    const name = C.sliceName(dt, h);
+    if (have && !have.has(name)) return null;                                    // not recorded yet
+    try { return C.decodeSlice(S.patterns.ids, (await fetchJSON(`data/patterns/${name}.json`, { timeout: 8000, retries: 0, quiet: true }))?.d); }
+    catch { return null; }
+  }));
+  if (day.some(Boolean)) patternDays[dt] = day;                                  // offline: try again next time
+  return day;
+}
+const DAY_TABS = () => [L_("Weekdays", "平日"), L_("Saturday", "星期六"), L_("Sunday", "星期日")];
+const DAY_WORDS = () => [L_("weekdays", "平日"), L_("Saturdays", "星期六"), L_("Sundays", "星期日")];
+const hourSpan = (h) => `${String(h).padStart(2, "0")}:00–${String(h + 1).padStart(2, "0")}:00`;
+function dayChartHTML(id) {
+  const today = C.dayType(Date.now()), dt = chartDay ?? today, names = DAY_TABS();
+  const tabs = `<div class="seg daytabs" role="radiogroup" aria-label="${esc(L_("Day", "日子"))}">${names.map((n, i) =>
+    `<button role="radio" aria-checked="${i === dt}" data-chartday="${i}">${esc(n)}</button>`).join("")}</div>`;
+  const day = patternDays[dt];
+  if (!day) return tabs + `<p class="note">${esc(L_("Loading the typical day…", "載入緊平時嘅一日……"))}</p>`;
+  const prof = C.dayProfile(day, id);
+  if (prof.recorded < 3) return tabs + `<p class="note">${esc(L_(`Not enough readings yet for ${DAY_WORDS()[dt]}. This fills in as the hourly history grows.`, `${names[dt]}未有足夠紀錄，會隨住每小時紀錄慢慢填滿。`))}</p>`;
+  const nowH = dt === today ? C.hourOf(Date.now()) : null;
+  const best = prof.hours.filter(x => x.verdict).reduce((a, x) => (a && a.ease >= x.ease ? a : x), null);
+  const sel = prof.hours[chartHour ?? nowH ?? best.hour];
+  const summary = C.daySummary(prof, S.lang);
+  const bars = prof.hours.map(x => {
+    const label = `${hourSpan(x.hour)}: ${x.verdict ? C.patternText(x.p, S.lang) : L_("not enough readings yet", "未有足夠紀錄")}`;
+    return `<button class="bar ${x.verdict ? esc(x.verdict.kind) : "none"}${x.hour === nowH ? " now" : ""}" style="--h:${x.ease ?? 0}" data-chart-hour="${x.hour}" aria-pressed="${x.hour === sel.hour}" aria-label="${esc(label)}"></button>`;
+  }).join("");
+  const detail = sel.verdict
+    ? `${C.patternText(sel.p, S.lang)} · ${L_(`${sel.verdict.samples} readings`, `${sel.verdict.samples} 次紀錄`)}`
+    : L_("Not enough readings yet for this hour.", "呢個時段未有足夠紀錄。");
+  return tabs + (summary ? `<p class="hist-sum">${esc(summary)}</p>` : "")
+    + `<div class="daychart" role="group" aria-label="${esc(L_(`Typical free spaces by hour on ${DAY_WORDS()[dt]}`, `${names[dt]}每小時平時嘅空位`))}">${bars}</div>`
+    + `<div class="dayaxis" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span></div>`
+    + `<p class="hist-hour"><b>${sel.hour === nowH ? esc(L_("Now", "而家")) + " · " : ""}${hourSpan(sel.hour)}</b> · ${esc(detail)}</p>`;
+}
+function showDayChart(id) {
+  const dt = chartDay ?? C.dayType(Date.now());
+  if (patternDays[dt] || !$("daychart")) return;
+  loadPatternDay(dt).then(() => { if (sheetFor === id && $("daychart")) $("daychart").innerHTML = dayChartHTML(id); });
+}
+
 async function loadVacancy(force) {
   const cached = await IDB.get("vac");
   if (cached && !Object.keys(S.vac).length) { S.vac = cached.vac; S.vacAt = cached.at; S.vacFromCache = true; }
@@ -458,6 +510,7 @@ let sheetFor = null, miniMap = null;
 function openDetail(id) {
   const r = rec(id); if (!r) return;
   sheetFor = id;
+  if (chartFor !== id) { chartFor = id; chartDay = null; chartHour = null; }   // each car park opens on today
   const cp = r.cp, v = vehicle(), fav = S.favs.some(f => f.id === id);
   const other = (lt) => { const a = S.lang === "en" ? lt.tc : lt.en; return a && a !== T_(lt) ? `<p class="sub">${esc(a)}</p>` : ""; };
   const alts = (r.level === "full" || r.level === "unknown") ? alternatives(id) : [];
@@ -494,12 +547,15 @@ function openDetail(id) {
       ${types.map(k => { const rd = r.rec.vac?.[k]; const rr = { level: C.level(rd, S.now), reading: rd }; const cap = cp.capacity?.[k]?.total;
         return `<div class="dl"><div><dt>${esc(T_(C.VEHICLE_NAME[k]))}</dt><dd style="display:flex;justify-content:flex-end;align-items:center;gap:10px">${cap ? `<small style="color:var(--ink-soft)">${esc(L_(`of ${cap}`, `／${cap}`))}</small>` : ""}${badge(rr)}</dd></div></div>`; }).join("")}
     </div>
-    ${(() => { const p = pat(id), v = C.patternVerdict(p); if (!v) return "";
-      const later = C.betterLater(p, patLater(id), S.lang);
-      return `<div class="section"><h3>📈 ${esc(L_("Typical at this hour", "呢個時段通常點"))}</h3>
-        <p class="hist-line ${esc(v.kind)}">${esc(C.patternText(p, S.lang))}</p>
+    ${(() => { const p = pat(id), v = C.patternVerdict(p);
+      // Only car parks the hourly history records (those with a live feed) get the section.
+      if (!v && !(S.patterns.ids.length ? S.patterns.ids.includes(id) : !C.isInfoOnly(cp))) return "";
+      const later = v ? C.betterLater(p, patLater(id), S.lang) : null;
+      return `<div class="section"><h3>📈 ${esc(L_("Typical day", "平時嘅一日"))}</h3>
+        ${v ? `<p class="hist-line ${esc(v.kind)}">${esc(C.patternText(p, S.lang))}</p>` : ""}
         ${later ? `<p class="hist-later">↻ ${esc(later)}</p>` : ""}
-        <p class="note">${esc(L_(`From ${v.samples} readings taken at this hour on ${dayTypeLabel()}. A guide from past weeks, not a promise — the live count above is what is true now.`, `根據 ${dayTypeLabel()}呢個時段嘅 ${v.samples} 次紀錄。只係過往幾星期嘅參考，唔係保證，上面嘅即時數字先係現況。`))}</p></div>`; })()}
+        <div id="daychart">${dayChartHTML(id)}</div>
+        <p class="note">${esc(L_(`From readings taken over the past weeks. A guide, not a promise — the live count above is what is true now.`, `根據過往幾星期嘅紀錄。只係參考，唔係保證，上面嘅即時數字先係現況。`))}</p></div>`; })()}
     <div class="section"><h3>↕ ${esc(L_("Will my vehicle fit?", "我架車入唔入到？"))}</h3>
       ${v ? `<div style="display:flex;justify-content:space-between;gap:10px"><b>${esc(v.nickname)}</b><span style="color:var(--ink-soft)">${esc(C.dimensionsText(v) || "")}</span></div><p class="fit ${r.fit.kind}">${esc(C.fitText(r.fit, S.lang))}</p>
         ${r.fit.kind === "doesNotFit" ? `<p class="note" style="color:var(--full)">${esc(L_("Do not enter. The posted clearance is lower than your vehicle.", "唔好入。標示限高低過你架車。"))}</p>` : ""}
@@ -521,6 +577,7 @@ function openDetail(id) {
       ${cp.isEnriched ? `<p class="note">${esc(L_("Live availability, fees and facilities are operator-provided through the government feed.", "空位、收費同設施由營運商經政府平台提供。"))}</p>` : ""}</div>`;
   $("sheet").hidden = false; requestAnimationFrame(() => { $("sheet").classList.add("on"); $("scrim").classList.add("on"); }); focusSheet();
   $("sheet").scrollTop = 0;
+  showDayChart(id);
   setTimeout(() => {
     if (miniMap) { miniMap.remove(); miniMap = null; }
     const p = C.navPoint(cp);
@@ -837,6 +894,8 @@ document.addEventListener("click", async (e) => {
   const b = (sel) => e.target.closest(sel);
   let x;
   if ((x = b("[data-tab]"))) { e.preventDefault(); setTab(x.dataset.tab); return; }
+  if ((x = b("[data-chartday]"))) { chartDay = +x.dataset.chartday; chartHour = null; $("daychart").innerHTML = dayChartHTML(sheetFor); $("daychart").querySelector(`[data-chartday="${chartDay}"]`)?.focus(); showDayChart(sheetFor); return; }
+  if ((x = b("[data-chart-hour]"))) { chartHour = +x.dataset.chartHour; $("daychart").innerHTML = dayChartHTML(sheetFor); $("daychart").querySelector(`[data-chart-hour="${chartHour}"]`)?.focus(); return; }
   if ((x = b("[data-band]"))) { S.filter = C.applyBand(S.filter, x.dataset.band); save("filter"); rerank(); render(); return; }
   if ((x = b("[data-chip]"))) { const on = !C.chipIsOn(x.dataset.chip, S.filter, S.sort); const r = C.applyChip(x.dataset.chip, S.filter, S.sort, on); S.filter = r.f; S.sort = r.sort; save("filter"); save("sort"); rerank(); render(); return; }
   if ((x = b("[data-sort]"))) { S.sort = x.dataset.sort; save("sort"); rerank(); render(); return; }

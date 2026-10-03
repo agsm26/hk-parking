@@ -353,6 +353,62 @@ test("typical availability patterns", () => {
   assert.equal(C.betterLater(busy, [{ inHours: 1, p: null }], "en"), null);
 });
 
+test("OpenStreetMap car parks have a district and are recognised as malls (Festival Walk)", () => {
+  // From the real snapshot: before, every OSM car park had no district, so a
+  // district filter hid all 946, and Festival Walk's record carried no mall flag.
+  const fw = C.osmCarParks(osmDoc).find(c => c.id === "osm:node/1203030599");
+  assert.ok(fw, "Festival Walk is in the snapshot");
+  assert.equal(fw.district, "shamShuiPo");
+  assert.equal(fw.districtText.tc, "深水埗區");
+  assert.equal(fw.isMall, true, "its name ('…Walk') and alias 又一城 make it a mall");
+  // The filters on the phone when it went missing: open now, malls, Sham Shui Po, no meters.
+  const f = { ...C.DEFAULT_FILTER(), openNow: true, mallOnly: true, districts: ["shamShuiPo"], includeMeters: false };
+  const r = { cp: fw, level: "unknown", reading: null, fresh: "none", isOpen: null, estHourly: null, dist: 1500, fit: { kind: "unknown" }, supports: null, rec: {} };
+  assert.equal(C.matchesFilter(f, r), true);
+  assert.equal(C.matchesFilter({ ...f, districts: ["kowloonCity"] }, r), false, "and only in its own district");
+  // Districts stored as ids or as names both work; anything else is no district.
+  const two = C.osmCarParks({ records: [
+    { id: "osm:node/1", nameEN: "A Car Park", lat: 22.33, lng: 114.17, district: "kowloonCity" },
+    { id: "osm:node/2", nameEN: "B Car Park", lat: 22.33, lng: 114.17, district: "深水埗區" },
+    { id: "osm:node/3", nameEN: "C Car Park", lat: 22.33, lng: 114.17, district: "nowhere" },
+  ] });
+  assert.deepEqual(two.map(c => c.district), ["kowloonCity", "shamShuiPo", null]);
+  assert.deepEqual(two.map(c => c.isMall), [false, false, false], "a plain car park is not a mall");
+  const share = C.osmCarParks(osmDoc).filter(c => c.district).length / osmDoc.records.length;
+  assert.ok(share > 0.9, `most snapshot car parks have a district (${Math.round(share * 100)}%)`);
+});
+
+test("a day profile ranks the hours, and the summary names the easiest and hardest", () => {
+  const day = Array.from({ length: 24 }, () => ({}));
+  const put = (h, typ, tight, n = 20) => { day[h].cp = { typ, tight, n }; };
+  for (let h = 8; h <= 20; h++) put(h, 40, 10);                    // a quiet daytime
+  put(14, 80, 0); put(15, 78, 0); put(16, 80, 2);                    // easiest mid-afternoon
+  put(19, 2, 95);                                                    // hardest at 19:00
+  put(3, 60, 0, 1);                                                  // one reading: says nothing
+  const prof = C.dayProfile(day, "cp");
+  assert.equal(prof.recorded, 13);
+  assert.equal(prof.byCount, true);
+  assert.equal(prof.hours[14].ease, 1);
+  assert.equal(prof.hours[19].ease, 2 / 80);
+  assert.equal(prof.hours[3].verdict, null, "too few readings stay empty");
+  assert.equal(prof.hours[22].ease, null, "unrecorded hours stay empty");
+  assert.equal(C.daySummary(prof, "en"), "Usually easiest 14:00–17:00 · hardest 19:00");
+  assert.match(C.daySummary(prof, "tc"), /14:00–17:00 最易泊/);
+
+  // Yes/no feeds have no counts: the share of readings with a space is the ease.
+  const yesNo = Array.from({ length: 24 }, (_, h) => ({ cp: { typ: C.PATTERN.unknown, tight: h < 12 ? 20 : 80, n: 10 } }));
+  const p2 = C.dayProfile(yesNo, "cp");
+  assert.equal(p2.byCount, false);
+  assert.equal(p2.hours[0].ease, 0.8);
+  assert.equal(C.daySummary(p2, "en"), "Usually easiest 00:00–12:00 · hardest 12:00–24:00");
+
+  // Too little of the day, or hours that hardly differ: no invented best time.
+  assert.equal(C.daySummary(C.dayProfile(day.map((m, h) => h < 10 ? m : {}), "cp"), "en"), null);
+  const flat = Array.from({ length: 24 }, () => ({ cp: { typ: 50, tight: 0, n: 9 } }));
+  assert.equal(C.daySummary(C.dayProfile(flat, "cp"), "en"), "Usually about the same all day");
+  assert.equal(C.dayProfile(null, "cp").recorded, 0);
+});
+
 
 test("curated facts attach to the right car park, and duplicates collapse", () => {
   const mk = (id, en, tc, lat, lng) => ({ id, name: { en, tc }, address: {}, lat, lng, kind: "offStreet", sources: ["openStreetMap"],

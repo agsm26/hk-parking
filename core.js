@@ -503,12 +503,19 @@ export function osmCarParks(doc) {
     const capacity = {}; if (r.capacity != null || r.capacityDisabled != null) capacity.privateCar = { total: r.capacity ?? null, ev: null, disabled: r.capacityDisabled ?? null, unloading: null };
     const info = []; if (r.openingHours) info.push(`Hours: ${r.openingHours}`); if (r.fromMall) info.push("Location is the mall itself; entrance not mapped · 位置為商場本身，入口未有標示");
     const op = lt(r.operatorEN, r.operatorTC);
+    // enrich_osm.py places each car park inside the official district boundaries;
+    // without a district every one of these vanished under a district filter.
+    const district = districtById(r.district) ? r.district : matchDistrict(r.district);
     out.push({
-      id: r.id, kind: "offStreet", name, address: lt(r.street, r.streetTC), district: null, districtText: {}, lat: r.lat, lng: r.lng, entrance: null,
+      id: r.id, kind: "offStreet", name, address: lt(r.street, r.streetTC), district, districtText: district ? districtById(district).name : {},
+      lat: r.lat, lng: r.lng, entrance: null,
       height: { metres: r.maxHeightMetres ?? null, note: null }, openingStatus: "unknown", openingHours: [], fees,
       facilities: (r.capacityDisabled ?? 0) > 0 ? ["disabilities"] : [], paymentMethods: [], capacity, nature: null,
       carParkType: r.parkingType ? r.parkingType.replace(/_/g, " ") : null, contact: r.phone ?? null, website: safeURL(r.website), photoURL: null,
-      isMall: !!r.isMall, isEnriched: false, sources: ["openStreetMap"], modifiedAt: null, bayCount: null,
+      // The same name rule the feed's car parks get. Aliases count: the snapshot puts
+      // the mall a car park serves there (Festival Walk's is 又一城, Elements' 圓方).
+      isMall: !!r.isMall || isMallName([r.nameEN, r.nameTC, ...(r.aliases || [])].filter(Boolean).join(" "), ""),
+      isEnriched: false, sources: ["openStreetMap"], modifiedAt: null, bayCount: null,
       infoNote: info.length ? lt(info.join(" · "), info.join(" · ")) : null, operatorName: isEmptyLT(op) ? null : op, factsProvenance: null,
       searchAliases: r.aliases || [],
     });
@@ -1083,4 +1090,49 @@ export function betterLater(nowP, laterPs, lang) {
     }
   }
   return null;
+}
+
+// A whole day at one car park, for the "best time to go" chart. maps24[h] is
+// the decoded slice for hour h of one day type (null when that hour has not
+// been recorded). Each hour gets an ease from 0 (usually full) to 1 (the
+// easiest hour of the day): typical free spaces relative to the day's highest,
+// or, for feeds that only say yes/no, the share of readings with a space.
+// Hours with too few readings have no verdict and stay empty.
+export function dayProfile(maps24, id) {
+  const hours = Array.from({ length: PATTERN.hours }, (_, h) => {
+    const p = maps24?.[h]?.[id] || null, v = patternVerdict(p);
+    return { hour: h, p, verdict: v && v.kind !== "unknown" ? v : null, ease: null };
+  });
+  const counts = hours.filter(x => x.verdict && x.verdict.typical != null).map(x => x.verdict.typical);
+  const top = counts.length ? Math.max(1, ...counts) : null;
+  for (const x of hours) {
+    if (!x.verdict) continue;
+    const t = x.verdict.typical;
+    x.ease = top != null && t != null ? t / top : (100 - x.verdict.tightPct) / 100;
+  }
+  return { hours, recorded: hours.filter(x => x.verdict).length, byCount: top != null };
+}
+
+// "Usually easiest 14:00–17:00 · hardest 19:00", from a dayProfile. Says
+// nothing until a fair part of the day is recorded, and says "about the same"
+// rather than inventing a best time when the hours hardly differ.
+export function daySummary(profile, lang) {
+  const en = lang === "en", known = profile.hours.filter(x => x.verdict);
+  if (known.length < 6) return null;
+  const eases = known.map(x => x.ease), lo = Math.min(...eases), hi = Math.max(...eases);
+  if (hi - lo < 0.25) return en ? "Usually about the same all day" : "通常成日都差唔多";
+  const span = (pick) => hourRanges(known.filter(pick).map(x => x.hour));
+  const easy = span(x => x.ease >= hi - 0.1), hard = span(x => x.ease <= lo + 0.1);
+  return en ? `Usually easiest ${easy} · hardest ${hard}` : `通常 ${easy} 最易泊 · ${hard} 最難泊`;
+}
+// [14, 15, 16, 19] → "14:00–17:00, 19:00" (at most two runs, longest first).
+function hourRanges(hours) {
+  const runs = [];
+  for (const h of [...hours].sort((a, b) => a - b)) {
+    const last = runs[runs.length - 1];
+    if (last && h === last[1] + 1) last[1] = h; else runs.push([h, h]);
+  }
+  const hh = (h) => `${String(h).padStart(2, "0")}:00`;          // a run to midnight ends at 24:00
+  return runs.sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]) || a[0] - b[0]).slice(0, 2).sort((a, b) => a[0] - b[0])
+    .map(([s, e]) => s === e ? hh(s) : `${hh(s)}–${hh(e + 1)}`).join(", ");
 }

@@ -84,6 +84,11 @@ gets a pattern at all, so the app stays silent rather than guessing. Buckets are
 a rolling average over the last 60 samples, so a car park that changes its
 habits is followed rather than frozen.
 
+Each car park's page shows a "Typical day" chart built from these slices:
+typical free spaces for every hour of weekdays, Saturdays or Sundays, with
+the easiest and hardest hours named. Its 24 slices are fetched when a page
+first needs them; hours with fewer than three readings stay empty.
+
 Run it by hand with `node collect_patterns.mjs --dry` (reports, writes nothing).
 GitHub disables a scheduled workflow after 60 days without any commit to the
 repository. The job's own commits count, so it only stops if it stops
