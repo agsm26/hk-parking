@@ -1,6 +1,6 @@
 // Sample the live feeds once and fold the readings into one hourly bucket.
 //
-// Run by .github/workflows/patterns.yml every hour. It imports core.js, so the
+// Run by .github/workflows/patterns.yml twice an hour. It imports core.js, so the
 // ids it writes are exactly the ids the app uses — no second implementation to
 // drift. One run rewrites a single ~7 KB slice file, which is why the history
 // can live in the repository without it swelling.

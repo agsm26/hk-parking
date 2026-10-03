@@ -111,7 +111,9 @@ last matched; leave it alone. Only one `publish.py` runs at a time on a Mac.
 - "an earlier version of these files": see **An earlier version here** above.
 - "Google Drive is still downloading", "bringing in a newer version" or "hasn't
   finished uploading": Drive is behind (offline, paused, or busy). Check its
-  menu-bar icon, wait until it says it is up to date, then run again.
+  menu-bar icon, wait until it says it is up to date, then run again. If it
+  stays stuck for more than a few minutes, quit Google Drive (menu-bar icon ▸
+  ⚙︎ ▸ Quit) and open it again: that clears a jammed upload queue.
 - "Could not ask Google Drive whether this folder is in sync": Google Drive is
   not running (or still starting). Open it from Applications and run again.
 - "GitHub no longer has these files, but this folder still has them": usually
@@ -152,21 +154,25 @@ the next upload page; leaving early loses the commit.
 
 ## The hourly history job
 
-`.github/workflows/patterns.yml` commits to `data/patterns/` every hour by
-itself. Two things follow from that:
+`.github/workflows/patterns.yml` commits to `data/patterns/` up to twice an
+hour by itself. Two things follow from that:
 
 - **Never delete `data/patterns/`** on GitHub. `publish.py` and
   `check_deploy.py` leave that folder alone on purpose, because GitHub is meant
   to be ahead of your copy there; run `python3 check_deploy.py --patterns` if
   you ever want to compare it.
-- If you have not touched the repository for two months, GitHub emails you to
-  say scheduled workflows are about to pause. Open
+- It keeps itself alive: GitHub disables a scheduled workflow after 60 days
+  without a commit, and the job's own commits count. If it ever stops
+  committing (a feed or the script broken), its runs turn red after 3 days and
+  GitHub emails agsm26, which leaves plenty of time to fix it. If it does get
+  disabled, open
   https://github.com/agsm26/hk-parking/actions/workflows/patterns.yml and click
-  **Run workflow**, or just publish any change, and it carries on.
+  **Enable workflow** (publishing a change does not restart it).
 
 To check it is alive: that same page should show a green run within the last
-hour, and `data/patterns/index.json` should list a growing number of hours (72
-once a full week has been seen).
+few hours (it is scheduled twice an hour; GitHub skips some of those runs),
+and `data/patterns/index.json` should list
+a growing number of hours (72 once a full week has been seen).
 
 ## If something is wrong on the phone
 

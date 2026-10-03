@@ -1,17 +1,23 @@
-# Records what the parking feeds say, once an hour, forever.
+# Records what the parking feeds say, twice an hour, forever.
 #
 # The app can tell you there are 14 spaces now; this is what lets it tell you
 # whether 14 is normal for a Friday evening. Each run folds one sample into one
 # bucket (day type x hour) and rewrites a single ~7 KB file, so the history
-# costs the repository about 150 KB a day.
+# costs the repository about 150-300 KB a day.
 #
-# GitHub pauses scheduled workflows on a repository with 60 days of no human
-# activity, and emails you first. Any commit or a manual "Run workflow" here
-# starts it again.
+# GitHub disables scheduled workflows in a public repository after 60 days
+# without repository activity. The "patterns:" commits this job pushes count as
+# activity, so it keeps itself alive for as long as it keeps committing. The
+# last step turns the run red (GitHub then emails agsm26) once main has had no
+# commit for 3 days, long before that limit.
+# If it is ever disabled: Actions tab > patterns > "Enable workflow"
+# ("Run workflow" is hidden while it is disabled).
 name: patterns
 on:
   schedule:
-    - cron: "7 * * * *"     # every hour, at 7 past (UTC; the script converts to Hong Kong time)
+    # Twice an hour, away from the top of the hour: at :07 GitHub ran only about
+    # 1 in 4 of the hourly runs, and some Hong Kong hours were never sampled.
+    - cron: "17,47 * * * *"   # UTC; the script converts to Hong Kong time
   workflow_dispatch:
 
 permissions:
@@ -45,3 +51,14 @@ jobs:
             sleep $((i * 5))
           done
           echo "could not push after 3 tries"; exit 1
+      - name: Alarm if main has gone quiet
+        # After a push, HEAD is that new commit; when the feeds gave nothing, it is
+        # the newest commit anyone made. Either way its age says how long main has
+        # been quiet.
+        run: |
+          age_h=$(( ( $(date +%s) - $(git log -1 --format=%ct HEAD) ) / 3600 ))
+          echo "newest commit on main is ${age_h} h old"
+          if [ "$age_h" -gt 72 ]; then
+            echo "::error::Nothing committed to main for ${age_h} hours. GitHub disables this schedule after 60 days without a commit: check the feeds and collect_patterns.mjs."
+            exit 1
+          fi

@@ -67,7 +67,7 @@ the app loads; run `python3 bump.py` yourself only when uploading by hand.
 
 Nobody records what the parking feeds say minute to minute, so a count of 14
 tells you nothing about whether 14 is normal for a Friday evening.
-`.github/workflows/patterns.yml` runs `collect_patterns.mjs` once an hour: it
+`.github/workflows/patterns.yml` runs `collect_patterns.mjs` twice an hour: it
 samples every place that publishes a private-car reading (about 1,600 — 474 car
 parks and 1,112 metered sections) and folds each into one bucket of day type ×
 hour of day.
@@ -78,16 +78,18 @@ data/patterns/<0-2>-<hh>.json  three bytes per id, base64: typical free, % tight
 ```
 
 The layout is positional so one hourly sample rewrites one ~7 KB file rather
-than the whole history — about 150 KB of repository growth a day. A bucket with
+than the whole history — about 150–300 KB of repository growth a day. A bucket with
 fewer than three readings says nothing, and a car park with no live feed never
 gets a pattern at all, so the app stays silent rather than guessing. Buckets are
 a rolling average over the last 60 samples, so a car park that changes its
 habits is followed rather than frozen.
 
 Run it by hand with `node collect_patterns.mjs --dry` (reports, writes nothing).
-GitHub pauses scheduled workflows after 60 days of no human activity on the
-repository and emails first; any commit, or **Run workflow** on the Actions tab,
-starts it again.
+GitHub disables a scheduled workflow after 60 days without any commit to the
+repository. The job's own commits count, so it only stops if it stops
+committing; its last step turns the run red (and GitHub emails agsm26) after 3
+days without a commit, long before that. If it is ever disabled: Actions tab ▸
+patterns ▸ **Enable workflow**.
 
 ## Test locally
 
