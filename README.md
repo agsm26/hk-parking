@@ -35,6 +35,8 @@ make-icons.py   redraws the icons (pure Python, no dependencies)
 | OpenStreetMap (ODbL) | bundled `data/osm_carparks.json`, `osm_entrances.json`; Nominatim fallback | every other car park and mall car park, vehicle entrances |
 | Transport Department meters, pre-built | bundled `data/meter_zones.json` (1.7 MB, from the 4.8 MB CSV) | first open is fast; the CSV itself is re-read once a week |
 | Operator pages | bundled `data/curated_carparks.json` | tariffs, hours, phone with source URL and check date (17 car parks) |
+| 1823 holiday calendar | `www.1823.gov.hk/common/ical/en.json`, bundled as `data/holidays.json` | public holidays, for opening hours and rates that differ on them (`refresh_data.py --holidays`) |
+| District boundaries (OpenStreetMap) | via `enrich_osm.py`: a district for every OpenStreetMap car park, and `data/district_fixes.json` | the district filter; corrects the few feed car parks filed under the wrong district |
 
 All government endpoints send `Access-Control-Allow-Origin: *`, so the browser
 reads them directly. Every request has an 8 s timeout and one retry (60 s for
@@ -128,6 +130,14 @@ files stay under ODbL, Leaflet is BSD, government data follows DATA.GOV.HK terms
 
 - Live counts exist only where the operator publishes; Swire, Wharf and
   Hongkong Land malls are information only.
+- The feed's open/closed flag is fixed, not "right now": in October 2026 it
+  said CLOSED for 212 of 581 car parks all day (Airport Car Park 1, apm, MOKO)
+  while their counts kept moving. The app reads CLOSED as "hours not
+  confirmed"; only OPEN and published opening hours decide open or shut.
+- Filters never hide parking silently: Malls narrows the car parks but leaves
+  street meters to the Meters tile, a district chosen in search lasts only for
+  that search, and when filters hide spaces much nearer than anything shown
+  (over 500 m away) the Find screen says which filters and offers to show them.
 - Distances are straight-line; there is no routing engine in the browser. The
   list footer and each detail say so.
 - The parking reminder fires only while the app is open (iOS gives web apps no

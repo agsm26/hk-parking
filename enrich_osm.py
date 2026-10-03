@@ -71,8 +71,8 @@ def inside(rings_, x, y):
     return hit
 
 
-def assign_districts(doc):
-    """Write each record's district id; return (count per district, ids left without one)."""
+def district_polygons():
+    """The 18 districts as (id, rings, bounding box); stops if any is missing."""
     polys = []
     for e in fetch(DISTRICT_QUERY).get("elements", []):
         t = e.get("tags", {})
@@ -87,23 +87,60 @@ def assign_districts(doc):
     missing = sorted(set(DISTRICTS.values()) - {p[0] for p in polys})
     if missing:
         raise SystemExit(f"District boundaries missing from OpenStreetMap: {missing}. Nothing was changed.")
+    return polys
+
+
+def district_at(polys, x, y):
+    found = [did for did, rs, (a, b, c, d) in polys if a <= x <= c and b <= y <= d and inside(rs, x, y)]
+    if found:
+        return found[0]
+    # Just outside every boundary (a pier, a reclaimed edge): the nearest boundary
+    # point within about 1 km decides; further out (Shenzhen), none.
+    best = min(((x - bx) ** 2 + (y - by) ** 2, did) for did, rs, _ in polys for r in rs for bx, by in r)
+    return best[1] if best[0] < 0.01 ** 2 else None
+
+
+def assign_districts(doc, polys):
+    """Write each record's district id; return (count per district, ids left without one)."""
     counts, unplaced = {}, []
     for rec in doc.get("records", []):
-        x, y = rec["lng"], rec["lat"]
-        found = [did for did, rs, (a, b, c, d) in polys if a <= x <= c and b <= y <= d and inside(rs, x, y)]
-        if not found:
-            # Just outside every boundary (a pier, a reclaimed edge): the nearest
-            # boundary point within about 1 km decides; further out, none.
-            best = min(((x - bx) ** 2 + (y - by) ** 2, did) for did, rs, _ in polys for r in rs for bx, by in r)
-            found = [best[1]] if best[0] < 0.01 ** 2 else []
-        if found:
-            rec["district"] = found[0]
-            counts[found[0]] = counts.get(found[0], 0) + 1
+        did = district_at(polys, rec["lng"], rec["lat"])
+        if did:
+            rec["district"] = did
+            counts[did] = counts.get(did, 0) + 1
         else:
             rec.pop("district", None)
             unplaced.append(rec["id"])
     doc["districtsAt"] = __import__("datetime").date.today().isoformat()
     return counts, unplaced
+
+
+FEED = "https://api.data.gov.hk/v1/carpark-info-vacancy?data=info&lang=zh_TW"
+FIXES = HERE / "data" / "district_fixes.json"
+
+
+def feed_district_fixes(polys):
+    """The government feed's district labels are typed in by operators; check each
+    car park's position against the boundaries and list the ones that disagree
+    (or have none) in data/district_fixes.json. The app applies them."""
+    req = urllib.request.Request(FEED, headers={"User-Agent": "carparkhk-enrich/1.0"})
+    with urllib.request.urlopen(req, timeout=120) as r:
+        rows = json.loads(r.read()).get("results", [])
+    fixes = {}
+    for row in rows:
+        try:
+            x, y = float(row["longitude"]), float(row["latitude"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        label = (row.get("district") or "").strip()
+        said = DISTRICTS.get(label) or DISTRICTS.get(label + "區")
+        found = district_at(polys, x, y)
+        if found and found != said:
+            fixes[str(row["park_Id"])] = found
+    FIXES.write_text(json.dumps({"source": "district boundaries, OpenStreetMap (ODbL)",
+                                 "checkedAt": __import__("datetime").date.today().isoformat(),
+                                 "fixes": dict(sorted(fixes.items()))}, ensure_ascii=False, indent=1) + "\n")
+    return fixes
 
 
 def height_metres(tags):
@@ -135,9 +172,12 @@ def as_int(v):
 def main():
     if "--districts-only" in sys.argv:
         doc = json.load(open(SNAPSHOT))
-        counts, unplaced = assign_districts(doc)
+        polys = district_polygons()
+        counts, unplaced = assign_districts(doc, polys)
+        fixes = feed_district_fixes(polys)
         SNAPSHOT.write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")))
-        print("districts:", sum(counts.values()), "placed,", len(unplaced), "without one", unplaced[:10])
+        print("districts:", sum(counts.values()), "placed,", len(unplaced), "outside Hong Kong;",
+              len(fixes), "feed district labels corrected", fixes)
         return
     dump = json.load(open(sys.argv[1])) if len(sys.argv) > 1 else fetch()
     tags_by_id = {}
@@ -173,14 +213,16 @@ def main():
             if tc: rec["operatorTC"] = tc
             added["operator"] += 1
 
-    counts, unplaced = assign_districts(doc)
+    polys = district_polygons()
+    counts, unplaced = assign_districts(doc, polys)
+    fixes = feed_district_fixes(polys)
     doc["enrichedAt"] = __import__("datetime").date.today().isoformat()
     doc["attribution"] = "© OpenStreetMap contributors, ODbL"
     SNAPSHOT.write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")))
     print("records:", len(doc.get("records", [])))
     for k, v in added.items():
         print(f"  {k}: {v}")
-    print(f"  district: {sum(counts.values())} (none for {len(unplaced)})")
+    print(f"  district: {sum(counts.values())} (outside Hong Kong: {len(unplaced)}); feed labels corrected: {len(fixes)}")
 
 
 if __name__ == "__main__":

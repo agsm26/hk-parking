@@ -8,7 +8,7 @@
 //
 // Bump VERSION whenever any shell file changes; the old cache is dropped on
 // activate and the page is told an update is ready.
-const VERSION = "2026-10-03a";
+const VERSION = "2026-10-03b";
 const SHELL = `carpark-shell-${VERSION}`;
 const SHELL_FILES = [
   "./", "./index.html", "./app.js", "./core.js", "./manifest.json",
@@ -16,6 +16,7 @@ const SHELL_FILES = [
   "./vendor/images/marker-icon.png", "./vendor/images/marker-icon-2x.png", "./vendor/images/marker-shadow.png",
   "./vendor/images/layers.png", "./vendor/images/layers-2x.png",
   "./data/osm_carparks.json", "./data/osm_entrances.json", "./data/curated_carparks.json", "./data/meter_zones.json",
+  "./data/holidays.json", "./data/district_fixes.json",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png", "./icons/apple-touch-icon.png",
 ];
 const NETWORK_ONLY = ["api.data.gov.hk", "resource.data.one.gov.hk", "www.als.gov.hk", "mapapi.geodata.gov.hk", "tile.openstreetmap.org", "nominatim.openstreetmap.org"];

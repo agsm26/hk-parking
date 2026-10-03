@@ -231,14 +231,42 @@ export function isMallName(name, address) {
 }
 
 /** Prefer a row marked for private cars, else the lowest positive height; 0/missing = not confirmed. */
+// The feed's height remark is free text, and operators put whatever they like in
+// it: the height ("Height limit:1.7(M)"), the tariff ("Private Car/Van<br>$21 per
+// hour"), a bare vehicle label ("Private Car"), or several at once. Split it: the
+// height lines stay as the height note and give the number when the structured
+// height is missing (0); the tariff lines become `tariff`, for the fees.
+const TARIFF_LINE = /\$|per hour|hourly|half[- ]hour|day park|night park|monthly|quarterly|每小時|時租|日泊|夜泊|月租|季租|收費/i;
+const HEIGHT_NUMBER = /(?:^|[^\d.])(\d(?:\.\d{1,2})?)\s*\(?\s*(?:m|metres?|meters?|米)(?![a-z])/gi;   // not "2.5" out of "12.5"
+const VEHICLE_WORDS = /private cars?|cars?|vans?|light goods vehicles?|goods vehicles?|lgv|hgv|lorr(?:y|ies)|coach(?:es)?|bus(?:es)?|motor ?cycles?|taxis?|私家車|客貨車|輕型貨車|重型貨車|貨車|旅遊巴|巴士|電單車|的士/gi;
+const isVehicleLabel = (s) => !s.replace(VEHICLE_WORDS, "").replace(/[\s\/&,、及和()（）*.:：-]/g, "");
 export function pickHeight(rows) {
   const list = arr(rows).map(r => ({ h: num(r?.height), remark: str(r?.remark) }));
-  const note = list.map(r => r.remark).find(Boolean) || null;
+  const heightLines = [], tariffLines = [];
+  for (const r of list) {
+    if (!r.remark) continue;
+    const lines = r.remark.replace(/<br\s*\/?>/gi, "\n").split(/\n+/)
+      .map(s => s.replace(/^\s*(?:height\s*limits?|限高|高度限制)\s*[:：]?\s*/i, "").replace(/^[*•\s]+/, "").trim()).filter(Boolean);
+    const hasTariff = lines.some(s => TARIFF_LINE.test(s));
+    for (const s of lines) {
+      if (TARIFF_LINE.test(s)) tariffLines.push(s);
+      else if (isVehicleLabel(s)) { if (hasTariff) tariffLines.push(s); }   // a label heading a tariff belongs to it
+      else if (!heightLines.includes(s)) heightLines.push(s);
+    }
+  }
+  const note = heightLines.join("\n") || null, tariff = tariffLines.join("\n") || null;
   const usable = list.filter(r => r.h != null && r.h > 0);
-  if (!usable.length) return { metres: null, note };
-  const forCars = usable.filter(r => /私家車|private car/i.test(r.remark || ""));
-  const pool = forCars.length ? forCars : usable;
-  return { metres: Math.min(...pool.map(r => r.h)), note };
+  if (usable.length) {
+    const forCars = usable.filter(r => /私家車|private car/i.test(r.remark || ""));
+    return { metres: Math.min(...(forCars.length ? forCars : usable).map(r => r.h)), note, tariff };
+  }
+  // No structured height: read the text. A line for the entrance decides (what gets
+  // you in; the floors are in the note), then lines for private cars, else the
+  // lowest stated, the safe side when it lists one per floor.
+  const nums = (lines) => lines.flatMap(s => [...s.matchAll(HEIGHT_NUMBER)].map(m => +m[1])).filter(h => h >= 1 && h <= 6);
+  const pickFrom = [heightLines.filter(s => /entrance|入口/i.test(s)), heightLines.filter(s => /private car|私家車/i.test(s)), heightLines]
+    .map(nums).find(n => n.length) || [];
+  return { metres: pickFrom.length ? Math.min(...pickFrom) : null, note, tariff };
 }
 export function heightText(h, lang) {
   if (h?.metres == null) return pick(lang, "Not confirmed", "未確認");
@@ -253,7 +281,6 @@ export function legacyHourly(note) {
   }
   return null;
 }
-const looksLikeTariff = (n) => /\$|每小時|per hour|hourly|收費/i.test(n || "");
 function windowFrom(dto) { return makeWindow(strArr(dto?.weekdays), clockTime(dto?.periodStart), clockTime(dto?.periodEnd), !!dto?.excludePublicHoliday); }
 
 export function feeSchedule(v, legacyNote) {
@@ -272,9 +299,11 @@ export function feeSchedule(v, legacyNote) {
 }
 export const feeIsEmpty = (f) => !f || (!f.hourly.length && !f.flat.length && !f.privileges.length && !f.note);
 export const hourlyEquivalent = (r) => r.unitMinutes > 0 ? r.price * 60 / r.unitMinutes : r.price;
-export function hourlyRateAt(fee, ms) {
+export function hourlyRateAt(fee, ms, isPH = false) {
   if (!fee || !fee.hourly.length) return null;
-  const now = fee.hourly.find(r => windowContains(r.window, ms)); if (now) return now;
+  // On a public holiday a rate that names PH beats the weekday rate for the same day.
+  const now = (isPH && fee.hourly.find(r => r.window.weekdays.includes("PH") && windowContains(r.window, ms, true)))
+    || fee.hourly.find(r => windowContains(r.window, ms, isPH)); if (now) return now;
   const wd = WD[hkClock(ms).weekday];
   return fee.hourly.find(r => r.window.weekdays.includes(wd)) || fee.hourly[0];
 }
@@ -303,10 +332,10 @@ export function normalizeInfoRow(r, lang) {
   const composed = [str(a.buildingName), [str(a.buildingNo), str(a.streetName)].filter(Boolean).join(" ") || null, str(a.subDistrict), str(a.dcDistrict)].filter(Boolean).join(", ") || null;
   const address = str(r?.displayAddress) || composed || str(r?.district) || "";
   const districtRaw = str(r?.district) || str(a.dcDistrict);
-  const height = pickHeight(r?.heightLimits);
+  const { tariff, ...height } = pickHeight(r?.heightLimits);
   const vehicles = {}; for (const k of VEHICLE_TYPES) if (r?.[k] && typeof r[k] === "object" && !Array.isArray(r[k])) vehicles[k] = r[k];
   const fees = {}; for (const [k, v] of Object.entries(vehicles)) { const f = feeSchedule(v, null); if (!feeIsEmpty(f)) fees[k] = f; }
-  if (!fees.privateCar && height.note && looksLikeTariff(height.note)) fees.privateCar = feeSchedule(null, height.note);
+  if (!fees.privateCar && tariff) fees.privateCar = feeSchedule(null, tariff);   // the tariff typed into the height remark
   const capacity = {}; for (const [k, v] of Object.entries(vehicles)) { const c = { total: int(v.space), ev: int(v.spaceEV), disabled: int(v.spaceDIS), unloading: int(v.spaceUNL) }; if (Object.values(c).some(x => x != null)) capacity[k] = c; }
   const enriched = Object.keys(vehicles).length > 0 || !!str(r?.nature) || strArr(r?.facilities).length > 0;
   const sources = ["transportDepartmentOneStop"]; if (enriched) sources.push("kowloonEast");
@@ -315,7 +344,11 @@ export function normalizeInfoRow(r, lang) {
   return {
     id, kind: "offStreet", name: T(name), address: T(address), district: matchDistrict(districtRaw) || matchDistrict(a.dcDistrict),
     districtText: T(districtRaw || ""), lat, lng, entrance: null, height,
-    openingStatus: (r?.opening_status || "").toUpperCase() === "OPEN" ? "open" : (r?.opening_status || "").toUpperCase() === "CLOSED" ? "closed" : "unknown",
+    // opening_status is a fixed flag, not "open right now": on 3 Oct 2026 it said
+    // CLOSED for 212 of 581 car parks all afternoon and evening (Airport Car Park 1,
+    // apm, MOKO, D·PARK among them) while 131 of those filled and emptied live.
+    // So CLOSED means "not known", never shut; OPEN and opening hours still count.
+    openingStatus: (r?.opening_status || "").toUpperCase() === "OPEN" ? "open" : "unknown",
     openingHours: arr(r?.openingHours).map(windowFrom), fees, facilities, paymentMethods: strArr(r?.paymentMethods).map(p => p.toLowerCase()),
     capacity, nature: str(r?.nature)?.toLowerCase() || null, carParkType: str(r?.carpark_Type)?.toLowerCase() || null,
     contact: str(r?.contactNo), website: url(r?.website), photoURL: url(r?.renditionUrls?.carpark_photo),
@@ -343,11 +376,58 @@ export function mergeCarPark(a, b) {
   return m;
 }
 
+// Phones keep the feed as read (IndexedDB "info"). Bump this whenever what
+// normalizeInfo produces changes, so a copy read by an older version is shown
+// at once but fetched again instead of being kept for its six hours.
+export const FEED_FORMAT = 3;   // 2: heights read from remarks, tariffs moved to fees, twins merged; 3: CLOSED no longer means shut
+
 export function normalizeInfo(rowsEN, rowsTC) {
   const byId = new Map(), order = [];
   for (const r of rowsEN || []) { const cp = normalizeInfoRow(r, "en"); if (!cp) continue; if (!byId.has(cp.id)) order.push(cp.id); byId.set(cp.id, byId.has(cp.id) ? mergeCarPark(byId.get(cp.id), cp) : cp); }
   for (const r of rowsTC || []) { const cp = normalizeInfoRow(r, "tc"); if (!cp) continue; if (byId.has(cp.id)) byId.set(cp.id, mergeCarPark(byId.get(cp.id), cp)); else { order.push(cp.id); byId.set(cp.id, cp); } }
-  return order.map(id => byId.get(id));
+  return mergeSameCarPark(order.map(id => byId.get(id)));
+}
+
+// The feed lists a few car parks twice: once from the Kowloon East smart-parking
+// data (numeric ids, spaces per vehicle type) and once from the Transport
+// Department's own list ("tdc…" ids). Same name, same address, metres apart, and
+// both live. Keep one, the richer record, and remember the other id in altIds so
+// its live count is still read (vacancyFor). Running it twice changes nothing.
+export function mergeSameCarPark(list) {
+  const richness = (cp) => (cp.isEnriched ? 10 : 0) + Object.keys(cp.capacity || {}).length + Object.keys(cp.fees || {}).length;
+  const out = [], byName = new Map();
+  for (const cp of list) {
+    const key = Object.values(cp.name).every(isGenericName) ? "" : normText(cp.name.en || cp.name.tc || "");
+    const twin = key ? (byName.get(key) || []).find(o => distM(o, cp) <= 80) : null;
+    if (!twin) { out.push(cp); if (key) byName.set(key, [...(byName.get(key) || []), cp]); continue; }
+    const [keep, drop] = richness(cp) > richness(twin) ? [cp, twin] : [twin, cp];
+    const merged = { ...mergeCarPark(keep, drop), altIds: [...new Set([...(keep.altIds || []), drop.id, ...(drop.altIds || [])])] };
+    out[out.indexOf(twin)] = merged;
+    byName.set(key, byName.get(key).map(o => o === twin ? merged : o));
+  }
+  return out;
+}
+
+// One car park's live readings, by vehicle type. A car park the feed lists twice
+// has two: take the freshest usable reading, and when both were taken within five
+// minutes and disagree, the lower count — two feeds that disagree should not
+// promise spaces that may not be there.
+export function vacancyFor(vac, cp) {
+  const own = vac?.[cp.id] || {};
+  if (!cp.altIds?.length) return own;
+  const usable = (r) => !!r && r.kind !== "unknown" && r.updatedAt != null;
+  const better = (a, b) => {
+    if (!usable(a)) return usable(b) ? b : (a || b);
+    if (!usable(b)) return a;
+    if (Math.abs(a.updatedAt - b.updatedAt) <= 5 * 60e3) {
+      if (a.kind === "count" && b.kind === "count") return a.count <= b.count ? a : b;
+      if (a.kind === "count" || b.kind === "count") return a.kind === "count" ? a : b;
+    }
+    return a.updatedAt >= b.updatedAt ? a : b;
+  };
+  const out = { ...own };
+  for (const alt of cp.altIds) for (const [type, r] of Object.entries(vac?.[alt] || {})) out[type] = better(out[type], r);
+  return out;
 }
 
 export function normalizeVacancyEntry(type, e, source = "transportDepartmentOneStop") {
@@ -491,17 +571,44 @@ export function meterReadings(csvText, index, now) {
 
 // -------------------------------------------- OSM, curated, entrances -----
 
+// The common OpenStreetMap opening_hours forms: "24/7", and day ranges with one
+// time span each ("Mo-Su 07:00-23:00", "Mo-Fr 08:00-20:00; Sa,Su,PH 09:00-18:00").
+// Anything else returns null and stays as text.
+export function osmHours(text) {
+  const s = String(text || "").trim(); if (!s) return null;
+  if (/^24\s*\/\s*7$/.test(s)) return [ALWAYS];
+  const order = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"], code = { Mo: "MON", Tu: "TUE", We: "WED", Th: "THU", Fr: "FRI", Sa: "SAT", Su: "SUN", PH: "PH" };
+  const out = [];
+  for (const part of s.split(/\s*;\s*/).filter(Boolean)) {
+    const m = part.match(/^([A-Za-z,\s-]+?)\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/); if (!m) return null;
+    const days = [];
+    for (const piece of m[1].split(/\s*,\s*/)) {
+      const [a, b] = piece.split(/\s*-\s*/);
+      if (!code[a] || (b && (!order.includes(a) || !order.includes(b)))) return null;
+      if (!b) { days.push(code[a]); continue; }
+      for (let i = order.indexOf(a); ; i = (i + 1) % 7) { days.push(code[order[i]]); if (order[i] === b) break; }
+    }
+    const start = clockTime(m[2]), end = clockTime(m[3]); if (start == null || end == null) return null;
+    out.push(makeWindow(days, start, end));
+  }
+  return out.length ? out : null;
+}
+
 export function osmCarParks(doc) {
   const out = [];
   for (const r of doc?.records || []) {
     if (!inHK({ lat: r.lat, lng: r.lng })) continue;
+    // The box above reaches into Shenzhen. A snapshot that has been through the
+    // district boundaries knows better: no Hong Kong district, not in Hong Kong.
+    if (doc.districtsAt && !r.district) continue;
     const name = lt(r.nameEN, r.nameTC); if (isEmptyLT(name)) continue;
     const fees = {}; const bits = [];
     if (r.fee === "yes") bits.push("Paid parking · 收費停車場"); else if (r.fee === "no") bits.push("Free parking · 免費泊車");
     if (r.feeText) bits.push(r.feeText);
     if (bits.length) fees.privateCar = { hourly: [], flat: [], privileges: [], note: bits.join(" · ") };
     const capacity = {}; if (r.capacity != null || r.capacityDisabled != null) capacity.privateCar = { total: r.capacity ?? null, ev: null, disabled: r.capacityDisabled ?? null, unloading: null };
-    const info = []; if (r.openingHours) info.push(`Hours: ${r.openingHours}`); if (r.fromMall) info.push("Location is the mall itself; entrance not mapped · 位置為商場本身，入口未有標示");
+    const hours = osmHours(r.openingHours);
+    const info = []; if (r.openingHours && !hours) info.push(`Hours: ${r.openingHours}`); if (r.fromMall) info.push("Location is the mall itself; entrance not mapped · 位置為商場本身，入口未有標示");
     const op = lt(r.operatorEN, r.operatorTC);
     // enrich_osm.py places each car park inside the official district boundaries;
     // without a district every one of these vanished under a district filter.
@@ -509,7 +616,7 @@ export function osmCarParks(doc) {
     out.push({
       id: r.id, kind: "offStreet", name, address: lt(r.street, r.streetTC), district, districtText: district ? districtById(district).name : {},
       lat: r.lat, lng: r.lng, entrance: null,
-      height: { metres: r.maxHeightMetres ?? null, note: null }, openingStatus: "unknown", openingHours: [], fees,
+      height: { metres: r.maxHeightMetres ?? null, note: null }, openingStatus: "unknown", openingHours: hours || [], fees,
       facilities: (r.capacityDisabled ?? 0) > 0 ? ["disabilities"] : [], paymentMethods: [], capacity, nature: null,
       carParkType: r.parkingType ? r.parkingType.replace(/_/g, " ") : null, contact: r.phone ?? null, website: safeURL(r.website), photoURL: null,
       // The same name rule the feed's car parks get. Aliases count: the snapshot puts
@@ -521,6 +628,18 @@ export function osmCarParks(doc) {
     });
   }
   return out;
+}
+
+// The feed's district is typed in by operators, and a few are wrong (Choi Ying
+// Estate filed under Sham Shui Po, the Science Park under Sha Tin). enrich_osm.py
+// checks each one's position against the district boundaries and lists the ones
+// that disagree in data/district_fixes.json: { fixes: { id: districtId } }.
+export function applyDistrictFixes(list, doc) {
+  const fixes = doc?.fixes || {};
+  return list.map(cp => {
+    const d = [cp.id, ...(cp.altIds || [])].map(id => fixes[id]).find(id => districtById(id));
+    return d && d !== cp.district ? { ...cp, district: d, districtText: districtById(d).name } : cp;
+  });
 }
 
 export const providesLive = (s) => ["transportDepartmentOneStop", "transportDepartmentMeters", "kowloonEast", "operatorFeed"].includes(s);
@@ -705,11 +824,15 @@ export function dimensionsText(v) {
 export const SORTS = ["bestMatch", "nearest", "mostSpaces", "lowestCost", "highestClearance", "recentlyUpdated"];
 export const SORT_LABEL = { bestMatch: lt("Best match", "最合適"), nearest: lt("Nearest", "最近"), mostSpaces: lt("Most spaces", "最多車位"), lowestCost: lt("Lowest estimated cost", "最平"), highestClearance: lt("Highest clearance", "限高最寬鬆"), recentlyUpdated: lt("Recently updated", "最新更新") };
 
-export function isOpenAt(cp, ms) {
+export function isOpenAt(cp, ms, isPH = false) {
   if (cp.openingStatus === "closed") return false;
   if (!cp.openingHours.length) return cp.openingStatus === "open" ? true : null;
-  return cp.openingHours.some(w => windowContains(w, ms));
+  return cp.openingHours.some(w => windowContains(w, ms, isPH));
 }
+// Hong Kong general holidays: data/holidays.json, from the government's 1823
+// calendar, as a Set of "YYYY-MM-DD". Sundays are not in it; "SUN" covers them.
+export const hkDate = (ms) => new Date(ms + HK_OFFSET_MS).toISOString().slice(0, 10);
+export const isPublicHoliday = (ms, holidays) => !!holidays && holidays.has(hkDate(ms));
 export function supportsClass(vehicle, rec) {
   if (rec.vac?.[vehicle.type]) return true;
   const cap = rec.cp.capacity?.[vehicle.type]; if ((cap?.total ?? 0) > 0) return true;
@@ -725,9 +848,9 @@ export function evaluate(rec, ctx) {
   const lv = level(reading, ctx.now);
   const dist = ctx.origin ? distM(ctx.origin, navPoint(cp)) : null;
   const f = fit(ctx.vehicle, cp);
-  const open = isOpenAt(cp, ctx.now);
+  const open = isOpenAt(cp, ctx.now, ctx.isPH);
   const fee = cp.fees?.[type] || (type !== "privateCar" ? cp.fees?.privateCar : null);
-  const rate = hourlyRateAt(fee, ctx.now);
+  const rate = hourlyRateAt(fee, ctx.now, ctx.isPH);
   const supports = ctx.vehicle ? supportsClass(ctx.vehicle, rec) : null;
   let score = 0, blocked = false; const reasons = [];
   if (lv === "available") { score += 40; reasons.push(["available", reading?.count]); }
@@ -811,7 +934,11 @@ export function matchesFilter(f, r) {
   if (f.accessibleSpaces && !(cp.facilities.includes("disabilities") || (r.reading?.disabledCount ?? 0) > 0 || (cp.capacity?.[f.vehicleType]?.disabled ?? 0) > 0)) return false;
   if (f.openNow && r.isOpen === false) return false;
   if (f.maxHourlyRateHKD != null && r.estHourly != null && r.estHourly > f.maxHourlyRateHKD) return false;
-  if (f.mallOnly && !cp.isMall) return false;
+  // Malls narrows the car parks, not the street: meters have their own tile, so
+  // with Meters and Malls both lit the meters outside stay listed. (Malls used to
+  // hide every meter while the Meters tile still showed as on, and a mall 1.4 km
+  // away was recommended over free bays 66 m from the user.)
+  if (f.mallOnly && !cp.isMall && cp.kind !== "onStreetMeter") return false;
   if (f.districts?.length && !(cp.district && f.districts.includes(cp.district))) return false;
   if (f.maxDistanceMetres != null && r.dist != null && r.dist > f.maxDistanceMetres) return false;
   if (f.minDistanceMetres != null && r.dist != null && r.dist < f.minDistanceMetres) return false;
@@ -820,6 +947,26 @@ export function matchesFilter(f, r) {
   return true;
 }
 export const applyFilter = (f, ranked) => ranked.filter(r => matchesFilter(f, r));
+
+// Places with spaces that the filters hide although they are much nearer than
+// anything with spaces on screen, and which filters hide them, so the Find
+// screen can say so (and switch off just those) rather than quietly recommend a
+// car park across town. Only when the nearest space shown is over 500 m away:
+// closer than that the filters cost little, and a filter chosen on purpose
+// shouldn't nag. The distance band is the user's own limit and stays; nothing
+// the vehicle can't use counts (its score is 0).
+const FILTER_KEYS = ["availableNow", "minimumSpaces", "minimumClearanceMetres", "onlyConfirmedHeight", "evCharging", "motorcycleSpaces", "accessibleSpaces", "openNow", "maxHourlyRateHKD", "mallOnly", "districts", "maxFreshness", "onlyCompatible", "includeMeters"];
+export const FILTER_NAME = { mallOnly: lt("Malls", "商場"), openNow: lt("Open now", "開放中"), evCharging: lt("EV", "充電"), includeMeters: lt("Meters off", "咪錶已關"), districts: lt("District", "地區"), onlyCompatible: lt("Height OK", "啱車高") };
+export function hiddenNearer(f, all, shown) {
+  const hasSpace = (r) => r.score > 0 && r.dist != null && (r.level === "available" || r.level === "limited");
+  const nearestShown = Math.min(...shown.filter(hasSpace).map(r => r.dist));     // Infinity when none
+  if (!(nearestShown > 500)) return null;
+  const base = { ...DEFAULT_FILTER(), vehicleType: f.vehicleType, minDistanceMetres: f.minDistanceMetres ?? null, maxDistanceMetres: f.maxDistanceMetres ?? null };
+  const hidden = all.filter(r => hasSpace(r) && r.dist < nearestShown / 2 && matchesFilter(base, r) && !matchesFilter(f, r));
+  if (!hidden.length) return null;
+  const keys = FILTER_KEYS.filter(k => k in f && hidden.some(r => !matchesFilter({ ...base, [k]: f[k] }, r)));
+  return { count: hidden.length, nearest: Math.min(...hidden.map(r => r.dist)), keys };
+}
 
 // Distance bands the user can pick on the Find and Map screens, measured
 // straight-line from the origin. Each one means "within": 500 m includes the

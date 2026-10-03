@@ -10,7 +10,7 @@ const FEEDS = {
   meterOcc: "https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv",
 };
 const REFRESH = { info: 6 * 3600e3, meters: 24 * 3600e3, metersSnapshot: 7 * 86400e3, vacancy: 60e3, meterVac: 120e3 };
-const APP_VERSION = "2026-10-03a";                       // stamped by bump.py together with sw.js
+const APP_VERSION = "2026-10-03b";                       // stamped by bump.py together with sw.js
 const REPO_URL = "https://github.com/agsm26/hk-parking";  // issue reports go here
 const FETCH_TIMEOUT = 8000;
 // Map tiles: the Lands Department basemap through the CSDI portal (free, no
@@ -72,6 +72,9 @@ const S = {
   heading: LS.get("heading", null),      // {id, name, at} — set on Navigate, used by the arrival check
 };
 if (qs.get("lat") && qs.get("lng")) S.fixed = { lat: parseFloat(qs.get("lat")), lng: parseFloat(qs.get("lng")) };
+// A district filter belongs to a district search (dropDistrictFilter); one left
+// behind by an older version, while on your own location or another place, goes.
+if (S.filter.districts?.length && !(S.origin.type === "place" && S.origin.place?.kind === "district")) { S.filter = { ...S.filter, districts: [] }; LS.set("filter", S.filter); }
 const vehicle = () => S.vehicles.find(v => v.id === S.activeVehicleId) || S.vehicles[0] || null;
 const L_ = (en, tc) => C.pick(S.lang, en, tc);
 const T_ = (lt) => C.t(S.lang, lt);
@@ -220,28 +223,46 @@ async function fetchText(url, opts) { return (await fetchRaw(url, opts)).text();
 
 async function loadStatic() {
   if (S.static) return;
-  const [osm, entrances, curated] = await Promise.all([fetchJSON("data/osm_carparks.json"), fetchJSON("data/osm_entrances.json"), fetchJSON("data/curated_carparks.json")]);
-  S.static = { osm: C.osmCarParks(osm), entrances, curated };
+  const optional = (path) => fetchJSON(path, { quiet: true }).catch(() => null);
+  const [osm, entrances, curated, holidays, districtFixes] = await Promise.all([fetchJSON("data/osm_carparks.json"), fetchJSON("data/osm_entrances.json"),
+    fetchJSON("data/curated_carparks.json"), optional("data/holidays.json"), optional("data/district_fixes.json")]);
+  S.static = { osm: C.osmCarParks(osm), entrances, curated, districtFixes };
+  S.holidays = Array.isArray(holidays?.dates) ? new Set(holidays.dates) : null;   // public holidays: opening hours and rates
 }
 
 function rebuildCarParks() {
-  let list = [...S.feed];
+  let list = C.mergeSameCarPark([...S.feed]);          // also folds twins in a feed cached before merging existed
   const ids = new Set(list.map(c => c.id));
   for (const z of S.meters.zones) if (!ids.has(z.id)) list.push(z);
-  if (S.static) { list = C.dedupe(list, S.static.osm); list = C.applyCurated(list, S.static.curated); list = C.attachEntrances(list, S.static.entrances); }
+  if (S.static) { list = C.dedupe(list, S.static.osm); list = C.applyCurated(list, S.static.curated); list = C.attachEntrances(list, S.static.entrances); list = C.applyDistrictFixes(list, S.static.districtFixes); }
   S.carparks = list;
+  adoptMergedIds(list);
+}
+// Favourites, recents, visits and a running session saved under the id of a
+// listing that is now folded into its twin follow it to the merged car park.
+function adoptMergedIds(list) {
+  const to = new Map(); for (const cp of list) for (const alt of cp.altIds || []) to.set(alt, cp.id);
+  if (!to.size) return;
+  const mv = (id) => to.get(id) || id, once = () => { const seen = new Set(); return (x) => !seen.has(x.id) && !!seen.add(x.id); };
+  if (S.favs.some(f => to.has(f.id))) { S.favs = S.favs.map(f => ({ ...f, id: mv(f.id) })).filter(once()); save("favs"); }
+  if (S.recents.some(x => to.has(x.id))) { S.recents = S.recents.map(x => ({ ...x, id: mv(x.id) })).filter(once()); save("recents"); }
+  if (Object.keys(S.visits).some(k => to.has(k))) {
+    const v = {}; for (const [k, x] of Object.entries(S.visits)) { const id = mv(k), o = v[id]; v[id] = o ? { ...o, n: (o.n || 0) + (x.n || 0), lastAt: Math.max(o.lastAt || 0, x.lastAt || 0) } : x; }
+    S.visits = v; save("visits");
+  }
+  if (S.session && to.has(S.session.id)) { S.session = { ...S.session, id: mv(S.session.id) }; save("session"); }
 }
 
 async function loadInfo(force) {
   const cached = await IDB.get("info");
-  if (cached && !S.feed.length) { S.feed = cached.carparks; S.infoAt = cached.at; }
+  if (cached && !S.feed.length) { S.feed = cached.carparks; S.infoAt = cached.format === C.FEED_FORMAT ? cached.at : 0; }   // older format: show it, fetch afresh
   if (!force && S.infoAt && Date.now() - S.infoAt < REFRESH.info && S.feed.length) return;
   try {
     const [en, tc] = await Promise.all([fetchJSON(FEEDS.info("en")), fetchJSON(FEEDS.info("tc"))]);
     const parks = C.normalizeInfo(en.results || [], tc.results || []);
     if (!parks.length) throw new Error(L_("feed returned no car parks", "資料庫冇停車場"));
     S.feed = parks; S.infoAt = Date.now(); S.lastError = null;
-    await IDB.set("info", { carparks: parks, at: S.infoAt });
+    await IDB.set("info", { carparks: parks, at: S.infoAt, format: C.FEED_FORMAT });
   } catch (e) { S.lastError = e.message; }
 }
 
@@ -383,8 +404,8 @@ async function refresh(force = false) {
 // ------------------------------------------------------------ ranking ----
 function rerank() {
   S.now = Date.now();
-  const records = S.carparks.map(cp => ({ cp, vac: S.vac[cp.id] || {} }));
-  const ctx = { origin: originPoint(), now: S.now, vehicle: vehicle(), visits: S.visits };
+  const records = S.carparks.map(cp => ({ cp, vac: C.vacancyFor(S.vac, cp) }));
+  const ctx = { origin: originPoint(), now: S.now, vehicle: vehicle(), visits: S.visits, isPH: C.isPublicHoliday(S.now, S.holidays) };
   S.all = C.rank(records, ctx, S.sort);
   S.ranked = ctx.origin ? C.applyFilter(S.filter, S.all) : [];
 }
@@ -470,6 +491,11 @@ function renderFind() {
     const place = S.origin.type === "place" ? S.origin.place : null;
     const nearest = Math.min(...S.all.map(r => r.dist ?? Infinity));
     if (place && place.kind === "maps" && nearest > 250) body += `<p class="note">ⓘ ${esc(L_(`${place.title} itself does not publish parking data. Nearest listed car parks:`, `${place.title} 本身冇提供泊車資料，以下係最近有資料嘅停車場：`))}</p>`;
+    // A filter left on (Malls, a district, Meters off) can hide the spaces right
+    // next to you. Say so, with a button that switches off just those filters.
+    const hid = C.hiddenNearer ? C.hiddenNearer(S.filter, S.all, S.ranked) : null;
+    if (hid) { const names = [...new Set(hid.keys.map(k => T_(C.FILTER_NAME[k] || C.lt("other filters", "其他篩選"))))].join(L_(", ", "、")), d = C.fmtDist(hid.nearest, S.lang);
+      body += `<div class="hidden-near" role="status"><span>ⓘ ${esc(L_(`${hid.count} nearer place${hid.count > 1 ? "s" : ""} with spaces (closest ${d}) hidden by: ${names}`, `有 ${hid.count} 個更近又有位嘅地方（最近 ${d}）被篩選隱藏：${names}`))}</span><button data-unhide="${esc(hid.keys.join(","))}">${esc(L_("Show them", "顯示"))}</button></div>`; }
     if (r0) body += `<div class="sect"><span class="accent">✦ ${esc(L_("Recommended now", "而家最推薦"))}</span></div>${cardHTML(r0, "rec")}
       <p class="reasons">${esc(r0.reasons.slice(0, 4).map(x => C.reasonText(x, S.lang)).join(" · "))}</p>
       <div class="row2"><button class="primary" data-nav="${esc(r0.id)}">➤ ${esc(L_("Navigate", "導航"))}</button><button class="secondary" data-cp="${esc(r0.id)}">ⓘ ${esc(L_("Details", "詳情"))}</button></div>`;
@@ -704,15 +730,19 @@ async function placeSearch(q) {
   if (!res.length) res = await nominatim(q);
   if ($("q")?.value === q) { mapsResults = res; renderSearchList(q); }
 }
+// Choosing a district in search filters to that district for that search only.
+// Going back to your own location, or searching somewhere else, must not leave
+// it hiding the car parks around you.
+function dropDistrictFilter() { if (S.filter.districts?.length) { S.filter = { ...S.filter, districts: [] }; save("filter"); } }
 function pickSearch(v) {
   const done = (place) => {
     if (!place.coordinate || !C.inHK(place.coordinate)) { dialog({ title: L_("Outside Hong Kong", "唔喺香港"), text: L_(`${place.title} is not in Hong Kong. This app covers Hong Kong car parks only.`, `${place.title}唔喺香港。呢個 app 只涵蓋香港停車場。`), okOnly: true }); return; }
     if (searchMode && searchMode.pick) { searchMode.pick(place); closeSearch(); return; }
-    S.origin = { type: "place", place }; save("origin");
+    S.origin = { type: "place", place }; save("origin"); if (place.kind !== "district") dropDistrictFilter();
     if (place.kind !== "district") { const key = place.title + "|" + (place.subtitle || ""); S.searches = [{ key, title: place.title, subtitle: place.subtitle || "", coordinate: place.coordinate, kind: place.kind }, ...S.searches.filter(s => s.key !== key)].slice(0, 8); save("searches"); }
     closeSearch(); rerank(); render(); if (S.tab === "map") mapCentreOn(place.coordinate);
   };
-  if (v === "current") { S.origin = { type: "current" }; save("origin"); S.onboarded = true; save("onboarded"); startGeo(); closeSearch(); rerank(); render(); return; }
+  if (v === "current") { S.origin = { type: "current" }; save("origin"); dropDistrictFilter(); S.onboarded = true; save("onboarded"); startGeo(); closeSearch(); rerank(); render(); return; }
   const [kind, rest] = [v.slice(0, v.indexOf(":")), v.slice(v.indexOf(":") + 1)];
   if (kind === "cp") { const cp = S.carparks.find(c => c.id === rest); if (cp) done({ title: T_(cp.name), subtitle: T_(cp.address), coordinate: { lat: cp.lat, lng: cp.lng }, kind: "carPark", id: cp.id }); }
   else if (kind === "district") { const d = C.districtById(rest); const pts = S.carparks.filter(c => c.district === rest); const c = pts.length ? { lat: pts.reduce((a, p) => a + p.lat, 0) / pts.length, lng: pts.reduce((a, p) => a + p.lng, 0) / pts.length } : C.HK.centre;
@@ -900,7 +930,8 @@ document.addEventListener("click", async (e) => {
   if ((x = b("[data-chip]"))) { const on = !C.chipIsOn(x.dataset.chip, S.filter, S.sort); const r = C.applyChip(x.dataset.chip, S.filter, S.sort, on); S.filter = r.f; S.sort = r.sort; save("filter"); save("sort"); rerank(); render(); return; }
   if ((x = b("[data-sort]"))) { S.sort = x.dataset.sort; save("sort"); rerank(); render(); return; }
   if ((x = b("[data-sort-menu]"))) { const i = C.SORTS.indexOf(S.sort); S.sort = C.SORTS[(i + 1) % C.SORTS.length]; save("sort"); rerank(); render(); toast(T_(C.SORT_LABEL[S.sort])); return; }
-  if ((x = b("#use-loc"))) { e.stopPropagation(); S.origin = { type: "current" }; save("origin"); startGeo(); rerank(); render(); return; }
+  if ((x = b("[data-unhide]"))) { const d = C.DEFAULT_FILTER(); S.filter = { ...S.filter, ...Object.fromEntries(x.dataset.unhide.split(",").filter(k => k in d).map(k => [k, d[k]])) }; save("filter"); rerank(); render(); return; }
+  if ((x = b("#use-loc"))) { e.stopPropagation(); S.origin = { type: "current" }; save("origin"); dropDistrictFilter(); startGeo(); rerank(); render(); return; }
   if ((x = b("#open-search, #map-search"))) { openSearch("dest"); return; }
   if ((x = b("#find-now"))) { S.onboarded = true; save("onboarded"); if (S.origin.type === "current" && S.geo.status !== "ok" && !S.fixed) startGeo(); refresh(true).then(() => { const r0 = recommended(); if (r0) openDetail(r0.id); }); return; }
   if ((x = b("#more"))) { S.limit = (S.limit || 20) + 20; render(); return; }
@@ -929,7 +960,7 @@ document.addEventListener("click", async (e) => {
     if (a === "search") openSearch("dest"); else if (a === "locate") { S.onboarded = true; save("onboarded"); startGeo(); } else if (a === "retry") refresh("all");
     else if (a === "clearBand") { S.filter = C.applyBand(S.filter, "all"); save("filter"); rerank(); render(); }
     else if (a === "backup") backupCode(); else if (a === "restore") restoreCode(); else if (a === "clearErrors") { S.errors = []; save("errors"); render(); }
-    else if (a === "resetFilters") { S.filter = { ...C.DEFAULT_FILTER(), vehicleType: S.filter.vehicleType }; S.sort = "bestMatch"; save("filter"); save("sort"); rerank(); render(); }
+    else if (a === "resetFilters") { S.filter = { ...C.DEFAULT_FILTER(), vehicleType: S.filter.vehicleType }; save("filter"); rerank(); render(); }   // the sort is its own row: Nearest stays Nearest
     else if (a === "endSession") { if (await dialog({ title: L_("End parking session?", "結束泊車紀錄？"), ok: L_("End", "結束"), danger: true })) { endSession(); render(); } }
     else if (a === "clearSearches") { S.searches = []; save("searches"); render(); }
     else if (a === "addVehicle") openVehicleEditor(null);

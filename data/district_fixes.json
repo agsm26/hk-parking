@@ -1,0 +1,12 @@
+{
+ "source": "district boundaries, OpenStreetMap (ODbL)",
+ "checkedAt": "2026-10-03",
+ "fixes": {
+  "104": "kowloonCity",
+  "tdc103p1": "taiPo",
+  "tdc103p2": "taiPo",
+  "tdc103p3": "taiPo",
+  "tdc129p3": "kwunTong",
+  "tdstt113": "kwaiTsing"
+ }
+}

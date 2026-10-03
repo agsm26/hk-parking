@@ -203,7 +203,8 @@ test("fit, size advice, ranking, filters, chips", () => {
   assert.deepEqual(ids({ evCharging: true }), ["mall"]);
   assert.deepEqual(ids({ openNow: true }), ["estate", "mall", "meter"]);
   assert.deepEqual(ids({ maxHourlyRateHKD: 10 }), ["closed", "estate", "meter"]);
-  assert.deepEqual(ids({ mallOnly: true }), ["mall"]);
+  assert.deepEqual(ids({ mallOnly: true }), ["mall", "meter"], "Malls narrows the car parks; street meters follow their own tile");
+  assert.deepEqual(ids({ mallOnly: true, includeMeters: false }), ["mall"]);
   assert.deepEqual(ids({ includeMeters: false }), ["closed", "estate", "mall"]);
   assert.deepEqual(ids({ onlyCompatible: true }), ["closed", "estate", "meter"]);
   assert.equal(C.filterActiveCount({ ...f, availableNow: true, evCharging: true, includeMeters: false }), 3);
@@ -378,6 +379,79 @@ test("OpenStreetMap car parks have a district and are recognised as malls (Festi
   assert.ok(share > 0.9, `most snapshot car parks have a district (${Math.round(share * 100)}%)`);
 });
 
+test("height remarks: the height read from the text, the tariff moved to the fees", () => {
+  const h1 = C.pickHeight([{ height: 0, remark: "Height limit:1.7(M)\n*Private Car / Van<br>$20 per hour" }]);
+  assert.equal(h1.metres, 1.7); assert.equal(h1.note, "1.7(M)"); assert.equal(h1.tariff, "Private Car / Van\n$20 per hour");
+  const h2 = C.pickHeight([{ height: 0, remark: "Height Limit: \nHourly<br>  07:00 - 23:00 $20 per hour (private car)<br><br>  Day Park<br>  08:00 - 23:00 $32 (motorcycles)" }]);
+  assert.equal(h2.metres, null); assert.equal(h2.note, null, "a price list is not a height note"); assert.match(h2.tariff, /\$20 per hour/);
+  const h3 = C.pickHeight([{ height: 0, remark: "Height Limit:<br>3.9m (Applicable to G/F)<br>2.2m (Applicable to 1-2/F)<br><br>" }]);
+  assert.equal(h3.metres, 2.2, "the lowest stated: the safe side"); assert.equal(h3.tariff, null);
+  assert.equal(C.pickHeight([{ height: 0, remark: "Height Limit:<br>1.9m (Applicable to Entrance)<br>1.8m (Applicable to 1/F)<br>1.7m (Applicable to 2/F)" }]).metres, 1.9, "the entrance decides");
+  assert.equal(C.pickHeight([{ height: 0, remark: "1.8m (Applicable to Private Cars/Vans)\n3m (Applicable to Container Vehicles)" }]).metres, 1.8);
+  assert.equal(C.pickHeight([{ height: 0, remark: "1.9m (B2-B4 Private Cars)<br>Private Cars：<br>$32/Hour" }]).note, "1.9m (B2-B4 Private Cars)", "a label with a full-width colon is not part of the note");
+  assert.deepEqual(C.pickHeight([{ height: 2.1, remark: "Private Car" }]), { metres: 2.1, note: null, tariff: null }, "a bare vehicle label is not a note");
+  assert.equal(C.pickHeight([{ height: 0, remark: "限高 2.0米" }]).metres, 2);
+  assert.equal(C.pickHeight([{ height: 0, remark: "Opens 30 min before the mall" }]).metres, null, "minutes are not metres");
+  assert.equal(C.pickHeight([{ height: 0, remark: "Ramp 12.5m long" }]).metres, null, "not 2.5 out of 12.5");
+  const cp = C.normalizeInfoRow({ park_Id: "x1", name: "Test", latitude: 22.3, longitude: 114.17,
+    heightLimits: [{ height: 0, remark: "Height limit:1.8(M)\nPrivate Car<br>$22 per hour" }] }, "en");
+  assert.equal(cp.height.metres, 1.8); assert.equal(cp.height.note, "1.8(M)"); assert.equal("tariff" in cp.height, false);
+  assert.match(cp.fees.privateCar.note, /\$22 per hour/, "the tariff reaches the fees");
+});
+
+test("the feed's twin listings fold into one, and both live counts are read", () => {
+  const mk = (id, name, lat, lng, extra = {}) => C.normalizeInfoRow({ park_Id: id, name, latitude: lat, longitude: lng, ...extra }, "en");
+  const a = mk("100", "Prosperity Place Car Park", 22.3125, 114.2238, { privateCar: { space: 96 } });
+  const b = mk("tdc50p8", "Prosperity Place Car Park", 22.31252, 114.22381);
+  const far = mk("tdc9", "Prosperity Place Car Park", 22.33, 114.22);           // same name 2 km away: not a twin
+  const out = C.mergeSameCarPark([b, a, far]);
+  assert.equal(out.length, 2);
+  const m = out.find(x => x.altIds);
+  assert.equal(m.id, "100", "the richer record is kept"); assert.deepEqual(m.altIds, ["tdc50p8"]);
+  assert.equal(C.mergeSameCarPark(out).length, 2, "running it again changes nothing");
+  const t = Date.UTC(2026, 9, 3, 9, 0);
+  const r = (count, mins) => ({ kind: count < 0 ? "unknown" : "count", count: count < 0 ? null : count, hasSpace: count > 0, updatedAt: t + mins * 60e3 });
+  assert.equal(C.vacancyFor({ 100: { privateCar: r(13, 0) }, tdc50p8: { privateCar: r(1, 0.2) } }, m).privateCar.count, 1, "close in time: the lower count");
+  assert.equal(C.vacancyFor({ 100: { privateCar: r(13, 30) }, tdc50p8: { privateCar: r(1, 0) } }, m).privateCar.count, 13, "much fresher wins");
+  assert.equal(C.vacancyFor({ 100: { privateCar: r(-1, 0) }, tdc50p8: { privateCar: r(68, 0) } }, m).privateCar.count, 68, "an unknown reading never wins");
+  assert.equal(C.vacancyFor({ tdc9: { privateCar: r(5, 0) } }, far).privateCar.count, 5);
+});
+
+test("public holidays: closed-on-holiday hours and holiday rates apply", () => {
+  const hol = new Set(["2026-10-01"]), thuPH = Date.UTC(2026, 9, 1, 4, 0);      // Thu 1 Oct 2026, noon in Hong Kong
+  assert.equal(C.isPublicHoliday(thuPH, hol), true);
+  assert.equal(C.isPublicHoliday(thuPH + 24 * 3600e3, hol), false);
+  assert.equal(C.isPublicHoliday(thuPH, null), false);
+  const weekdaysOnly = { openingStatus: "unknown", openingHours: [C.makeWindow(["MON", "TUE", "WED", "THU", "FRI"], 480, 1200, true)] };
+  assert.equal(C.isOpenAt(weekdaysOnly, thuPH), true, "without the holiday it looks open");
+  assert.equal(C.isOpenAt(weekdaysOnly, thuPH, true), false, "closed on public holidays");
+  const fee = { hourly: [
+    { window: C.makeWindow(["MON", "TUE", "WED", "THU", "FRI"], 0, 1440), price: 20, unitMinutes: 60 },
+    { window: C.makeWindow(["SAT", "SUN", "PH"], 0, 1440), price: 30, unitMinutes: 60 }] };
+  assert.equal(C.hourlyRateAt(fee, thuPH).price, 20);
+  assert.equal(C.hourlyRateAt(fee, thuPH, true).price, 30, "the holiday rate");
+});
+
+test("OpenStreetMap hours, Shenzhen records and the feed's district fixes", () => {
+  assert.equal(C.osmHours("24/7")[0], C.ALWAYS);
+  const w = C.osmHours("Mo-Fr 08:00-20:00; Sa,Su,PH 09:00-18:00");
+  assert.equal(w.length, 2); assert.deepEqual(w[0].weekdays, ["MON", "TUE", "WED", "THU", "FRI"]); assert.equal(w[1].start, 540);
+  assert.ok(C.osmHours("Mo-Su,PH 00:00-24:00")[0].weekdays.includes("PH"));
+  assert.deepEqual(C.osmHours("Fr-Mo 10:00-12:00")[0].weekdays, ["FRI", "SAT", "SUN", "MON"]);
+  for (const odd of ["sunrise-sunset", "Mo-Fr 08:00-12:00,13:00-18:00", "closed", "", null]) assert.equal(C.osmHours(odd), null, String(odd));
+  const osm = C.osmCarParks({ districtsAt: "2026-10-03", records: [
+    { id: "osm:node/1", nameEN: "Kornhill Plaza", lat: 22.2855, lng: 114.2158, district: "eastern", openingHours: "24/7" },
+    { id: "osm:node/2", nameEN: "瑞湾荟停車場", lat: 22.5541, lng: 113.8766 },
+  ] });
+  assert.deepEqual(osm.map(c => c.id), ["osm:node/1"], "the Shenzhen car park is gone");
+  assert.equal(C.isOpenAt(osm[0], Date.now()), true);
+  assert.equal(osm[0].infoNote, null, "parsed hours are not repeated as text");
+  const fixed = C.applyDistrictFixes([{ id: "tdc129p3", district: "shamShuiPo", districtText: {} }, { id: "x", altIds: ["104"], district: "wongTaiSin" }, { id: "y", district: "eastern" }],
+    { fixes: { tdc129p3: "kwunTong", 104: "kowloonCity", z: "nowhere" } });
+  assert.deepEqual(fixed.map(c => c.district), ["kwunTong", "kowloonCity", "eastern"]);
+  assert.equal(fixed[0].districtText.tc, "觀塘區");
+});
+
 test("a day profile ranks the hours, and the summary names the easiest and hardest", () => {
   const day = Array.from({ length: 24 }, () => ({}));
   const put = (h, typ, tight, n = 20) => { day[h].cp = { typ, tight, n }; };
@@ -502,4 +576,64 @@ test("a backup code with the wrong shapes is refused, not restored", () => {
   }
   // absent keys are fine; only present-and-wrong is refused
   assert.equal(C.backupDecode(C.backupEncode({ lang: "tc" })).ok, true);
+});
+
+test("Malls never hides the street meters beside you, and hidden nearer spaces are reported (Kowloon Tong)", () => {
+  // On the phone: Meters and Malls both lit, sorted by nearest, standing among
+  // Kowloon Tong's metered streets. Malls hid every meter, so the top pick was
+  // Lok Fu, a mall car park 1.4 km away, over free bays 66 m away.
+  const now = Date.now(), origin = { lat: 22.332, lng: 114.174 };
+  const base = { kind: "offStreet", name: C.lt("T"), address: {}, district: "kowloonCity", districtText: {}, entrance: null, height: { metres: 2.0, note: null }, openingStatus: "open", openingHours: [], fees: {}, facilities: [], paymentMethods: [], capacity: {}, isMall: false, isEnriched: false, sources: [], searchAliases: [] };
+  const at = (id, dLat, o = {}) => ({ ...base, id, lat: origin.lat + dLat, lng: origin.lng, ...o });   // 0.001° of latitude ≈ 111 m
+  const rd = (count) => ({ privateCar: { vehicleType: "privateCar", kind: "count", count, hasSpace: count > 0, updatedAt: now - 60e3 } });
+  const recs = [
+    { cp: at("meter", 0.0006, { kind: "onStreetMeter" }), vac: rd(2) },                       // ~66 m
+    { cp: at("estate", 0.003), vac: rd(40) },                                                   // ~330 m, not a mall
+    { cp: at("lokfu", 0.0126, { isMall: true, district: "wongTaiSin" }), vac: rd(30) },         // ~1.4 km
+  ];
+  const all = C.rank(recs, { origin, now }, "nearest");
+  const f = { ...C.DEFAULT_FILTER(), mallOnly: true };
+  const shown = C.applyFilter(f, all);
+  assert.deepEqual(shown.map(r => r.id), ["meter", "lokfu"], "the meter outside stays; the plain car park goes");
+  assert.equal(C.hiddenNearer(f, all, shown), null, "spaces 66 m away are on screen: nothing to report");
+  // Meters off too: say how many nearer places with spaces are hidden, and by what.
+  const f2 = { ...f, includeMeters: false }, shown2 = C.applyFilter(f2, all);
+  assert.deepEqual(shown2.map(r => r.id), ["lokfu"]);
+  const h = C.hiddenNearer(f2, all, shown2);
+  assert.equal(h.count, 2); assert.ok(h.nearest > 50 && h.nearest < 80, `${h.nearest}`);
+  assert.deepEqual(h.keys, ["mallOnly", "includeMeters"]);
+  assert.deepEqual(h.keys.map(k => C.FILTER_NAME[k].tc), ["商場", "咪錶已關"]);
+  // "Show them" resets just those filters: everything back, nearest first.
+  const d = C.DEFAULT_FILTER(), f3 = { ...f2, ...Object.fromEntries(h.keys.map(k => [k, d[k]])) };
+  assert.deepEqual(C.applyFilter(f3, all).map(r => r.id), ["meter", "estate", "lokfu"]);
+  // A district left on is named the same way.
+  const fd = { ...C.DEFAULT_FILTER(), districts: ["wongTaiSin"] };
+  assert.deepEqual(C.hiddenNearer(fd, all, C.applyFilter(fd, all)).keys, ["districts"]);
+  // The distance band is the user's own limit: what lies beyond it is never counted, and the band is never switched off.
+  const fb = C.applyBand(f2, "b500"), hb = C.hiddenNearer(fb, all, C.applyFilter(fb, all));
+  assert.equal(hb.count, 2); assert.deepEqual(hb.keys, ["mallOnly", "includeMeters"]);
+  // Spaces a short walk away on screen: a filter chosen on purpose doesn't nag.
+  const fm = { ...C.DEFAULT_FILTER(), includeMeters: false };
+  assert.equal(C.hiddenNearer(fm, all, C.applyFilter(fm, all)), null, "the car park 330 m away is close enough");
+  // Places the vehicle can't get into never count.
+  const tall = C.rank(recs, { origin, now, vehicle: { type: "privateCar", heightMetres: 2.3 } }, "nearest");
+  assert.equal(C.hiddenNearer(f2, tall, C.applyFilter(f2, tall)).count, 1, "only the meter: the 2.0 m car park is too low");
+  // No filters, nothing hidden.
+  assert.equal(C.hiddenNearer(C.DEFAULT_FILTER(), all, all), null);
+});
+
+test("the feed's CLOSED flag is not read as shut: it marks busy car parks closed all day", () => {
+  // 3 Oct 2026: 212 of 581 car parks said CLOSED from afternoon to night, and 131
+  // of them filled and emptied live (Airport Car Park 1 156 → 131, apm 48 → 99).
+  const row = (status) => C.normalizeInfoRow({ park_Id: "tdc368p1", name: "MOKO Car Park", latitude: 22.3236, longitude: 114.1726, opening_status: status }, "en");
+  assert.equal(row("CLOSED").openingStatus, "unknown");
+  assert.equal(row("OPEN").openingStatus, "open");
+  assert.equal(row(undefined).openingStatus, "unknown");
+  const now = Date.now(), live = { privateCar: { vehicleType: "privateCar", kind: "count", count: 99, hasSpace: true, updatedAt: now - 60e3 } };
+  const r = C.evaluate({ cp: row("CLOSED"), vac: live }, { origin: { lat: 22.3291, lng: 114.1726 }, now });
+  assert.ok(r.score > 0, "it can be recommended"); assert.equal(r.isOpen, null, "shown as hours not confirmed, not as closed");
+  assert.equal(C.matchesFilter({ ...C.DEFAULT_FILTER(), openNow: true }, r), true, "Open now keeps it");
+  // Opening hours, where the feed gives them, still decide.
+  const shut = { ...row("CLOSED"), openingHours: [C.makeWindow(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"], 480, 600)] };
+  assert.equal(C.isOpenAt(shut, C.parseHKTime("2026-10-03 22:30:00")), false);
 });
