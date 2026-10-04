@@ -8,7 +8,7 @@
 //
 // Bump VERSION whenever any shell file changes; the old cache is dropped on
 // activate and the page is told an update is ready.
-const VERSION = "2026-10-04a";
+const VERSION = "2026-10-04b";
 const SHELL = `carpark-shell-${VERSION}`;
 const SHELL_FILES = [
   "./", "./index.html", "./app.js", "./core.js", "./manifest.json",
@@ -21,8 +21,11 @@ const SHELL_FILES = [
 ];
 const NETWORK_ONLY = ["api.data.gov.hk", "resource.data.one.gov.hk", "www.als.gov.hk", "mapapi.geodata.gov.hk", "tile.openstreetmap.org", "nominatim.openstreetmap.org"];
 
+// Straight from the server, never the browser's own copy: GitHub Pages lets a
+// browser keep a file for 10 minutes, so a phone that opened the app just
+// before a publish packed the old app.js into the new version and stayed on it.
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(SHELL).then((c) => c.addAll(SHELL_FILES)));
+  e.waitUntil(caches.open(SHELL).then((c) => c.addAll(SHELL_FILES.map((u) => new Request(u, { cache: "reload" })))));
 });
 
 self.addEventListener("activate", (e) => {
@@ -45,7 +48,8 @@ self.addEventListener("fetch", (e) => {
   e.respondWith((async () => {
     const cache = await caches.open(SHELL);
     const cached = await cache.match(e.request, { ignoreSearch: true });
-    const network = fetch(e.request).then((res) => { if (res.ok) cache.put(e.request, res.clone()); return res; }).catch(() => null);
+    // "no-cache": ask the server whether the file changed (a cheap 304 when it hasn't) rather than trust the browser's copy.
+    const network = fetch(e.request.mode === "navigate" ? e.request.url : e.request, { cache: "no-cache" }).then((res) => { if (res.ok) cache.put(e.request, res.clone()); return res; }).catch(() => null);
     if (cached) { e.waitUntil(network); return cached; }
     const res = await network;
     return res || new Response("Offline", { status: 503, headers: { "Content-Type": "text/plain" } });
