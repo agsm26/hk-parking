@@ -10,7 +10,7 @@ const FEEDS = {
   meterOcc: "https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv",
 };
 const REFRESH = { info: 6 * 3600e3, meters: 24 * 3600e3, metersSnapshot: 7 * 86400e3, vacancy: 60e3, meterVac: 120e3 };
-const APP_VERSION = "2026-10-03b";                       // stamped by bump.py together with sw.js
+const APP_VERSION = "2026-10-04a";                       // stamped by bump.py together with sw.js
 const REPO_URL = "https://github.com/agsm26/hk-parking";  // issue reports go here
 const FETCH_TIMEOUT = 8000;
 // Map tiles: the Lands Department basemap through the CSDI portal (free, no
@@ -54,6 +54,7 @@ const S = {
   origin: LS.get("origin", { type: "current" }),            // {type:'current'} | {type:'place', place}
   filter: migrateFilter({ ...C.DEFAULT_FILTER(), ...LS.get("filter", {}) }),
   sort: LS.get("sort", "bestMatch"),
+  stay: LS.get("stay", 120),                                 // minutes, for the Cheapest sort
   vehicles: LS.get("vehicles", []), activeVehicleId: LS.get("activeVehicleId", null),
   favs: LS.get("favs", []), recents: LS.get("recents", []), places: LS.get("places", []), searches: LS.get("searches", []),
   session: LS.get("session", null), lastSession: LS.get("lastSession", null), reports: LS.get("reports", []),
@@ -76,6 +77,8 @@ if (qs.get("lat") && qs.get("lng")) S.fixed = { lat: parseFloat(qs.get("lat")), 
 // behind by an older version, while on your own location or another place, goes.
 if (S.filter.districts?.length && !(S.origin.type === "place" && S.origin.place?.kind === "district")) { S.filter = { ...S.filter, districts: [] }; LS.set("filter", S.filter); }
 const vehicle = () => S.vehicles.find(v => v.id === S.activeVehicleId) || S.vehicles[0] || null;
+// Stay totals are worked out from private-car prices only; other vehicles keep the hourly rate.
+const stayCosts = () => !!C.stayCost && !!C.STAY_CHOICES && (vehicle()?.type || "privateCar") === "privateCar";
 const L_ = (en, tc) => C.pick(S.lang, en, tc);
 const T_ = (lt) => C.t(S.lang, lt);
 const $ = (id) => document.getElementById(id);
@@ -405,7 +408,8 @@ async function refresh(force = false) {
 function rerank() {
   S.now = Date.now();
   const records = S.carparks.map(cp => ({ cp, vac: C.vacancyFor(S.vac, cp) }));
-  const ctx = { origin: originPoint(), now: S.now, vehicle: vehicle(), visits: S.visits, isPH: C.isPublicHoliday(S.now, S.holidays) };
+  const ctx = { origin: originPoint(), now: S.now, vehicle: vehicle(), visits: S.visits, isPH: C.isPublicHoliday(S.now, S.holidays), holidays: S.holidays,
+    stayMinutes: S.sort === "lowestCost" && stayCosts() ? S.stay : null };
   S.all = C.rank(records, ctx, S.sort);
   S.ranked = ctx.origin ? C.applyFilter(S.filter, S.all) : [];
 }
@@ -449,7 +453,8 @@ function cardHTML(r, extra = "") {
   const tags = [];
   if (cp.kind === "onStreetMeter") tags.push(`<span class="tag">P ${esc(L_(`Street meters · ${cp.bayCount} bays`, `路邊咪錶 · ${cp.bayCount} 個位`))}</span>`);
   else if (r.fit.kind !== "notConfirmed" || cp.height.metres != null) tags.push(`<span class="tag ${r.fit.kind === "fits" ? "ok" : r.fit.kind === "tight" ? "warn" : r.fit.kind === "doesNotFit" ? "full" : ""}">↕ ${esc(C.heightText(cp.height, S.lang))}</span>`);
-  if (r.estHourly != null) tags.push(`<span class="tag">$ ${esc(fmtHourly(r.estHourly, r.hourlyIsEstimate))}</span>`);
+  if (r.stay) tags.push(`<span class="tag ${r.stay.tooLong ? "warn" : ""}">$ ${esc(C.stayText(r.stay, S.stay, S.lang))}</span>`);   // Cheapest: the whole stay
+  else if (r.estHourly != null) tags.push(`<span class="tag">$ ${esc(fmtHourly(r.estHourly, r.hourlyIsEstimate))}</span>`);
   if (cp.facilities.includes("evCharger")) tags.push(`<span class="tag">⚡ ${esc(L_("EV", "充電"))}</span>`);
   if (cp.isMall) tags.push(`<span class="tag">🛍 ${esc(L_("Mall", "商場"))}</span>`);
   const vc = visitCount(cp.id);
@@ -472,6 +477,8 @@ function filtersHTML(withSort) {
   const row = (label, body) => `<div class="frow"><span class="flbl" aria-hidden="true">${esc(label)}</span>${body}</div>`;
   let h = `<div class="filters">`;
   if (withSort) h += row(L_("Sort", "排序"), `<div class="seg" role="radiogroup" aria-label="${esc(L_("Sort", "排序"))}">${C.SORT_CHOICES.map(s => `<button role="radio" data-sort="${s.id}" aria-checked="${S.sort === s.id}">${esc(T_(s.label))}</button>`).join("")}</div>`);
+  // Cheapest compares what the whole stay costs, so it asks how long.
+  if (withSort && S.sort === "lowestCost" && stayCosts()) h += row(L_("Stay", "停泊"), `<div class="seg" role="radiogroup" aria-label="${esc(L_("How long you'll stay", "停泊幾耐"))}">${C.STAY_CHOICES.map(m => `<button role="radio" data-stay="${m}" aria-checked="${S.stay === m}">${esc(L_(`${m / 60} h`, `${m / 60}小時`))}</button>`).join("")}</div>`);
   h += row(L_("Show", "篩選"), `<div class="tiles" role="group" aria-label="${esc(L_("Filters", "篩選"))}">${C.FILTER_TILES.map(id => { const c = C.CHIPS.find(x => x.id === id);
     return `<button class="tile" data-chip="${id}" aria-pressed="${C.chipIsOn(id, f, S.sort)}" aria-label="${esc(T_(c.label))}"><span class="ic" aria-hidden="true">${c.icon}</span><span>${esc(T_(c.short || c.label))}</span></button>`; }).join("")}</div>`);
   h += row(L_("Within", "距離"), `<div class="seg" role="radiogroup" aria-label="${esc(L_("Distance", "距離"))}">${C.DISTANCE_BANDS.map(b => `<button role="radio" data-band="${b.id}" aria-checked="${band === b.id}" aria-label="${esc(T_(b.label))}">${esc(T_(b.short || b.label))}</button>`).join("")}</div>`);
@@ -597,7 +604,7 @@ function openDetail(id) {
     </div>
     <div class="section"><h3>ⓘ ${esc(L_("Details", "詳細"))}</h3><dl class="dl">${facts.map(([k, val, html]) => `<div><dt>${esc(k)}</dt><dd>${html ? val : esc(val)}</dd></div>`).join("")}</dl>
       ${cp.photoURL ? `<img src="${esc(cp.photoURL)}" alt="" loading="lazy" style="width:100%;height:140px;object-fit:cover;border-radius:10px;margin-top:10px">` : ""}</div>
-    <div class="section"><h3>$ ${esc(L_("Fees", "收費"))}</h3>${feesHTML(fee)}<p class="note">${esc(L_("Fees vary and change. Confirm at the entrance before parking.", "收費或有變動，泊車前請以入口標示為準。"))}</p></div>
+    <div class="section"><h3>$ ${esc(L_("Fees", "收費"))}</h3>${stayTableHTML(cp)}${feesHTML(fee)}<p class="note">${esc(L_("Fees vary and change. Confirm at the entrance before parking.", "收費或有變動，泊車前請以入口標示為準。"))}</p></div>
     <div class="section"><h3>✓ ${esc(L_("Data sources", "資料來源"))}</h3>${cp.sources.map(s => `<p class="note">${C.providesLive(s) ? "●" : "📄"} ${esc(T_(C.SOURCE_ATTRIBUTION[s] || C.lt(s, s)))}</p>`).join("")}
       ${cp.factsProvenance ? `<p class="note">${esc(L_("Height, fees and hours as published by ", "限高、收費及時間由 "))}${esc(T_(cp.factsProvenance.publisher))}${cp.factsProvenance.checkedOn ? esc(L_(`, checked ${cp.factsProvenance.checkedOn}`, `公佈，核對日期 ${cp.factsProvenance.checkedOn}`)) : ""}${C.factsStale(cp.factsProvenance.checkedOn, S.now) ? `<span style="color:var(--warn)"> ⚠ ${esc(L_("checked over 6 months ago, verify on site", "核對已超過六個月，請以現場為準"))}</span>` : ""}${cp.factsProvenance.sourceURL ? ` · <a href="${esc(cp.factsProvenance.sourceURL)}" target="_blank" rel="noopener">${esc(new URL(cp.factsProvenance.sourceURL).hostname)}</a>` : ""}</p>` : ""}
       ${cp.isEnriched ? `<p class="note">${esc(L_("Live availability, fees and facilities are operator-provided through the government feed.", "空位、收費同設施由營運商經政府平台提供。"))}</p>` : ""}</div>`;
@@ -613,6 +620,15 @@ function openDetail(id) {
     if (cp.entrance) L.circleMarker([cp.entrance.lat, cp.entrance.lng], { radius: 8, color: "#fff", weight: 2, fillColor: "#1f70eb", fillOpacity: 1 }).addTo(miniMap);
   }, 60);
   location.hash = "#cp/" + encodeURIComponent(id);
+}
+// What parking here from now costs, for each stay length: worked out from the
+// rates below (time of day, weekday or holiday, first-hours prices, day and
+// night flat rates). "About" when read from the operator's text.
+function stayTableHTML(cp) {
+  if (!stayCosts()) return "";
+  const rows = C.STAY_CHOICES.map(m => [m, C.stayCost(cp, S.now, m, S.holidays)]).filter(([, c]) => c);
+  if (!rows.length) return "";
+  return `<p class="note" style="margin-top:0">${esc(L_("If you park now:", "如果而家泊："))}</p><div class="staycost">${rows.map(([m, c]) => `<div class="${c.tooLong ? "warn" : m === S.stay ? "on" : ""}"><small>${esc(L_(`${m / 60} h`, `${m / 60} 小時`))}</small><b>${c.tooLong ? esc(L_(`max ${c.maxStay >= 60 ? c.maxStay / 60 + " h" : c.maxStay + " min"}`, `最多 ${c.maxStay >= 60 ? c.maxStay / 60 + " 小時" : c.maxStay + " 分鐘"}`)) : `${c.estimate ? esc(L_("~", "約")) : ""}$${Number.isInteger(c.total) ? c.total : c.total.toFixed(1)}`}</b>${c.flat ? `<small>${esc(T_(C.FLAT_NAME[c.flat] || C.lt("", "")))}</small>` : ""}</div>`).join("")}</div>`;
 }
 function feesHTML(fee) {
   if (!fee || C.feeIsEmpty(fee)) return `<p class="note">${esc(L_("No fee information in the feed. Check the sign at the entrance.", "資料未有收費資料，請留意入口標示。"))}</p>`;
@@ -929,6 +945,7 @@ document.addEventListener("click", async (e) => {
   if ((x = b("[data-band]"))) { S.filter = C.applyBand(S.filter, x.dataset.band); save("filter"); rerank(); render(); return; }
   if ((x = b("[data-chip]"))) { const on = !C.chipIsOn(x.dataset.chip, S.filter, S.sort); const r = C.applyChip(x.dataset.chip, S.filter, S.sort, on); S.filter = r.f; S.sort = r.sort; save("filter"); save("sort"); rerank(); render(); return; }
   if ((x = b("[data-sort]"))) { S.sort = x.dataset.sort; save("sort"); rerank(); render(); return; }
+  if ((x = b("[data-stay]"))) { S.stay = +x.dataset.stay; save("stay"); rerank(); render(); return; }
   if ((x = b("[data-sort-menu]"))) { const i = C.SORTS.indexOf(S.sort); S.sort = C.SORTS[(i + 1) % C.SORTS.length]; save("sort"); rerank(); render(); toast(T_(C.SORT_LABEL[S.sort])); return; }
   if ((x = b("[data-unhide]"))) { const d = C.DEFAULT_FILTER(); S.filter = { ...S.filter, ...Object.fromEntries(x.dataset.unhide.split(",").filter(k => k in d).map(k => [k, d[k]])) }; save("filter"); rerank(); render(); return; }
   if ((x = b("#use-loc"))) { e.stopPropagation(); S.origin = { type: "current" }; save("origin"); dropDistrictFilter(); startGeo(); rerank(); render(); return; }

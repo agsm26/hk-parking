@@ -98,6 +98,29 @@ committing; its last step turns the run red (and GitHub emails agsm26) after 3
 days without a commit, long before that. If it is ever disabled: Actions tab ▸
 patterns ▸ **Enable workflow**.
 
+## Cost for your stay
+
+Sorting by Cheapest asks how long you'll stay (1, 2, 3, 4 or 8 hours) and
+ranks by what that stay costs from now; each car park's page shows the same
+for every length. `stayCost` in `core.js` charges each started unit at the rate
+in force when it starts (time of day, weekday or public holiday, and how long
+you've been parked, for "first two hours $11 per half hour, then $16.5"), adds
+any minimum charge, and takes a day, night or 24-hour flat rate instead when
+the whole stay fits inside one. Meters charge per 15 minutes, are free outside
+their hours, and a stay longer than the meter allows is shown as such and
+sorted last.
+
+Only 27 feed car parks publish structured prices; for the others `readTariff`
+reads the operator's price text (the Transport Department, LCSD and estate
+templates, in English or Chinese). It reads only private-car prices, leaves out
+monthly, valet and EV-concession rates, and gives up rather than guess when a
+car price can't be placed. Where a text lists several prices for the same
+hours (one text for several car parks) it takes the dearest, so totals err
+high. Totals read from text show as "about"; mixtures such as a day park and
+then hours after it aren't tried. In October 2026 this covered 254 text
+tariffs; 4 had no private-car price and 165 OpenStreetMap car parks say only
+"paid parking".
+
 ## Test locally
 
 ```bash

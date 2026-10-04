@@ -233,32 +233,40 @@ export function isMallName(name, address) {
 /** Prefer a row marked for private cars, else the lowest positive height; 0/missing = not confirmed. */
 // The feed's height remark is free text, and operators put whatever they like in
 // it: the height ("Height limit:1.7(M)"), the tariff ("Private Car/Van<br>$21 per
-// hour"), a bare vehicle label ("Private Car"), or several at once. Split it: the
-// height lines stay as the height note and give the number when the structured
-// height is missing (0); the tariff lines become `tariff`, for the fees.
-const TARIFF_LINE = /\$|per hour|hourly|half[- ]hour|day park|night park|monthly|quarterly|每小時|時租|日泊|夜泊|月租|季租|收費/i;
+// hour"), a bare vehicle label ("Private Car"), the days a price applies to ("Mon
+// to Fri (Except Public Holidays):"), opening hours, or several at once. Split it:
+// the height lines stay as the height note and give the number when the
+// structured height is missing (0); the tariff lines, with the vehicle and day
+// headings above them, become `tariff`, for the fees; anything else (opening
+// hours, "booking only", chargers) is `other`, for the car park's notes.
+const TARIFF_LINE = /\$|港幣|per hour|hourly|half[- ]hour|\/\s*hrs?\b|day park|night park|monthly|quarterly|first (?:two|\d+) hours?|thereafter|minutes?\s*:?\s*free|每小時|半小時|\/\s*小時|時租|日泊|夜泊|月租|季租|收費|首\s*[一二兩\d]+\s*個?小時|免費/i;
 const HEIGHT_NUMBER = /(?:^|[^\d.])(\d(?:\.\d{1,2})?)\s*\(?\s*(?:m|metres?|meters?|米)(?![a-z])/gi;   // not "2.5" out of "12.5"
-const VEHICLE_WORDS = /private cars?|cars?|vans?|light goods vehicles?|goods vehicles?|lgv|hgv|lorr(?:y|ies)|coach(?:es)?|bus(?:es)?|motor ?cycles?|taxis?|私家車|客貨車|輕型貨車|重型貨車|貨車|旅遊巴|巴士|電單車|的士/gi;
-const isVehicleLabel = (s) => !s.replace(VEHICLE_WORDS, "").replace(/[\s\/&,、及和()（）*.:：-]/g, "");
+const HEIGHT_LINE = /(?:^|[^\d.])\d(?:\.\d{1,2})?\s*\(?\s*(?:m|metres?|meters?|米)(?![a-z])|height|clearance|headroom|限高|高度|淨高|^\(?\s*(?:applicable|適用)|^\(?\s*\d(?:\.\d{1,2})?\s*\)?\s*\(?\s*(?:m|米)?\s*\)?$/i;
+const VEHICLE_WORDS = /private cars?|cars?|vans?|light goods? vehicles?|goods? vehicles?|vehicles?|lgv|hgv|lorr(?:y|ies)|coach(?:es)?|light bus(?:es)?|mini ?bus(?:es)?|bus(?:es)?|motor ?cycles?|taxis?|medium|heavy|light|container|私家車|客貨車|輕型貨車|重型貨車|中重型貨車|中型|貨櫃車|貨車|旅遊巴士?|小型巴士|小巴|巴士|電單車|的士|車輛/gi;
+const isVehicleLabel = (s) => !s.replace(VEHICLE_WORDS, "").replace(/\b(?:and|or)\b|[\s\/&,、及和()（）*.:：-]/gi, "");
+const DAY_WORDS = /mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:rs(?:day)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?|public holidays?|holidays?|\bph\b|weekdays?|weekends?|daily|every ?day|except|excluding|excl\.?|including|incl\.?|\band\b|\bto\b|from|星期[一二三四五六日]?|[一二三四五六日]|至|及|公眾假期|假期|假日|除外|不包括|包括|每日|平日|週末|由/gi;
+const isDayLabel = (s) => !s.replace(/\d{1,2}:?\d{2}\s*:?|\d{1,2}\s*(?:am|pm)/gi, "").replace(DAY_WORDS, "").replace(/[\s\-–—~,，、\/&()（）:：;；.。]/g, "");
 export function pickHeight(rows) {
   const list = arr(rows).map(r => ({ h: num(r?.height), remark: str(r?.remark) }));
-  const heightLines = [], tariffLines = [];
+  const heightLines = [], tariffLines = [], otherLines = [];
   for (const r of list) {
     if (!r.remark) continue;
-    const lines = r.remark.replace(/<br\s*\/?>/gi, "\n").split(/\n+/)
-      .map(s => s.replace(/^\s*(?:height\s*limits?|限高|高度限制)\s*[:：]?\s*/i, "").replace(/^[*•\s]+/, "").trim()).filter(Boolean);
+    const lines = r.remark.replace(/<\/?br\s*\/?>/gi, "\n").replace(/<\/?[a-z][^>]*>/gi, "").split(/\n+/)
+      .map(s => s.replace(/^\s*(?:(?:height\s*limits?|限高|高度限制)\s*[:：]?\s*)+/i, "").replace(/^[*•\s]+/, "").trim()).filter(Boolean);   // "Height Limit: Height limit:1.7(M)"
     const hasTariff = lines.some(s => TARIFF_LINE.test(s));
     for (const s of lines) {
+      if (/^\(?\s*(?:m|米)\s*\)?$/i.test(s)) continue;     // a unit left on its own line
       if (TARIFF_LINE.test(s)) tariffLines.push(s);
-      else if (isVehicleLabel(s)) { if (hasTariff) tariffLines.push(s); }   // a label heading a tariff belongs to it
-      else if (!heightLines.includes(s)) heightLines.push(s);
+      else if (isVehicleLabel(s) || (isDayLabel(s) && hasTariff)) { if (hasTariff) tariffLines.push(s); }   // headings belong to the tariff below them
+      else if (HEIGHT_LINE.test(s)) { if (!heightLines.includes(s)) heightLines.push(s); }
+      else if (!otherLines.includes(s)) otherLines.push(s);
     }
   }
-  const note = heightLines.join("\n") || null, tariff = tariffLines.join("\n") || null;
+  const note = heightLines.join("\n") || null, tariff = tariffLines.join("\n") || null, other = otherLines.join("\n") || null;
   const usable = list.filter(r => r.h != null && r.h > 0);
   if (usable.length) {
     const forCars = usable.filter(r => /私家車|private car/i.test(r.remark || ""));
-    return { metres: Math.min(...(forCars.length ? forCars : usable).map(r => r.h)), note, tariff };
+    return { metres: Math.min(...(forCars.length ? forCars : usable).map(r => r.h)), note, tariff, other };
   }
   // No structured height: read the text. A line for the entrance decides (what gets
   // you in; the floors are in the note), then lines for private cars, else the
@@ -266,7 +274,7 @@ export function pickHeight(rows) {
   const nums = (lines) => lines.flatMap(s => [...s.matchAll(HEIGHT_NUMBER)].map(m => +m[1])).filter(h => h >= 1 && h <= 6);
   const pickFrom = [heightLines.filter(s => /entrance|入口/i.test(s)), heightLines.filter(s => /private car|私家車/i.test(s)), heightLines]
     .map(nums).find(n => n.length) || [];
-  return { metres: pickFrom.length ? Math.min(...pickFrom) : null, note, tariff };
+  return { metres: pickFrom.length ? Math.min(...pickFrom) : null, note, tariff, other };
 }
 export function heightText(h, lang) {
   if (h?.metres == null) return pick(lang, "Not confirmed", "未確認");
@@ -288,7 +296,8 @@ export function feeSchedule(v, legacyNote) {
   if (v) {
     for (const r of arr(v.hourlyCharges)) { const price = num(r?.price); if (price == null) continue;
       const half = /half/i.test(r?.type || "");
-      hourly.push({ window: windowFrom(r), price, unitMinutes: half ? 30 : 60, minimumUnits: int(r?.usageMinimum), covered: str(r?.covered), remark: str(r?.remark), isEstimate: false }); }
+      const tiers = arr(r?.usageThresholds).map(t => ({ hours: num(t?.hours), price: num(t?.price) })).filter(t => t.hours > 0 && t.price > 0);   // "first 2 hours $12"
+      hourly.push({ window: windowFrom(r), price, unitMinutes: half ? 30 : 60, minimumUnits: int(r?.usageMinimum), minimumMinutes: (num(r?.usageMinimum) || 0) * 60, tiers, covered: str(r?.covered), remark: str(r?.remark), isEstimate: false }); }
     for (const r of arr(v.dayNightParks)) { const price = num(r?.price); if (price == null) continue; const ty = (r?.type || "").toLowerCase();
       flat.push({ kind: ty.includes("night") ? "nightPark" : ty.includes("day") ? "dayPark" : ty.includes("24") ? "twentyFourHours" : "other", window: windowFrom(r), price, remark: str(r?.remark) }); }
     for (const r of arr(v.monthlyCharges)) { const price = num(r?.price); if (price == null) continue; flat.push({ kind: "monthly", window: windowFrom(r), price, remark: str(r?.remark) || str(r?.type) }); }
@@ -306,6 +315,259 @@ export function hourlyRateAt(fee, ms, isPH = false) {
     || fee.hourly.find(r => windowContains(r.window, ms, isPH)); if (now) return now;
   const wd = WD[hkClock(ms).weekday];
   return fee.hourly.find(r => r.window.weekdays.includes(wd)) || fee.hourly[0];
+}
+
+// ------------------------------------------------------------ stay cost ---
+// What a private car pays to stay N minutes from a given time: each started unit
+// at the rate in force when it starts (time of day, weekday or holiday, and time
+// already parked, for "first two hours $11 per half hour, then $16.5"), at least
+// any minimum charge; or a day, night or 24-hour flat rate when the whole stay
+// fits inside one, whichever is less. Mixtures (a day park, then hours after it)
+// aren't tried, so a total can only err high. A rule is { window, unit, price,
+// from, to } (minutes; from/to count time parked), a flat { window, price, kind }.
+
+// Operators' price texts, in the house styles the feed carries: Transport
+// Department ("Hourly / 07:00 - 23:00 $20 per hour (private car) / Day Park /
+// 07:00 - 19:00 $135 (private car)"), LCSD venues ("Mon to Fri (Except Public
+// Holidays): 07:00-23:00, First Two Hours: $12/half hour (Thereafter: $18/half
+// hour); 23:00-07:00: $12/half hour"), estates ("$21 per hour"), the airport
+// ("First hour: $35 / Each hour thereafter: $50"), in English or Chinese. The
+// text is read as a stream of tokens; days, hours, vehicle and section carry
+// forward from the headings that set them, and only private-car prices count. A
+// private-car price the reader can't place makes it give up (null): no total
+// beats a wrong one.
+const DAYSETS = { "MON-FRI": ["MON", "TUE", "WED", "THU", "FRI"], "MON-SAT": ["MON", "TUE", "WED", "THU", "FRI", "SAT"], "MON-THU": ["MON", "TUE", "WED", "THU"], ALL: [...WD, "PH"], "SAT-SUN": ["SAT", "SUN"], "SAT-SUN+PH": ["SAT", "SUN", "PH"], "SUN+PH": ["SUN", "PH"], "FRI-SUN": ["FRI", "SAT", "SUN"], "FRI-SUN+PH": ["FRI", "SAT", "SUN", "PH"], ...Object.fromEntries(WD.map(d => [d, [d]])) };
+const DAY_CODES = Object.keys(DAYSETS);
+const XPH = "\\s*,?\\s*[(]?\\s*(?:except|excluding|excl\\.?|exclusive of|not including)\\s*(?:public holidays?|ph)\\s*[)]?";
+const WITHPH = "\\s*(?:[(]?\\s*(?:including|incl\\.?)\\s*(?:(?:public )?holidays?|ph)\\s*[)]?|(?:,|&|and)\\s*(?:(?:public )?holidays?|ph))";
+const DAY_PHRASES = [
+  [new RegExp("mon(?:day)?\\s*(?:to|-)\\s*fri(?:day)?" + XPH, "gi"), "MON-FRI!"], [/mon(?:day)?\s*(?:to|-)\s*fri(?:day)?/gi, "MON-FRI"],
+  [new RegExp("mon(?:day)?\\s*(?:to|-)\\s*sat(?:urday)?" + XPH, "gi"), "MON-SAT!"], [/mon(?:day)?\s*(?:to|-)\s*sat(?:urday)?/gi, "MON-SAT"],
+  [new RegExp("mon(?:day)?\\s*(?:to|-)\\s*thu(?:r(?:s(?:day)?)?)?" + XPH, "gi"), "MON-THU!"], [/mon(?:day)?\s*(?:to|-)\s*thu(?:r(?:s(?:day)?)?)?/gi, "MON-THU"],
+  [new RegExp("mon(?:day)?\\s*(?:to|-)\\s*sun(?:day)?(?:" + WITHPH + ")?|\\bdaily\\b|every ?day", "gi"), "ALL"],
+  [new RegExp("fri(?:day)?\\s*(?:to|-)\\s*sun(?:day)?" + WITHPH, "gi"), "FRI-SUN+PH"], [/fri(?:day)?\s*(?:to|-)\s*sun(?:day)?/gi, "FRI-SUN"],
+  [new RegExp("sat(?:urday)?\\s*(?:,|&|and|to|-|/)?\\s*sun(?:day)?" + WITHPH, "gi"), "SAT-SUN+PH"], [/sat(?:urday)?\s*(?:,|&|and|to|-|\/)?\s*sun(?:day)?/gi, "SAT-SUN"],
+  [/sun(?:day)?\s*(?:&|and|,|to)\s*(?:public holidays?|ph)/gi, "SUN+PH"],
+  [/\bmo\s*-\s*fr\b/gi, "MON-FRI"], [/\bmo\s*-\s*sa\b/gi, "MON-SAT"], [/\bmo\s*-\s*su\b/gi, "ALL"], [/\bsa\s*-\s*su(?:\s*,\s*ph)?\b/gi, "SAT-SUN+PH"],
+  [/星期一\s*至\s*(?:星期)?五\s*[(]?\s*(?:公眾假期除外|不包括公眾假期)\s*[)]?/g, "MON-FRI!"], [/星期一\s*至\s*(?:星期)?五/g, "MON-FRI"],
+  [/星期一\s*至\s*(?:星期)?六\s*[(]?\s*(?:公眾假期除外|不包括公眾假期)\s*[)]?/g, "MON-SAT!"], [/星期一\s*至\s*(?:星期)?六/g, "MON-SAT"],
+  [/星期一\s*至\s*(?:星期)?日(?:\s*[(]?\s*(?:及|包括)?\s*公眾假期\s*[)]?)?|每日/g, "ALL"],
+  [/(?:星期六\s*(?:及|、|\/|至)?\s*(?:星期)?日|星期六日|六日)\s*[(]?\s*(?:及|包括|、|\/)?\s*公眾假期\s*[)]?|假日及公眾假期(?:\s*[(][^)]*[)])?/g, "SAT-SUN+PH"],
+  [/星期六\s*(?:及|、|\/|至)?\s*(?:星期)?日|星期六日/g, "SAT-SUN"], [/星期日及公眾假期/g, "SUN+PH"],
+  [/星期一\s*至\s*(?:星期)?四\s*[(]?\s*(?:公眾假期除外|不包括公眾假期)\s*[)]?/g, "MON-THU!"], [/星期一\s*至\s*(?:星期)?四/g, "MON-THU"],
+  [/星期五\s*至\s*(?:星期)?日\s*(?:及|、)?\s*公眾假期/g, "FRI-SUN+PH"], [/星期五\s*至\s*(?:星期)?日/g, "FRI-SUN"],
+  ...[["MON", "mon(?:day)?"], ["TUE", "tue(?:s(?:day)?)?"], ["WED", "wed(?:nesday)?"], ["THU", "thu(?:r(?:s(?:day)?)?)?"], ["FRI", "fri(?:day)?"], ["SAT", "sat(?:urday)?"], ["SUN", "sun(?:day)?"]]
+    .flatMap(([d, w]) => [[new RegExp("\\b" + w + "\\b" + XPH, "gi"), d + "!"], [new RegExp("\\b" + w + "\\b", "gi"), d]]),
+];
+const CAR_WORDS = /private\s*cars?|私家車|\bcars?\b|客貨車|\bvans?\b|\bpc\b|\bp(?=\s*:)/i;
+const OTHER_VEHICLE = /motor\s*cycles?|\bmc\b|\b[ml](?=\s*:)|電單車|coach(?:es)?|旅遊巴|goods? vehicles?|貨車|lorr(?:y|ies)|trucks?|\bbus(?:es)?\b|巴士|小巴|taxis?|的士|\blgv\b|\bhgv\b|container/i;
+function tidyTariff(text) {
+  let s = String(text).replace(/<\/?br\s*\/?>/gi, "\n").replace(/(\d)\s*HKD\b/gi, "$1").replace(/[(]?\s*from (?:the time of )?(?:entry|admission) (?:to|until) (?:24:00|23:59|midnight)(?: that night)?\s*[)]?/gi, " day max ").replace(/：/g, ":").replace(/，/g, ",").replace(/；/g, ";").replace(/（/g, "(").replace(/）/g, ")").replace(/[–—~～]/g, "-").replace(/　/g, " ")
+    .replace(/HKD?\s*\$?(?=\s*\d)/gi, "$").replace(/\$\s*\$/g, "$")
+    .replace(/(\d+(?:\.\d+)?)\s*港幣/g, "$$$1")                                  // "21 港幣/小時"
+    .replace(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)\s*-\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)/gi, (m, a, am, p, b, bm, q) => `${(+a % 12) + (/pm/i.test(p) ? 12 : 0)}:${am || "00"}-${(+b % 12) + (/pm/i.test(q) ? 12 : 0)}:${bm || "00"}`)
+    .replace(/(\d{1,2}):?(\d{2})\s*:?\s*(?:-|to|至)\s*(\d{1,2}):?(\d{2})/gi, (m, a, b, c, d) => `${a.padStart(2, "0")}:${b}-${c.padStart(2, "0")}:${d}`)
+    .replace(/首\s*[一1]\s*個?小時/g, "首1小時").replace(/首\s*[兩二2]\s*個?小時/g, "首2小時")
+    .replace(/(^|[^\d$.])(\d+(?:\.\d+)?)(\s*\/\s*每?(?:半小時|小時))/g, "$1$$$2$3");     // "2/半小時" lacks its "$"
+  for (const [re, set] of DAY_PHRASES) s = s.replace(re, ` «D${DAY_CODES.indexOf(set.replace("!", ""))}${set.endsWith("!") ? "!" : ""}» `);   // numbered, so no later phrase matches inside a marker
+  return s;
+}
+const TARIFF_TOKENS = [
+  ["days", /«D(\d+)(!?)»/g],
+  ["range", /(\d{2}):(\d{2})-(\d{2}):(\d{2})/g],
+  ["stop", /[.](?=\s|$)|。/g],
+  ["first", /first\s+(two|one|\d+)?\s*(?:hours?|hrs?)\b|1st\s*-\s*2nd hours?|1st and 2nd 30 minutes|首半及第二個半小時|首(\d+)小時|[(]\s*1st\s+(\d+)\s+hours?\s*[)]/gi],
+  ["after", /thereafter|after (?:the )?(?:first|1st)\s+(?:two|\d+)\s+hours?|第\s*\d+\s*小時後|其後|第三個半小時及以後/gi],
+  ["hourly", /\bhourly\b|時租/gi],
+  ["flat", /\d+\s*hours?\s*parking(?:\s*[(][^)]*[)])?|all day park(?:\s*[(]\s*any 24 hours\s*[)])?|(?:every|any|each)\s*24\s*hours?[^$]*?up to|24[- ]hours?\s*pass|day pass|night pass|day\s*park|night\s*park(?:ing)?|overnight|24\s*hours?\s*park|24小時(?:全日)?泊|日泊|夜泊|全日泊|通宵|day max|per session/gi],
+  ["ignore", /quarterly|monthly|long[- ]term|concession(?:ary)?|valet|季租|月租|每季|每月|代客泊車|優惠/gi],
+  ["minimum", /mini(?:mu|u)?m\s*charge\s*:?\s*(\d+)\s*hours?|最少\s*(?:收費)?\s*(\d+)\s*小時/gi],
+  ["vehicle", new RegExp(CAR_WORDS.source + "|" + OTHER_VEHICLE.source, "gi")],
+  ["price", /(?:(每半小時|每小時|per half[- ]?hour|per hour|each hour)\s*:?\s*)?\$\s*(\d+(?:\.\d+)?)(?:\s*(?:\/\s*(?:per\s+|每)?|per\s+|每)\s*(half\s*(?:an\s*)?(?:hours?)?|30\s*min(?:ute)?s?|15\s*min(?:ute)?s?|\d+\s*hours?|hours?|hrs?|小時|半小時|day|日|session|month|月|kwh|quarter))?/gi],
+];
+function tariffTokens(s) {
+  const out = []; let i = 0;
+  for (;;) {
+    let best = null;
+    for (const [kind, re] of TARIFF_TOKENS) { re.lastIndex = i; const m = re.exec(s); if (m && (!best || m.index < best.m.index)) best = { kind, m }; }
+    if (!best) return out;
+    out.push(best); i = best.m.index + Math.max(1, best.m[0].length);
+  }
+}
+// "07:01-22:59" means 07:00-23:00: no minute-long gaps between one rate and the next.
+const rangeOf = (m) => [clockTime(`${m[1]}:${m[2]}`), clockTime(`${m[3]}:${m[4]}`)].map(x => x % 60 === 1 ? x - 1 : x % 60 === 59 ? x + 1 : x);
+export function readTariff(text) {
+  if (!text) return null;
+  const rules = [], flats = [];
+  let days = DAYSETS.ALL, exPH = false, win = null, sectionWin = null, car = true, flatKw = null, sectionFlat = null, hourly = false, section = false, skipNext = false, tier = null, lastFirst = null, minimum = 0;
+  for (const line of tidyTariff(text).split(/\n+/)) {
+    const toks = tariffTokens(line), priced = toks.some(t => t.kind === "price"); flatKw = null;
+    // A heading line ("Quarterly", "Day Park", "Hourly") sets the section for the lines below it.
+    if (toks.length && !priced) {
+      const f = toks.find(t => t.kind === "flat" || t.kind === "hourly"), r = toks.find(t => t.kind === "range");
+      if (toks.some(t => t.kind === "ignore")) { section = true; sectionFlat = null; hourly = false; }
+      else if (f) { section = false; sectionFlat = f.kind === "flat" ? flatKind(f.m[0]) : null; if (f.kind === "hourly") hourly = true; }
+      if (r) sectionWin = rangeOf(r.m); else if (f) sectionWin = null;    // "Day Park (07:00-23:00)" heads the day lines below it
+    }
+    for (let k = 0; k < toks.length; k++) {
+      const { kind, m } = toks[k]; if (toks[k].used) continue;
+      const nextPrice = toks.slice(k + 1).find(t => t.kind === "price");
+      if (kind === "days") {
+        const set = DAYSETS[DAY_CODES[+m[1]]], joined = toks[k - 1]?.kind === "days" && /^[\s,&\/、及-]*$/.test(line.slice(toks[k - 1].m.index + toks[k - 1].m[0].length, m.index));
+        days = joined ? [...new Set([...days, ...set])] : set; exPH = m[2] === "!"; win = sectionWin; tier = null;    // "Fri-Sat, Sun & PH": one set
+      }
+      else if (kind === "stop") { days = DAYSETS.ALL; exPH = false; win = null; }   // a sentence's days end with it: "Overnight $90 for 21:00-10:00."
+      else if (kind === "range") win = rangeOf(m);
+      else if (kind === "first") { const w = (m[1] || "").toLowerCase(); tier = { from: 0, to: /30 minutes|半小時/.test(m[0]) ? 60 : /2nd/.test(m[0]) ? 120 : 60 * (w === "two" ? 2 : w === "one" || !w && !m[2] && !m[3] ? 1 : +(w || m[2] || m[3])) }; lastFirst = tier.to; }
+      else if (kind === "after") tier = { from: lastFirst ?? 60, to: null };
+      else if (kind === "hourly") { hourly = true; flatKw = null; if (priced) sectionFlat = null; }
+      else if (kind === "flat") flatKw = flatKind(m[0]);
+      else if (kind === "ignore") skipNext = true;
+      else if (kind === "minimum") minimum = +(m[1] || m[2]) * 60;
+      else if (kind === "vehicle") {
+        // "Private Car:", "Motorcycles & Private Car $8": the run of vehicle words up to the next price decides; a tag after a price is that price's own.
+        if (toks[k - 1]?.kind === "vehicle" || (toks[k - 1]?.kind === "price" && /^\s*[(]\s*$/.test(line.slice(toks[k - 1].m.index + toks[k - 1].m[0].length, m.index)))) continue;
+        car = CAR_WORDS.test(line.slice(m.index, nextPrice ? nextPrice.m.index : line.length));
+      }
+      else if (kind === "price") {
+        const price = +m[2], unitTxt = (m[3] || "").toLowerCase(), before = (m[1] || "").toLowerCase();
+        const rest = line.slice(m.index + m[0].length, nextPrice ? nextPrice.m.index : line.length);
+        const tag = /^\s*[(]([^)]*)[)]/.exec(rest), tagged = tag && (CAR_WORDS.test(tag[1]) || OTHER_VEHICLE.test(tag[1]));
+        const forCar = tagged ? CAR_WORDS.test(tag[1]) : car;
+        const next = toks[k + 1];     // "(1st 2 hours)" or "(after the 1st 2 hours)" after the price is its tier
+        if (next?.kind === "first" && /1st/.test(next.m[0])) { tier = { from: 0, to: +next.m[3] * 60 }; lastFirst = tier.to; next.used = true; }
+        else if (next?.kind === "after" && /1st/.test(next.m[0])) { tier = { from: lastFirst ?? 60, to: null }; next.used = true; }
+        const t = tier; tier = null;
+        // Days written after the price and closing the sentence qualify that price.
+        const j = toks.findIndex((x, i) => i > k && (x.kind === "days" || x.kind === "price"));
+        const trailing = j > 0 && toks[j].kind === "days" && /^\s*[)]?\s*(?:[.;]|$|·)/.test(line.slice(toks[j].m.index + toks[j].m[0].length)) ? toks[j] : null;
+        if (trailing) trailing.used = true;
+        const daysHere = trailing ? DAYSETS[DAY_CODES[+trailing.m[1]]] : days, exHere = trailing ? trailing.m[2] === "!" : exPH;
+        const windowHere = (w) => makeWindow(daysHere, w ? w[0] : null, w ? w[1] : null, exHere);
+        if (section || skipNext || !forCar || !(price > 0) || /month|月|kwh|quarter/.test(unitTxt)) { skipNext = false; continue; }
+        const unit = /half|30|半小時/.test(unitTxt) || /half|半/.test(before) ? 30 : /15/.test(unitTxt) ? 15 : /hour|hr|小時/.test(unitTxt) || before ? 60 : null;
+        const flatKw2 = flatKw || sectionFlat, perDay = /^(?:day|日)$/.test(unitTxt);
+        // Hours written just after the price are its own: always for a flat ("Day Park $120(0800 to
+        // 1800)"), for a rate only when they end the clause ("$32 per hour, 07:01-23:00;"). Hours
+        // followed by ":" open the next item ("Day Park:$50, 2200-0800: $13/hour").
+        const tail = next?.kind === "range" ? line.slice(next.m.index + next.m[0].length) : null, afterNext = toks[k + 2];
+        const bracketed = tail != null && /^\s*[(]\s*$/.test(line.slice(m.index + m[0].length, next.m.index)) && /^\s*[)]/.test(tail);
+        const opensNext = tail != null && (/^\s*:/.test(tail) || (/^\s*,/.test(tail) && afterNext?.kind === "price"));
+        const ownHours = tail != null && (bracketed || !opensNext) ? rangeOf(next.m) : null, closing = bracketed || (tail != null && !opensNext && /^\s*[)]?\s*(?:[.;,]|$)/.test(tail));
+        const block = /^(\d+)\s*hours?$/.exec(unitTxt) || (unit == null && /^hours:(\d+)$/.exec(flatKw2 || ""));
+        if (block) flats.push({ window: windowHere(null), price, kind: "hours", room: +block[1] * 60 });
+        else if (perDay && !bracketed && !/^(?:day|night|dayMax)$/.test(flatKw2 || "")) flats.push({ window: windowHere(null), price, kind: "daily" });
+        else if (unitTxt === "session" || ((unit == null || perDay) && flatKw2) || (perDay && bracketed)) {
+          const kindOf = unitTxt === "session" ? "session" : flatKw2 || "day";     // "$180/day (08:00-18:00)" is a day park
+          const w = kindOf === "24h" ? null : flatKw2 === "dayMax" ? [0, 1440] : ownHours || win;
+          if (ownHours && w === ownHours) next.used = true;
+          if (w || kindOf === "24h") flats.push({ window: windowHere(w), price, kind: kindOf });     // a day or night rate with no hours can't be placed: left out
+        }
+        else if (unit != null || t || price <= 60) {
+          const w = ownHours && closing ? ownHours : win; if (ownHours && w === ownHours) next.used = true;
+          rules.push({ window: windowHere(w), unit: unit ?? (t && t.to ? t.to - t.from : 60), price, from: t ? t.from : 0, to: t ? t.to : null, guessed: unit == null && !hourly && !t });
+        }
+        else return null;    // a car price this reader can't place
+      }
+    }
+  }
+  if (minimum) for (const r of rules) r.minimum = minimum;
+  // The same days, hours and tier priced more than once (one text for several car
+  // parks: "OC1 $22, OC2 $20, OC3 $23 per hour") keep the dearest, so totals err high.
+  const keep = new Map();
+  for (const r of rules) { const k = [r.window.weekdays.join(), r.window.start, r.window.end, r.window.excludesPH, r.from, r.to].join("|"), o = keep.get(k); if (!o || r.price / r.unit > o.price / o.unit) keep.set(k, r); }
+  const keepFlat = new Map();
+  for (const f of flats) { const k = [f.kind, f.room, f.window.weekdays.join(), f.window.start, f.window.end, f.window.excludesPH].join("|"), o = keepFlat.get(k); if (!o || f.price > o.price) keepFlat.set(k, f); }
+  return keep.size || keepFlat.size ? { rules: [...keep.values()], flats: [...keepFlat.values()] } : null;
+}
+const flatKind = (s) => /night|overnight|夜泊|通宵/i.test(s) ? "night" : /^\s*(?!24\b)\d+\s*hours?\s*parking/i.test(s) ? "hours:" + parseInt(s, 10) : /24|all day/i.test(s) ? "24h" : /session/i.test(s) ? "session" : /max/i.test(s) ? "dayMax" : "day";
+
+const TARIFFS = new WeakMap();
+// The rules for a car park's private cars, worked out once per record.
+export function tariffOf(cp) {
+  if (!cp || typeof cp !== "object") return null;
+  if (!TARIFFS.has(cp)) TARIFFS.set(cp, buildTariff(cp));
+  return TARIFFS.get(cp);
+}
+function buildTariff(cp) {
+  const fee = cp.fees?.privateCar; if (!fee) return null;
+  if (cp.sources?.includes("transportDepartmentMeters") && fee.hourly.length) {   // meters: 15-minute units, free outside their hours, with a longest stay
+    const m = /max stay (\d+(?:\.\d+)?)\s*(h|min)/i.exec(fee.hourly[0].remark || "");
+    return { rules: fee.hourly.map(h => ({ window: h.window, unit: 15, price: h.price / 4, from: 0, to: null })), flats: [], freeOutside: true, maxStay: m ? +m[1] * (m[2].toLowerCase() === "h" ? 60 : 1) : null, estimate: false };
+  }
+  const exact = fee.hourly.filter(h => !h.isEstimate);
+  if (exact.length || fee.flat.some(f => f.kind !== "monthly")) {
+    const rules = exact.flatMap(h => {
+      const t = h.tiers?.[0], base = { window: h.window, unit: h.unitMinutes || 60, minimum: h.minimumMinutes || 0 };
+      return t && t.price !== h.price ? [{ ...base, price: t.price, from: 0, to: t.hours * 60 }, { ...base, price: h.price, from: t.hours * 60, to: null }] : [{ ...base, price: h.price, from: 0, to: null }];
+    });
+    const flats = fee.flat.filter(f => f.kind !== "monthly" && f.price > 0).map(f => ({ window: f.window, price: f.price, kind: f.kind === "nightPark" ? "night" : f.kind === "twentyFourHours" ? "24h" : "day" }));
+    return { rules, flats, freeOutside: false, maxStay: null, estimate: false };
+  }
+  const read = readTariff(fee.note);
+  if (read) return { ...read, freeOutside: false, maxStay: null, estimate: true };
+  if (fee.hourly.length) return { rules: fee.hourly.map(h => ({ window: h.window, unit: h.unitMinutes || 60, price: h.price, from: 0, to: null })), flats: [], freeOutside: false, maxStay: null, estimate: true };
+  return null;
+}
+function ruleAt(rules, ms, isPH, parked) {
+  const ok = rules.filter(r => parked >= r.from && (r.to == null || parked < r.to) && windowContains(r.window, ms, isPH));
+  return (isPH && ok.find(r => r.window.weekdays.includes("PH"))) || ok[0] || null;
+}
+// The minutes left in a flat's window from `ms`, or null when it isn't on then.
+function flatRoom(f, ms, isPH) {
+  if (f.kind === "daily") return Infinity;
+  if (!windowContains(f.window, ms, isPH)) return null;
+  if (f.room) return f.room;                         // "$95 for 12 hours"
+  const w = f.window; if (w.start == null || w.end == null || w.start === w.end) return 1440;   // no hours given: a day from entry
+  const m0 = hkClock(ms).minutes, e = w.end === 0 ? 1440 : w.end;
+  return w.start < e ? e - m0 : m0 >= w.start ? 1440 - m0 + e : e - m0;
+}
+export function stayCost(cp, startMs, minutes, holidays) {
+  const t = tariffOf(cp); if (!t || !(minutes > 0)) return null;
+  const ph = (ms) => isPublicHoliday(ms, holidays);
+  let total = 0, parked = 0, charged = 0, estimate = t.estimate || t.rules.some(r => r.guessed), first = null;
+  if (t.rules.length) {
+    const perMin = (r) => r.price / r.unit;
+    while (parked < minutes) {
+      const ms = startMs + parked * 60e3, hol = ph(ms);
+      let r = ruleAt(t.rules, ms, hol, parked);
+      if (!r && t.freeOutside) { parked += 15; continue; }      // a meter outside its hours costs nothing
+      if (!r) { r = t.rules.reduce((a, b) => perMin(b) > perMin(a) ? b : a); estimate = true; }   // a gap in the rates: assume the dearest
+      first = first || r; total += r.price; parked += r.unit; charged += r.unit;
+    }
+    if (first?.minimum > charged) total += Math.ceil((first.minimum - charged) / first.unit) * first.price;
+  } else total = Infinity;
+  // A flat cheaper than the first hour at the hourly rate is a mislabelled rate ("day-park $2" for $2 per half hour at night), not a deal.
+  const firstHour = t.rules.length ? stayCostRules(t, startMs, 60, ph) : 0;
+  let best = total, flat = null;
+  for (const f of t.flats) {
+    const room = flatRoom(f, startMs, ph(startMs)); if (room == null || f.price < firstHour) continue;
+    const cost = f.kind === "daily" ? Math.ceil(minutes / 1440) * f.price : f.kind === "dayMax" ? calendarDays(startMs, minutes) * f.price : minutes <= room ? f.price : null;
+    if (cost != null && cost < best) { best = cost; flat = f.kind; }
+  }
+  if (!isFinite(best)) return null;
+  return { total: Math.round(best * 10) / 10, estimate, flat, tooLong: t.maxStay != null && charged > t.maxStay, maxStay: t.maxStay };
+}
+// A "day max" lasts until midnight, then starts again: one charge per calendar day touched.
+const calendarDays = (startMs, minutes) => Math.round((Date.parse(hkDate(startMs + minutes * 60e3 - 1)) - Date.parse(hkDate(startMs))) / 86400e3) + 1;
+function stayCostRules(t, startMs, minutes, ph) {
+  let total = 0, parked = 0;
+  const dearest = t.rules.reduce((a, b) => b.price / b.unit > a.price / a.unit ? b : a);
+  while (parked < minutes) {
+    const ms = startMs + parked * 60e3; let r = ruleAt(t.rules, ms, ph(ms), parked);
+    if (!r) { if (t.freeOutside) { parked += 15; continue; } r = dearest; }
+    total += r.price; parked += r.unit;
+  }
+  return total;
+}
+export const FLAT_NAME = { day: lt("day park", "日泊"), night: lt("night park", "夜泊"), "24h": lt("24-hour", "24 小時泊"), session: lt("session", "時段收費"), daily: lt("daily rate", "日租"), hours: lt("flat rate", "套票"), dayMax: lt("day max", "全日上限") };
+export function stayText(c, minutes, lang) {
+  const h = minutes / 60, d = pick(lang, `${h} h`, `${h} 小時`);
+  if (!c) return null;
+  if (c.tooLong) return pick(lang, `${d}: max ${c.maxStay >= 60 ? c.maxStay / 60 + " h" : c.maxStay + " min"} here`, `${d}：最多泊 ${c.maxStay >= 60 ? c.maxStay / 60 + " 小時" : c.maxStay + " 分鐘"}`);
+  const v = Number.isInteger(c.total) ? `$${c.total}` : `$${c.total.toFixed(1)}`;
+  const kind = c.flat && FLAT_NAME[c.flat] ? " " + t(lang, FLAT_NAME[c.flat]) : "";
+  return pick(lang, `${d} ${c.estimate ? "about " : ""}${v}${kind}`, `${d} ${c.estimate ? "約 " : ""}${v}${kind}`);
 }
 
 // Links come from third parties: the government feed, OpenStreetMap (anyone can
@@ -332,7 +594,7 @@ export function normalizeInfoRow(r, lang) {
   const composed = [str(a.buildingName), [str(a.buildingNo), str(a.streetName)].filter(Boolean).join(" ") || null, str(a.subDistrict), str(a.dcDistrict)].filter(Boolean).join(", ") || null;
   const address = str(r?.displayAddress) || composed || str(r?.district) || "";
   const districtRaw = str(r?.district) || str(a.dcDistrict);
-  const { tariff, ...height } = pickHeight(r?.heightLimits);
+  const { tariff, other, ...height } = pickHeight(r?.heightLimits);
   const vehicles = {}; for (const k of VEHICLE_TYPES) if (r?.[k] && typeof r[k] === "object" && !Array.isArray(r[k])) vehicles[k] = r[k];
   const fees = {}; for (const [k, v] of Object.entries(vehicles)) { const f = feeSchedule(v, null); if (!feeIsEmpty(f)) fees[k] = f; }
   if (!fees.privateCar && tariff) fees.privateCar = feeSchedule(null, tariff);   // the tariff typed into the height remark
@@ -353,7 +615,7 @@ export function normalizeInfoRow(r, lang) {
     capacity, nature: str(r?.nature)?.toLowerCase() || null, carParkType: str(r?.carpark_Type)?.toLowerCase() || null,
     contact: str(r?.contactNo), website: url(r?.website), photoURL: url(r?.renditionUrls?.carpark_photo),
     isMall: isMallName(name, address), isEnriched: enriched, sources, modifiedAt: parseHKTime(r?.modifiedDate),
-    bayCount: null, infoNote: null, operatorName: null, factsProvenance: null, searchAliases: [],
+    bayCount: null, infoNote: other ? T(other) : null, operatorName: null, factsProvenance: null, searchAliases: [],
   };
 }
 
@@ -369,7 +631,8 @@ export function mergeCarPark(a, b) {
   m.facilities = [...new Set([...a.facilities, ...b.facilities])];
   if (!a.paymentMethods.length) m.paymentMethods = b.paymentMethods;
   if (!Object.keys(a.capacity).length) m.capacity = b.capacity;
-  for (const k of ["nature", "carParkType", "contact", "website", "photoURL", "modifiedAt", "operatorName", "factsProvenance", "infoNote", "bayCount"]) m[k] = a[k] ?? b[k];
+  for (const k of ["nature", "carParkType", "contact", "website", "photoURL", "modifiedAt", "operatorName", "factsProvenance", "bayCount"]) m[k] = a[k] ?? b[k];
+  m.infoNote = a.infoNote || b.infoNote ? { ...b.infoNote, ...a.infoNote } : null;
   m.isMall = a.isMall || b.isMall; m.isEnriched = a.isEnriched || b.isEnriched;
   m.sources = [...new Set([...a.sources, ...b.sources])];
   m.searchAliases = [...new Set([...(a.searchAliases || []), ...(b.searchAliases || [])])];
@@ -379,7 +642,7 @@ export function mergeCarPark(a, b) {
 // Phones keep the feed as read (IndexedDB "info"). Bump this whenever what
 // normalizeInfo produces changes, so a copy read by an older version is shown
 // at once but fetched again instead of being kept for its six hours.
-export const FEED_FORMAT = 3;   // 2: heights read from remarks, tariffs moved to fees, twins merged; 3: CLOSED no longer means shut
+export const FEED_FORMAT = 4;   // 2: heights read from remarks, tariffs moved to fees, twins merged; 3: CLOSED no longer means shut; 4: day headings stay with the tariff, other lines become notes, tiered rates kept
 
 export function normalizeInfo(rowsEN, rowsTC) {
   const byId = new Map(), order = [];
@@ -878,7 +1141,9 @@ export function evaluate(rec, ctx) {
     if (ctx.vehicle.avoidNoLiveData && lv === "unknown") score -= 8;
     if (supports === false) { blocked = true; reasons.push(["classNotSupported"]); }
   }
-  return { rec, cp, id: cp.id, dist, reading, level: lv, fresh, fit: f, isOpen: open, estHourly: rate ? hourlyEquivalent(rate) : null, hourlyIsEstimate: !!rate?.isEstimate, supports, score: blocked ? 0 : Math.max(0, score), reasons };
+  // The whole stay, when the screen asks for one (the Cheapest sort): undefined = not asked, null = no fees to go on.
+  const stay = ctx.stayMinutes ? stayCost(cp, ctx.now, ctx.stayMinutes, ctx.holidays) : undefined;
+  return { rec, cp, id: cp.id, dist, reading, level: lv, fresh, fit: f, isOpen: open, estHourly: rate ? hourlyEquivalent(rate) : null, hourlyIsEstimate: !!rate?.isEstimate, stay, supports, score: blocked ? 0 : Math.max(0, score), reasons };
 }
 
 export function reasonText(r, lang) {
@@ -904,7 +1169,8 @@ export function comparator(sort) {
   switch (sort) {
     case "nearest": return (a, b) => d(a) !== d(b) ? d(a) - d(b) : b.score - a.score;
     case "mostSpaces": { const c = (x) => x.level === "unknown" ? -1 : (x.reading?.count ?? (x.level === "full" ? 0 : 1)); return (a, b) => c(a) !== c(b) ? c(b) - c(a) : d(a) - d(b); }
-    case "lowestCost": { const p = (x) => x.estHourly ?? INF; return (a, b) => p(a) !== p(b) ? p(a) - p(b) : d(a) - d(b); }
+    // By the whole stay when one is set (a meter that can't be kept that long goes last), else by the hourly rate.
+    case "lowestCost": { const p = (x) => x.stay === undefined ? x.estHourly ?? INF : x.stay ? x.stay.total + (x.stay.tooLong ? 1e6 : 0) : INF; return (a, b) => p(a) !== p(b) ? p(a) - p(b) : d(a) - d(b); }
     case "highestClearance": { const h = (x) => x.cp.height.metres ?? -1; return (a, b) => h(a) !== h(b) ? h(b) - h(a) : d(a) - d(b); }
     case "recentlyUpdated": { const tt = (x) => x.reading?.updatedAt ?? -INF; return (a, b) => tt(a) !== tt(b) ? tt(b) - tt(a) : d(a) - d(b); }
     default: return (a, b) => a.score !== b.score ? b.score - a.score : d(a) - d(b);
@@ -998,6 +1264,8 @@ export const SORT_CHOICES = [
   { id: "lowestCost", label: lt("Cheapest", "最平") }, { id: "mostSpaces", label: lt("Most spaces", "最多位") },
 ];
 export const FILTER_TILES = ["streetMeters", "evCharging", "heightFits", "openNow", "mallParking"];
+// How long you'll stay, for the Cheapest sort and the fees on a car park's page (minutes).
+export const STAY_CHOICES = [60, 120, 180, 240, 480];
 export function chipIsOn(id, f, sort) {
   return ({ nearMe: sort === "nearest", cheapest: sort === "lowestCost", mostSpaces: sort === "mostSpaces", streetMeters: !!f.includeMeters, evCharging: !!f.evCharging, heightFits: !!f.onlyCompatible, openNow: !!f.openNow, mallParking: !!f.mallOnly })[id];
 }

@@ -389,7 +389,7 @@ test("height remarks: the height read from the text, the tariff moved to the fee
   assert.equal(C.pickHeight([{ height: 0, remark: "Height Limit:<br>1.9m (Applicable to Entrance)<br>1.8m (Applicable to 1/F)<br>1.7m (Applicable to 2/F)" }]).metres, 1.9, "the entrance decides");
   assert.equal(C.pickHeight([{ height: 0, remark: "1.8m (Applicable to Private Cars/Vans)\n3m (Applicable to Container Vehicles)" }]).metres, 1.8);
   assert.equal(C.pickHeight([{ height: 0, remark: "1.9m (B2-B4 Private Cars)<br>Private Cars：<br>$32/Hour" }]).note, "1.9m (B2-B4 Private Cars)", "a label with a full-width colon is not part of the note");
-  assert.deepEqual(C.pickHeight([{ height: 2.1, remark: "Private Car" }]), { metres: 2.1, note: null, tariff: null }, "a bare vehicle label is not a note");
+  assert.deepEqual(C.pickHeight([{ height: 2.1, remark: "Private Car" }]), { metres: 2.1, note: null, tariff: null, other: null }, "a bare vehicle label is not a note");
   assert.equal(C.pickHeight([{ height: 0, remark: "限高 2.0米" }]).metres, 2);
   assert.equal(C.pickHeight([{ height: 0, remark: "Opens 30 min before the mall" }]).metres, null, "minutes are not metres");
   assert.equal(C.pickHeight([{ height: 0, remark: "Ramp 12.5m long" }]).metres, null, "not 2.5 out of 12.5");
@@ -636,4 +636,92 @@ test("the feed's CLOSED flag is not read as shut: it marks busy car parks closed
   // Opening hours, where the feed gives them, still decide.
   const shut = { ...row("CLOSED"), openingHours: [C.makeWindow(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"], 480, 600)] };
   assert.equal(C.isOpenAt(shut, C.parseHKTime("2026-10-03 22:30:00")), false);
+});
+
+test("height remarks: day headings stay with their prices, other lines become the car park's notes", () => {
+  // Shek Kip Mei Park: the day lines used to show under "Height limit", and the
+  // fees listed two price blocks without saying which days each was for.
+  const skm = "Height limit:2.45(M)\nMon to Fri (Except Public Holidays) 07:00-23:00:\nPrivate Car,\nFirst Two Hours: $11/half hour (Thereafter: $16.5/half hour);\n23:00-07:00 $2/half hour.\nSat, Sun & Public Holidays 0700:-23:00:\nPrivate Car,\nFirst Two Hours: $13/half hour (Thereafter: $19.5/half hour);\n23:00-07:00 $2/half hour.";
+  const h = C.pickHeight([{ height: 2.45, remark: skm }]);
+  assert.equal(h.note, "2.45(M)");
+  assert.match(h.tariff, /^Mon to Fri \(Except Public Holidays\) 07:00-23:00:/); assert.match(h.tariff, /Sat, Sun & Public Holidays/);
+  assert.equal(h.other, null);
+  // Opening hours and the like are neither height nor price: they go to the notes.
+  assert.equal(C.pickHeight([{ height: 1.7, remark: "Height Limit: Height limit:1.7(M)" }]).note, "1.7(M)", "the feed's doubled prefix goes too");
+  const row = { park_Id: "x", name: "T", latitude: 22.3, longitude: 114.17, heightLimits: [{ height: 3.8, remark: "Height limit:3.8(M)\nOperating HoursMon - Sun & PH: 0000 - 2400" }] };
+  assert.equal(C.pickHeight(row.heightLimits).note, "3.8(M)");
+  assert.equal(C.normalizeInfoRow(row, "en").infoNote.en, "Operating HoursMon - Sun & PH: 0000 - 2400");
+  const both = C.mergeCarPark(C.normalizeInfoRow(row, "en"), C.normalizeInfoRow({ ...row, heightLimits: [{ height: 3.8, remark: "高度限制3.8米\n開放時間星期一至日及公眾假期: 0000 - 2400" }] }, "tc"));
+  assert.deepEqual(both.infoNote, { tc: "開放時間星期一至日及公眾假期: 0000 - 2400", en: "Operating HoursMon - Sun & PH: 0000 - 2400" }, "both languages kept");
+  // "</br>" breaks lines too; "23:00-07:00：2/半小時" is a price even without its "$".
+  assert.equal(C.pickHeight([{ height: 2, remark: "Monthly - PC $1900 </br>MC $480 </br></br> Hourly - PC $16" }]).tariff, "Monthly - PC $1900\nMC $480\nHourly - PC $16");
+  assert.equal(C.pickHeight([{ height: 2, remark: "限高2米\n23:00-07:00：2/半小時" }]).tariff, "23:00-07:00：2/半小時");
+});
+
+test("cost for a stay: operators' price texts read into rates, first-hours prices, day parks and caps", () => {
+  const hol = new Set(json(join(here, "..", "data", "holidays.json")).dates);
+  const at = (s) => C.parseHKTime(s), cost = (cp, t, h) => C.stayCost(cp, t, h * 60, hol);
+  const sat14 = at("2026-10-03 14:00:00"), mon10 = at("2026-10-05 10:00:00"), mon22 = at("2026-10-05 22:00:00"), ph12 = at("2026-10-01 12:00:00");
+  const park = (note) => ({ id: "t", kind: "offStreet", sources: ["transportDepartmentOneStop"], fees: { privateCar: C.feeSchedule(null, note) } });
+  // LCSD: a cheaper rate for the first two hours, then dearer; $2 at night; weekends and holidays dearer.
+  const skm = park("Mon to Fri (Except Public Holidays) 07:00-23:00:\nPrivate Car,\nFirst Two Hours: $11/half hour (Thereafter: $16.5/half hour);\n23:00-07:00 $2/half hour.\nSat, Sun & Public Holidays 0700:-23:00:\nPrivate Car,\nFirst Two Hours: $13/half hour (Thereafter: $19.5/half hour);\n23:00-07:00 $2/half hour.");
+  assert.equal(cost(skm, sat14, 3).total, 91, "4 × $13, then 2 × $19.5");
+  assert.equal(cost(skm, mon10, 3).total, 77, "4 × $11, then 2 × $16.5");
+  assert.equal(cost(skm, mon22, 3).total, 30, "2 × $11 to 23:00, then 4 × $2");
+  assert.equal(cost(skm, ph12, 1).total, 26, "1 Oct is a public holiday: the weekend rate");
+  assert.equal(cost(skm, sat14, 3).estimate, true, "read from text, so shown as about");
+  // Transport Department: hourly by time band; the day park when the whole stay fits; motorcycles and quarterly left out.
+  const tinHau = park("Hourly\n07:00 - 23:00 $24 per hour (private car)\n23:00 - 07:00 $19 per hour (private car)\nDay Park\n07:00 - 19:00 $135 (private car)\n08:00 - 23:00 $32 (motorcycles)\nNight Park\n23:00 - 08:00 $14 (motorcycles)\nQuarterly\nQuarterly $10050 (private car)");
+  assert.equal(cost(tinHau, mon10, 3).total, 72);
+  assert.deepEqual([cost(tinHau, mon10, 8).total, cost(tinHau, mon10, 8).flat], [135, "day"], "10:00-18:00 fits the 07:00-19:00 day park");
+  assert.equal(cost(tinHau, sat14, 8).total, 24 * 8, "14:00-22:00 doesn't");
+  assert.match(C.stayText(cost(tinHau, mon10, 8), 480, "tc"), /^8 小時 約 \$135 日泊$/);
+  // The airport: the first hour, then each hour after.
+  assert.equal(cost(park("Hourly\nFirst hour : $35\nEach hour thereafter : $50"), mon10, 3).total, 135);
+  // A day max until midnight is charged again the next day.
+  const tsingChin = park("Monthly : Motorcycle $500/Month, Car $2500/Month; Day max : $10/Day (Calculated from the time of admission to 23:59 that night);");
+  assert.equal(cost(tsingChin, mon10, 8).total, 10); assert.equal(cost(tsingChin, mon22, 3).total, 20);
+  // "(From entry to 24:00) $110" caps the day.
+  const hilton = park("Private Cars：\nMonday to Friday (Except Public Holidays) $20/Hour\nSaturday to Sunday and Public Holidays $27/Hour\nMonday to Friday (Except Public Holidays) (From entry to 24:00) $110\nSaturday to Sunday and Public Holidays (From entry to 24:00) $140");
+  assert.equal(cost(hilton, mon10, 8).total, 110); assert.equal(cost(hilton, sat14, 3).total, 81);
+  // Days written after a price qualify it; hours after a price, before the clause ends, are its own.
+  const k11 = park("Monday to Thursday (except public holidays) HK$30 per hour; Friday to Sunday and public holidays HK$41 per hour. Overnight HK$90 for 21:00–10:00. Day park HK$150 for 08:00–19:00, Monday to Friday.");
+  assert.equal(cost(k11, mon10, 8).total, 150); assert.equal(cost(k11, sat14, 3).total, 123); assert.equal(cost(k11, mon22, 8).total, 90, "overnight every night");
+  // One text for several car parks ("OC1 $22, OC2 $20"): the dearest, so totals err high.
+  assert.equal(cost(park("Monday to Friday: OC1 HK$22, OC2 HK$20, OC3 HK$23 per hour."), mon10, 1).total, 23);
+  // A car price the reader can't place gives no total from the text.
+  assert.equal(C.readTariff("Private car $500"), null);
+  assert.equal(C.readTariff("Coach: $16 per half hour"), null, "no private-car price at all");
+});
+
+test("cost for a stay: meters, the feed's structured charges, and the Cheapest sort", () => {
+  const hol = new Set(json(join(here, "..", "data", "holidays.json")).dates);
+  const at = (s) => C.parseHKTime(s), mon10 = at("2026-10-05 10:00:00");
+  // A meter: $16 an hour 08:00-20:00 Mon-Sat, at most 2 hours, free after hours.
+  const meterFee = { hourly: [{ window: C.makeWindow(["MON", "TUE", "WED", "THU", "FRI", "SAT"], 480, 1200), price: 16, unitMinutes: 60, remark: "Max stay 2 h · 最多可泊 2 小時", isEstimate: false }], flat: [], privileges: [], note: null };
+  const meter = { id: "meter:x", kind: "onStreetMeter", sources: ["transportDepartmentMeters"], fees: { privateCar: meterFee } };
+  assert.deepEqual(C.stayCost(meter, mon10, 120, hol), { total: 32, estimate: false, flat: null, tooLong: false, maxStay: 120 });
+  assert.equal(C.stayCost(meter, mon10, 180, hol).tooLong, true, "a 2-hour meter can't be kept 3 hours");
+  assert.deepEqual([C.stayCost(meter, at("2026-10-05 19:00:00"), 180, hol).total, C.stayCost(meter, at("2026-10-05 19:00:00"), 180, hol).tooLong], [16, false], "only 19:00-20:00 is charged");
+  assert.equal(C.stayCost(meter, at("2026-10-05 19:45:00"), 120, hol).total, 4, "meters charge by the quarter hour: $4 to 20:00, then free");
+  // Structured: "first 2 hours $12" thresholds; a "day park" of $2 at night is a mislabelled half-hour rate, ignored.
+  const hongNing = { id: "93", kind: "offStreet", sources: ["transportDepartmentOneStop"], fees: { privateCar: C.feeSchedule({
+    hourlyCharges: [{ type: "hourly", price: 18, weekdays: ["MON", "TUE", "WED", "THU", "FRI"], periodStart: "00:00", periodEnd: "00:00", usageThresholds: [{ hours: 2, price: 12 }] }],
+    dayNightParks: [{ type: "day-park", price: 2, weekdays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN", "PH"], periodStart: "23:00", periodEnd: "07:00" }] }) } };
+  assert.deepEqual([C.stayCost(hongNing, mon10, 180, hol).total, C.stayCost(hongNing, mon10, 180, hol).estimate], [42, false], "2 × $12 + $18, exact");
+  assert.equal(C.stayCost(hongNing, at("2026-10-05 23:30:00"), 120, hol).total, 24, "not $2");
+  // Cheapest ranks by the whole stay: a meter that can't be kept that long, then car parks with no fees, go last.
+  const base = { name: C.lt("T"), address: {}, district: "kowloonCity", districtText: {}, entrance: null, height: { metres: 2.0, note: null }, openingStatus: "open", openingHours: [], facilities: [], paymentMethods: [], capacity: {}, isMall: false, isEnriched: false, searchAliases: [], lat: 22.33, lng: 114.17 };
+  const feeOf = (note) => ({ privateCar: C.feeSchedule(null, note) });
+  const recs = [
+    { cp: { ...base, id: "dear", kind: "offStreet", sources: ["transportDepartmentOneStop"], fees: feeOf("$30 per hour") }, vac: {} },
+    { cp: { ...base, ...meter, id: "meter" }, vac: {} },
+    { cp: { ...base, id: "none", kind: "offStreet", sources: ["openStreetMap"], fees: {} }, vac: {} },
+    { cp: { ...base, id: "cheap", kind: "offStreet", sources: ["transportDepartmentOneStop"], fees: feeOf("First 2 hours $9/Half hour\nAfter the First 2 Hours $15/Half hour") }, vac: {} },
+  ];
+  const ranked = C.rank(recs, { origin: { lat: 22.33, lng: 114.17 }, now: mon10, stayMinutes: 180, holidays: hol }, "lowestCost");
+  assert.deepEqual(ranked.map(r => r.id), ["cheap", "dear", "meter", "none"]);
+  assert.deepEqual(ranked.map(r => r.stay?.total ?? null), [66, 90, 48, null], "4 × $9 + 2 × $15; 3 × $30; the meter's 3 hours aren't allowed");
+  assert.equal(ranked[2].stay.tooLong, true);
+  assert.equal(C.rank(recs, { origin: { lat: 22.33, lng: 114.17 }, now: mon10 }, "lowestCost")[0].stay, undefined, "no stay asked: not worked out");
 });
