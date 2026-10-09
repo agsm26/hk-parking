@@ -725,3 +725,62 @@ test("cost for a stay: meters, the feed's structured charges, and the Cheapest s
   assert.equal(ranked[2].stay.tooLong, true);
   assert.equal(C.rank(recs, { origin: { lat: 22.33, lng: 114.17 }, now: mon10 }, "lowestCost")[0].stay, undefined, "no stay asked: not worked out");
 });
+
+test("assistant: intents in English and Cantonese, and the name left over", () => {
+  const i = (q) => C.chatIntents(q);
+  assert.deepEqual(i("How much is parking at Festival Walk?"), { ids: ["fee"], query: "festival walk" });
+  assert.deepEqual(i("又一城收費幾錢"), { ids: ["fee"], query: "又一城" });
+  assert.deepEqual(i("report wrong fee at IFC").ids, ["report", "fee"]);
+  assert.equal(i("report wrong fee at IFC").query, "ifc");
+  assert.deepEqual(i("附近邊度有位").ids, ["nearest", "spaces"]);
+  assert.deepEqual(i("Is Harbour City open now?"), { ids: ["hours"], query: "harbour city" });   // punctuation never glues to a filler word
+  assert.equal(i("海港城有冇充電").ids[0], "ev");
+  assert.ok(i("any free spaces at amoy plaza").ids.includes("spaces") && !i("any free spaces at amoy plaza").ids.includes("fee"));
+  assert.ok(i("is it free at amoy plaza").ids.includes("fee"));
+  assert.equal(i("the car park closed down").ids[0], "report");
+  assert.deepEqual(i("how do I back up?").ids, ["backup"]);
+  assert.deepEqual(i("點樣備份").ids, ["backup"]);
+  assert.deepEqual(i("hi"), { ids: ["greeting"], query: "" });
+  assert.deepEqual(i("will my van fit in times square").ids.slice(0, 1), ["height"]);
+  assert.equal(i("will my van fit in times square").query, "times square");
+  assert.equal(i("停車場限高幾多 太古廣場").query, "太古廣場");
+  assert.equal(i("太古广场限高").query, "太古廣場");   // simplified input reads as traditional
+  assert.deepEqual(i("   "), { ids: [], query: "" });
+  assert.equal(C.reportKindFor(["report", "fee"]), "price"); assert.equal(C.reportKindFor(["report"]), null);
+  assert.ok(C.chatFAQ("backup", "tc").includes("備份")); assert.equal(C.chatFAQ("fee", "en"), null);
+  assert.ok(C.REPORT_KINDS.some(([k]) => k === "app"));
+});
+
+test("assistant: picks one car park, or offers a short list, never a guess", () => {
+  const parks = C.normalizeInfo(infoEN, infoTC);
+  assert.equal(C.chatPickCarPark("淘大", parks).best?.id, "12");
+  assert.equal(C.chatPickCarPark("amoy", parks).best?.id, "12");
+  assert.deepEqual(C.chatPickCarPark("zzzz", parks), { best: null, hits: [] });
+  assert.deepEqual(C.chatPickCarPark("", parks), { best: null, hits: [] });
+  // Harbour City has four car parks wearing the same alias: ask, don't guess.
+  const osm = C.applyCurated(C.osmCarParks(osmDoc), curatedDoc);
+  const hc = C.chatPickCarPark("harbour city", osm);
+  assert.equal(hc.best, null); assert.ok(hc.hits.length >= 2 && hc.hits.length <= 4);
+});
+
+test("assistant: facts about one car park and the nearest spaces, both languages", () => {
+  const parks = C.normalizeInfo(infoEN, infoTC), vac = C.normalizeVacancy(vacancy);
+  const records = parks.map(cp => ({ cp, vac: C.vacancyFor(vac, cp) }));
+  const ctx = { origin: { lat: 22.3245, lng: 114.2135 }, now: CAPTURE, vehicle: null, visits: {}, isPH: false, holidays: null };
+  const ranked = C.rank(records, ctx);
+  const r = ranked.find(x => x.id === "12");
+  const fee = C.chatFacts(["fee"], r, ctx, "en"); assert.ok(fee.length >= 1 && fee[0].startsWith("$"), fee.join(" | "));
+  const h = C.chatFacts(["height"], r, ctx, "tc"); assert.equal(h.length, 1); assert.ok(/限高|未確認|路邊/.test(h[0]), h[0]);
+  const sp = C.chatFacts(["spaces"], r, ctx, "en"); assert.equal(sp.length, 1); assert.ok(/^[✓!✕?ⓘ]/.test(sp[0]), sp[0]);
+  const all = C.chatFacts([], r, ctx, "en"); assert.ok(all.length >= 5, all.join(" | ")); assert.ok(all.some(l => l.startsWith("➤")));
+  const withVan = C.chatFacts(["height"], r, { ...ctx, vehicle: { type: "privateCar", nickname: "Van", heightMetres: 2.6 } }, "en");
+  assert.ok(/Van/.test(withVan[0]) && /spare|Too tall|not confirmed/i.test(withVan[0]), withVan[0]);
+  assert.ok(C.chatFacts(["hours"], r, ctx, "tc")[0].startsWith("🕒"));
+  assert.ok(C.chatFacts(["ev"], r, ctx, "en")[0].startsWith("⚡"));
+  assert.ok(C.chatFacts(["pattern"], r, ctx, "en")[0].includes("No typical-hour history"));
+  const near = C.chatNearest(ranked, "en", 3);
+  assert.ok(near.length >= 1 && near.length <= 3);
+  for (let k = 1; k < near.length; k++) assert.ok(ranked.find(x => x.id === near[k - 1].id).dist <= ranked.find(x => x.id === near[k].id).dist);
+  assert.ok(near.every(x => x.text.includes(" · ")));
+  assert.deepEqual(C.chatNearest(ranked.map(x => ({ ...x, dist: null })), "en"), []);
+});
