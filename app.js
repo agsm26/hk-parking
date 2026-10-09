@@ -10,7 +10,7 @@ const FEEDS = {
   meterOcc: "https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv",
 };
 const REFRESH = { info: 6 * 3600e3, meters: 24 * 3600e3, metersSnapshot: 7 * 86400e3, vacancy: 60e3, meterVac: 120e3 };
-const APP_VERSION = "2026-10-04b";                       // stamped by bump.py together with sw.js
+const APP_VERSION = "2026-10-10a";                       // stamped by bump.py together with sw.js
 const REPO_URL = "https://github.com/agsm26/hk-parking";  // issue reports go here
 const FETCH_TIMEOUT = 8000;
 // Map tiles: the Lands Department basemap through the CSDI portal (free, no
@@ -161,11 +161,183 @@ async function restoreCode() {
 
 // ---- issue reports reach the developer as a prefilled GitHub issue (no server, no e-mail exposed) ----
 function sendReport(r) {
-  if (!r) return; const cp = S.carparks.find(c => c.id === r.id);
-  const title = `[${r.kind}] ${cp ? T_(cp.name) : r.id}`;
-  const body = [`Car park: ${cp ? `${cp.name.en || ""} / ${cp.name.tc || ""}` : "(not in current list)"}`, `ID: ${r.id}`, `Issue: ${r.kind}`, `Details: ${r.details || "-"}`, `Reported: ${new Date(r.at).toISOString()}`, `App: ${APP_VERSION} (web)`].join("\n");
+  if (!r) return; const cp = S.carparks.find(c => c.id === r.id), q = r.kind === "question";
+  const title = q ? `[question] ${(r.details || "").replace(/\s+/g, " ").slice(0, 72)}` : `[${r.kind}] ${cp ? T_(cp.name) : r.id === "app" ? "App" : r.id}`;
+  const body = (q ? [`Question: ${r.details || "-"}`]
+    : [`Car park: ${cp ? `${cp.name.en || ""} / ${cp.name.tc || ""}` : r.id === "app" ? "(the app itself)" : "(not in current list)"}`, `ID: ${r.id}`, `Issue: ${r.kind}`, `Details: ${r.details || "-"}`])
+    .concat([`Reported: ${new Date(r.at).toISOString()}`, `App: ${APP_VERSION} (web)`]).join("\n");
   r.sentAt = Date.now(); save("reports");
-  window.open(`${REPO_URL}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`, "_blank", "noopener");
+  window.open(`${REPO_URL}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}&labels=${q ? "question" : "bug"}`, "_blank", "noopener");
+}
+const reportKindLabel = (k) => T_(C.REPORT_KINDS.find(([id]) => id === k)?.[1] || C.lt(k, k));
+const reportAbout = (r) => r.kind === "question" ? L_("Question", "問題") : r.id === "app" ? "App" : rec(r.id) ? T_(rec(r.id).cp.name) : r.id;
+
+// ---- 💬 assistant: a conversation over the data already here. Everything that
+// understands a message is in core.js (chatIntents, chatPickCarPark, chatFacts,
+// chatNearest); this part only keeps the transcript, draws it, and walks an
+// error report through its steps. Nothing leaves the phone until the user taps
+// "Send to developer", which opens the usual prefilled GitHub issue. ----
+const chat = { open: false, msgs: [], drawn: 0, chips: [], flow: null, cpId: null, pending: null, acts: new Map(), nextAct: 1, opener: null };
+const chatCtx = (id) => ({ now: S.now, vehicle: vehicle(), isPH: C.isPublicHoliday(S.now, S.holidays), holidays: S.holidays, pattern: pat(id), later: patLater(id) });
+function act(label, fn) { const id = String(chat.nextAct++); chat.acts.set(id, fn); return { id, label }; }
+const say = (text) => act(text, () => chatInput(text));   // a chip that counts as typing it
+function chatSay(text, actions = [], chips = []) { chat.msgs.push({ who: "bot", text, actions, at: Date.now() }); chat.chips = chips; chatRender(); }
+function chatUserSaid(text) { chat.msgs.push({ who: "user", text, actions: [], at: Date.now() }); chat.chips = []; chatRender(); }
+// Only new messages are added to the log (it is an aria-live region: redrawing
+// it all would have a screen reader read the whole conversation again).
+function chatRender() {
+  const log = $("chat-log"); if (!log) return;
+  if (chat.drawn > chat.msgs.length) { log.innerHTML = ""; chat.drawn = 0; }
+  for (const m of chat.msgs.slice(chat.drawn)) log.insertAdjacentHTML("beforeend", `<div class="msg ${m.who}"><div class="bubble">${esc(m.text)}</div>${m.actions.length ? `<div class="msg-acts">${m.actions.map(a => `<button class="chat-btn" data-chat-act="${esc(a.id)}">${esc(a.label)}</button>`).join("")}</div>` : ""}</div>`);
+  chat.drawn = chat.msgs.length;
+  $("chat-chips").innerHTML = chat.chips.map(c => `<button class="chip" data-chat-act="${esc(c.id)}">${esc(c.label)}</button>`).join("");
+  log.scrollTop = log.scrollHeight;
+}
+function chatLabels() {
+  $("chat-title").textContent = "💬 " + L_("Assistant", "小助手"); $("chat-close").textContent = L_("Close", "關閉");
+  $("chat-reset").setAttribute("aria-label", L_("New conversation", "重新開始")); $("chat-in").placeholder = L_("Ask about a car park…", "問下停車場…");
+  $("chat-in").setAttribute("aria-label", L_("Message", "訊息")); $("chat-send").setAttribute("aria-label", L_("Send", "傳送"));
+  $("chat-fab").setAttribute("aria-label", L_("Assistant: ask a question or report an error", "小助手：查詢或報告錯誤"));
+}
+function openChat(opts = {}) {
+  const el = $("chat"); if (chat.open) return; chat.opener = document.activeElement;
+  const context = sheetFor;   // the car park on screen is what a question is probably about
+  if (!$("sheet").hidden) closeSheet();
+  if ($("search").classList.contains("on")) closeSearch();
+  chatLabels(); el.hidden = false; setTimeout(() => el.classList.add("on"), 10); chat.open = true; $("chat-fab").hidden = true;
+  if (context && rec(context)) chat.cpId = context;
+  if (opts.report) startReport(opts.report, opts.kind || null);
+  else if (!chat.msgs.length) chatWelcome();
+  else chatRender();
+  setTimeout(() => el.focus({ preventScroll: true }), 60);   // the panel, not the input: no keyboard until it is wanted
+}
+function closeChat() {
+  const el = $("chat"); if (!chat.open) return; el.classList.remove("on"); setTimeout(() => { el.hidden = true; }, 200); chat.open = false; $("chat-fab").hidden = false;
+  if (chat.opener && document.contains(chat.opener)) chat.opener.focus({ preventScroll: true }); chat.opener = null;
+}
+function chatReset() { chat.msgs = []; chat.drawn = 0; $("chat-log").innerHTML = ""; chat.flow = null; chat.pending = null; chat.acts.clear(); chatWelcome(); }
+function chatHomeChips() {
+  return [act("⚑ " + L_("Report an error", "報告錯誤"), () => startReport(chat.cpId, null, [], true)),
+    act("📍 " + L_("Nearest spaces", "附近有位"), () => chatInput(L_("nearest spaces", "附近邊度有位"))),
+    act("$ " + L_("Fees at…", "收費…"), () => chatAskWhich(["fee"])),
+    act("↕ " + L_("Height limit at…", "限高…"), () => chatAskWhich(["height"])),
+    act("❓ " + L_("How the app works", "點用呢個 app"), () => chatHelp())];
+}
+function chatWelcome() {
+  const name = chat.cpId && rec(chat.cpId) ? T_(rec(chat.cpId).cp.name) : null;
+  chatSay(L_("Hi! Ask me about any car park: fees, height limit, opening hours, EV charging or spaces right now. Or tell me something is wrong and I'll file the report.", "你好！可以問我任何停車場嘅收費、限高、開放時間、充電或者而家有冇位。又或者話我知有咩錯，我會幫你填報告。")
+    + (name ? L_(`\n\nYou were looking at ${name}; questions without a name are taken to be about it.`, `\n\n你啱啱睇緊 ${name}，冇講名嘅問題會當係問佢。`) : ""), [], chatHomeChips());
+}
+function chatHelp() {
+  const ex = [L_("How much is Festival Walk?", "又一城收費幾錢？"), L_("Height limit at Pacific Place", "太古廣場限高幾多？"), L_("Is Harbour City open now?", "海港城而家開唔開？"), L_("Nearest spaces", "附近邊度有位"), L_("How do I back up?", "點樣備份？")];
+  chatSay(L_("Try asking:\n", "可以咁問：\n") + ex.map(x => "• " + x).join("\n") + L_("\nOr say \"report\" to tell me something is wrong. I answer from the data already on this phone, so I also work offline.", "\n或者講「報告」話我知有咩錯。我用嘅係手機上已有嘅資料，所以離線都用得。"), [], ex.map(say));
+}
+function chatSend() { const inp = $("chat-in"), text = inp.value.trim(); if (!text) return; inp.value = ""; chatInput(text); }
+function chatInput(text) { chatUserSaid(text); try { chatHandle(text); } catch (e) { logError("assistant", e.message || String(e)); chatUnknown(text); } }
+function chatHandle(text) {
+  if (chat.flow) return flowInput(text);
+  const { ids, query } = C.chatIntents(text);
+  const asked = ids.filter(i => C.CHAT_FACT_INTENTS.includes(i)), facts = asked.length ? asked : (chat.pending || []);
+  chat.pending = null;
+  if (ids.includes("report")) { const pick = C.chatPickCarPark(query, S.carparks), kind = C.reportKindFor(ids);
+    if (pick.best) return startReport(pick.best.id, kind);
+    return pick.hits.length || query ? startReport(null, kind, pick.hits) : startReport(chat.cpId, kind, [], true); }
+  if (ids.includes("nearest") || (ids.includes("spaces") && !query && !chat.cpId)) return chatNearestAnswer();
+  if ((facts.length || query) && !S.carparks.length) return chatSay(L_("The car park list has not loaded yet. Give it a moment and ask again.", "停車場資料仲未載入，請稍等再問。"), [], chatHomeChips());
+  const pick = C.chatPickCarPark(query, S.carparks);
+  if (pick.best) return chatAnswerCP(pick.best.id, facts);
+  if (pick.hits.length) return chatSay(L_("Which one do you mean?", "你指邊一個？"), [], pick.hits.map(cp => act(T_(cp.name), () => chatAnswerCP(cp.id, facts))));
+  if (facts.length && !query && chat.cpId && rec(chat.cpId)) return chatAnswerCP(chat.cpId, facts);   // "and the height?" — the car park we were on
+  if (facts.length && !query) return chatAskWhich(facts);
+  const faq = ids.map(i => C.chatFAQ(i, S.lang)).find(Boolean);
+  if (faq) return chatSay(faq, [act("✉ " + L_("Still have a question? Send it", "仲有問題？傳送"), () => offerQuestion(text))], chatHomeChips());
+  if (ids.includes("greeting")) return chatSay(L_("Hello! What do you need?", "你好！有咩可以幫你？"), [], chatHomeChips());
+  if (ids.includes("thanks")) return chatSay(L_("You're welcome. Drive safely!", "唔使客氣，小心駕駛！"), [], chatHomeChips());
+  if (ids.includes("help")) return chatHelp();
+  const sentence = /[\u3400-\u9fff]/.test(query) ? query.length > 6 : query.split(" ").length > 3;
+  if (query && (ids.length || !sentence)) return chatSay(L_(`I can't find a car park called "${query}". Try the mall, building or street name.`, `搵唔到叫「${query}」嘅停車場，試下用商場、大廈或者街道名。`), [act("✉ " + L_("Ask the developer", "問開發者"), () => offerQuestion(text))], nearbyChips(facts));
+  return chatUnknown(text);
+}
+function chatUnknown(text) {
+  chatSay(L_("I'm not sure about that one. I can answer questions about a car park (fees, height, hours, EV, spaces), explain how the app works, or send your question to the developer.", "呢個我唔太清楚。我可以答停車場嘅收費、限高、開放時間、充電、空位，解釋 app 點用，或者將你嘅問題傳送給開發者。"),
+    text ? [act("✉ " + L_("Send to developer", "傳送給開發者"), () => offerQuestion(text))] : [], chatHomeChips());
+}
+function offerQuestion(text) {
+  const rep = { id: "question", kind: "question", details: text, at: Date.now() }; S.reports.unshift(rep); save("reports"); sendReport(rep);
+  chatSay(L_("GitHub is opening with your question filled in; posting needs a free GitHub account. The question is also kept under More ▸ My issue reports.", "GitHub 正開啟並填好你嘅問題；發佈需要免費 GitHub 帳戶。問題亦會保存喺 更多 ▸ 我嘅問題報告。"), [], chatHomeChips());
+  if (S.tab === "more") renderMore();
+}
+const FACT_CHIPS = () => [["spaces", L_("Spaces now", "而家有冇位")], ["fee", L_("Fees", "收費")], ["height", L_("Height", "限高")], ["hours", L_("Hours", "開放時間")], ["ev", L_("EV", "充電")], ["pattern", L_("Typical hour", "時段參考")]];
+function chatAnswerCP(id, facts) {
+  const r = rec(id); if (!r) return chatUnknown("");
+  chat.cpId = id;
+  const asked = facts.filter(f => f !== "navigate"), lines = C.chatFacts(asked, r, chatCtx(id), S.lang);
+  if (facts.includes("navigate")) lines.push(L_("Tap Navigate for directions.", "撳「導航」就有路線。"));
+  const text = `${T_(r.cp.name)}${asked.length ? "" : "\n" + T_(r.cp.address)}\n${lines.join("\n")}`;
+  const actions = [act("ⓘ " + L_("Details", "詳情"), () => { closeChat(); openDetail(id); }), act("➤ " + L_("Navigate", "導航"), () => navigateTo(id)), act("⚑ " + L_("Report wrong info", "報告資料有錯"), () => startReport(id, C.reportKindFor(asked)))];
+  const chips = asked.length ? FACT_CHIPS().filter(([k]) => !asked.includes(k)).map(([k, l]) => act(l, () => chatAnswerCP(id, [k]))) : [];
+  chatSay(text, actions, [...chips, act(L_("Something else", "其他問題"), () => chatSay(L_("Go ahead.", "請講。"), [], chatHomeChips()))]);
+}
+// The car parks a name-less question is most likely about: the one on screen, favourites, then the nearest.
+function candidateIds() {
+  const ids = [], push = (id) => { if (id && !ids.includes(id) && rec(id)) ids.push(id); };
+  push(chat.cpId); for (const f of S.favs) push(f.id); for (const r of S.ranked.slice(0, 6)) push(r.id);
+  return ids.slice(0, 4);
+}
+const nearbyChips = (facts) => candidateIds().map(id => act(T_(rec(id).cp.name), () => chatAnswerCP(id, facts)));
+function chatAskWhich(facts) { chat.pending = facts; chatSay(L_("Which car park? Type its name, or pick one:", "邊個停車場？打個名，或者揀一個："), [], nearbyChips(facts)); }
+function chatNearestAnswer() {
+  if (!originPoint()) return chatSay(L_("I don't know where you are yet. Allow location, or search a destination on the Find tab, then ask again.", "我仲未知你喺邊。請允許定位，或者喺「搵車位」搜尋目的地，再問一次。"),
+    [act(L_("Allow location", "允許定位"), () => { S.onboarded = true; save("onboarded"); startGeo(); closeChat(); }), act(L_("Search a destination", "搜尋目的地"), () => { closeChat(); openSearch("dest"); })], chatHomeChips());
+  const near = C.chatNearest(S.all, S.lang, 3);
+  if (!near.length) return chatSay(L_(`No live spaces reported near ${originLabel()} right now. The Find tab lists everything, including car parks with no live data.`, `${originLabel()}附近而家冇即時空位紀錄。「搵車位」會列出全部，包括冇即時資料嘅停車場。`), [], chatHomeChips());
+  chatSay(L_(`Nearest with spaces right now, from ${originLabel()}:\n`, `由${originLabel()}計，而家最近有位嘅：\n`) + near.map((x, i) => `${i + 1}. ${x.text}`).join("\n"), near.map(x => act(T_(rec(x.id).cp.name), () => chatAnswerCP(x.id, []))), chatHomeChips());
+}
+// ---- error report, step by step: which car park → what is wrong → details → save / send ----
+function startReport(cpId, kind, hits = [], fromContext = false) {
+  chat.flow = { step: "cp", cpId: null, kind, details: "" }; chat.pending = null;
+  const appIssue = act(L_("Not about a car park (app problem)", "唔關停車場事（app 問題）"), () => { chat.flow.cpId = "app"; flowStep("kind"); });
+  if (cpId && rec(cpId) && !fromContext) { chat.flow.cpId = cpId; return flowStep("kind"); }
+  if (cpId && rec(cpId)) return chatSay(L_(`Is this about ${T_(rec(cpId).cp.name)}?`, `係咪關於「${T_(rec(cpId).cp.name)}」？`), [],
+    [act("✓ " + L_("Yes", "係"), () => { chat.flow.cpId = cpId; flowStep("kind"); }), act(L_("Another car park", "另一個停車場"), () => startReport(null, kind)), appIssue]);
+  if (hits.length) return chatSay(L_("Which car park is this about?", "係邊個停車場？"), [], [...hits.map(cp => act(T_(cp.name), () => { chat.flow.cpId = cp.id; flowStep("kind"); })), appIssue]);
+  chatSay(L_("Which car park is this about? Type its name, or pick one:", "係邊個停車場？打個名，或者揀一個："), [], [...candidateIds().map(id => act(T_(rec(id).cp.name), () => { chat.flow.cpId = id; flowStep("kind"); })), appIssue]);
+}
+function flowStep(step) {
+  const f = chat.flow; f.step = step;
+  const name = () => f.cpId === "app" ? "App" : T_(rec(f.cpId).cp.name);
+  if (step === "kind") {
+    if (f.kind) return flowStep("details");
+    const kinds = C.REPORT_KINDS.filter(([k]) => f.cpId === "app" ? ["app", "other"].includes(k) : k !== "app");
+    return chatSay(L_(`Reporting ${name()}. What is wrong?`, `報告「${name()}」。有咩問題？`), [], kinds.map(([k, l]) => act(T_(l), () => { f.kind = k; flowStep("details"); })));
+  }
+  if (step === "details") return chatSay(L_("What did you see? Type the details, or skip.", "你見到啲咩？打低詳情，或者跳過。"), [], [act(L_("Skip", "跳過"), () => { flowStep("confirm"); })]);
+  if (step === "confirm") return chatSay(`${name()}\n${reportKindLabel(f.kind)}${f.details ? "\n" + f.details : ""}`,
+    [act("✉ " + L_("Save & send to developer", "儲存並傳送給開發者"), () => finishReport(true)), act(L_("Save only", "淨係儲存"), () => finishReport(false)), act(L_("Cancel", "取消"), () => cancelReport())], []);
+}
+function cancelReport() { chat.flow = null; chatSay(L_("Cancelled.", "已取消。"), [], chatHomeChips()); }
+function flowInput(text) {
+  const f = chat.flow;
+  if (/^(cancel|stop|quit|never ?mind|取消|唔要|算了|算啦)/i.test(text.trim())) return cancelReport();
+  if (f.step === "cp") {
+    const pick = C.chatPickCarPark(C.chatIntents(text).query || text, S.carparks);
+    if (pick.best) { f.cpId = pick.best.id; return flowStep("kind"); }
+    if (pick.hits.length) return chatSay(L_("Which one?", "邊一個？"), [], pick.hits.map(cp => act(T_(cp.name), () => { f.cpId = cp.id; flowStep("kind"); })));
+    return chatSay(L_(`No car park called "${text}" in the list. Try the mall, building or street name.`, `名單上冇叫「${text}」嘅停車場，試下用商場、大廈或者街道名。`), [], [act(L_("Not about a car park (app problem)", "唔關停車場事（app 問題）"), () => { f.cpId = "app"; flowStep("kind"); })]);
+  }
+  if (f.step === "kind") { const k = C.reportKindFor(C.chatIntents(text).ids); if (k) { f.kind = k; return flowStep("details"); } f.kind = "other"; f.details = text; return flowStep("confirm"); }
+  if (f.step === "details") { f.details = text; return flowStep("confirm"); }
+  if (/^(y|yes|ok|okay|send|sure|好|係|傳送|確定)/i.test(text.trim())) return finishReport(true);
+  if (/^(n|no|nope|唔|不)/i.test(text.trim())) return cancelReport();
+  f.details = (f.details ? f.details + "\n" : "") + text; return flowStep("confirm");
+}
+function finishReport(send) {
+  const f = chat.flow; chat.flow = null;
+  const rep = { id: f.cpId, kind: f.kind, details: f.details.trim(), at: Date.now() }; S.reports.unshift(rep); save("reports");
+  if (send) sendReport(rep);
+  chatSay(send ? L_("Saved, and GitHub is opening with the report filled in (posting needs a free GitHub account). It is kept under More ▸ My issue reports.", "已儲存，GitHub 正開啟並填好報告（發佈需要免費 GitHub 帳戶）。報告保存喺 更多 ▸ 我嘅問題報告。")
+    : L_("Saved on this device under More ▸ My issue reports. You can send it to the developer from there any time.", "已存喺本機：更多 ▸ 我嘅問題報告。隨時可以由嗰度傳送給開發者。"), [], chatHomeChips());
+  if (S.tab === "more") renderMore();
 }
 
 // ---- base map layers with automatic fallback ----
@@ -897,6 +1069,7 @@ function renderMore() {
   const el = $("panel-more"); const installed = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
   el.innerHTML = `<h1>${esc(L_("More", "更多"))}</h1>
     ${installed ? "" : `<div class="card"><h2 style="margin:0 0 6px;font-size:17px">📲 ${esc(L_("Add to your Home Screen", "加到主畫面"))}</h2><p class="note">${esc(/iPhone|iPad/.test(navigator.userAgent) ? L_("In Safari tap the Share button, then \"Add to Home Screen\". The app then opens full screen and works offline.", "喺 Safari 撳分享按鈕，再揀「加入主畫面」。之後會全屏開啟，離線亦可用。") : L_("In Chrome tap the menu, then \"Install app\" or \"Add to Home screen\".", "喺 Chrome 撳選單，再揀「安裝應用程式」或「加到主畫面」。"))}</p></div>`}
+    <div class="section"><h3>💬 ${esc(L_("Ask or report", "查詢或報告"))}</h3><p class="note">${esc(L_("Ask about any car park's fees, height limit, hours or spaces, or report wrong information. Works offline, on the data already here.", "查詢任何停車場嘅收費、限高、開放時間或空位，或者報告錯誤資料。離線都用得，用嘅係 app 內已有嘅資料。"))}</p><button class="primary" data-act="chat">💬 ${esc(L_("Open assistant", "開啟小助手"))}</button></div>
     <div class="section form"><div class="field"><label>${esc(L_("Language", "語言"))}</label><select id="m-lang"><option value="en" ${S.lang === "en" ? "selected" : ""}>English</option><option value="tc" ${S.lang === "tc" ? "selected" : ""}>繁體中文</option></select></div>
       <div class="field"><label>${esc(L_("Navigate with", "導航 app"))}</label><select id="m-nav"><option value="apple" ${S.navApp === "apple" ? "selected" : ""}>Apple Maps</option><option value="google" ${S.navApp === "google" ? "selected" : ""}>Google Maps</option><option value="waze" ${S.navApp === "waze" ? "selected" : ""}>Waze</option></select></div>
       <div class="field"><label>${esc(L_("Alert when a watched car park has spaces (while open)", "常用停車場有位時提醒（開啟時）"))}</label><button class="switch" role="switch" aria-checked="${S.alerts}" id="m-alerts"></button></div></div>
@@ -913,12 +1086,12 @@ function renderMore() {
     <div class="section"><h3>💾 ${esc(L_("Backup & restore", "備份與還原"))}</h3><p class="note">${esc(L_("Favourites, vehicles and places live on this phone only. Copy a backup code to move them to another phone, or from Safari into the Home Screen app.", "常用、車輛同地點只存喺呢部手機。複製備份代碼可以搬去另一部手機，或者由 Safari 搬入主畫面 app。"))}</p>
       <div class="row2"><button class="secondary" data-act="backup">⇪ ${esc(L_("Copy backup code", "複製備份代碼"))}</button><button class="secondary" data-act="restore">⤓ ${esc(L_("Restore", "還原"))}</button></div></div>
     <div class="section"><h3>🩺 ${esc(L_("Diagnostics", "診斷"))}</h3>${S.errors.length ? S.errors.map(e => `<p class="err">${new Date(e.at).toLocaleString(S.lang === "en" ? "en-HK" : "zh-HK")} · ${esc(e.url)}<br>${esc(e.msg)}</p>`).join("") + `<button class="secondary" data-act="clearErrors" style="margin-top:8px">${esc(L_("Clear log", "清除記錄"))}</button>` : `<p class="note">${esc(L_("No feed errors recorded. The last ten failures appear here so you can tell what went wrong.", "未有資料錯誤記錄。最近十次失敗會顯示喺呢度，方便你了解出咗咩問題。"))}</p>`}</div>
-    <div class="section"><h3>${esc(L_("My issue reports", "我嘅問題報告"))}</h3>${S.reports.length ? S.reports.map((r, i) => `<p class="note"><b>${esc(r.kind)}</b> · ${esc(r.id)} · ${new Date(r.at).toLocaleString()}<br>${esc(r.details)}${r.sentAt ? ` · ✓ ${esc(L_("sent", "已傳送"))}` : ` · <button data-sendreport="${i}" style="color:var(--accent);font-weight:600;min-height:32px">${esc(L_("Send to developer", "傳送給開發者"))}</button>`}</p>`).join("") : `<p class="note">${esc(L_("None yet. Reports are saved here and can be sent to the developer as a GitHub issue.", "未有。報告會存喺呢度，並可以透過 GitHub issue 傳送給開發者。"))}</p>`}
+    <div class="section"><h3>${esc(L_("My issue reports", "我嘅問題報告"))}</h3>${S.reports.length ? S.reports.map((r, i) => `<p class="note"><b>${esc(reportKindLabel(r.kind))}</b> · ${esc(reportAbout(r))} · ${new Date(r.at).toLocaleString()}<br>${esc(r.details)}${r.sentAt ? ` · ✓ ${esc(L_("sent", "已傳送"))}` : ` · <button data-sendreport="${i}" style="color:var(--accent);font-weight:600;min-height:32px">${esc(L_("Send to developer", "傳送給開發者"))}</button>`}</p>`).join("") : `<p class="note">${esc(L_("None yet. Tell the assistant (💬) what is wrong; reports are saved here and can be sent to the developer as a GitHub issue.", "未有。話俾小助手（💬）知有咩錯；報告會存喺呢度，並可以透過 GitHub issue 傳送給開發者。"))}</p>`}
       ${S.reports.length ? `<button class="secondary" data-act="shareReports">⇪ ${esc(L_("Share reports", "分享報告"))}</button>` : ""}</div>
     <div class="section"><h3>${esc(L_("Licence", "使用條款"))}</h3><p class="note">${esc(L_("Free for personal, non-commercial use. Selling this app, running it as a service or using it to promote a business is not permitted without written permission. Provided as is; always check the signs at the car park.", "只限個人非商業用途。未經書面許可，不得出售本 app、作為服務營運或用於推廣業務。按現狀提供；請以停車場現場標示為準。"))} <a href="https://github.com/agsm26/hk-parking/blob/main/LICENSE.md" target="_blank" rel="noopener">LICENSE.md</a></p></div>
     <div class="section"><button class="secondary" data-act="clearCache">${esc(L_("Clear cached feed data", "清除快取資料"))}</button></div>
     <p class="note" style="text-align:center">搵車位 · Car Park HK · ${esc(APP_VERSION)} · ${esc(L_("Data snapshots 6 Sep 2026", "資料快照 2026-09-06"))}</p>`;
-  $("m-lang").onchange = e => { S.lang = e.target.value; save("lang"); document.documentElement.lang = S.lang === "en" ? "en-HK" : "zh-HK"; render(); if (map) relayer(map); };
+  $("m-lang").onchange = e => { S.lang = e.target.value; save("lang"); document.documentElement.lang = S.lang === "en" ? "en-HK" : "zh-HK"; render(); chatLabels(); if (map) relayer(map); };
   $("m-nav").onchange = e => { S.navApp = e.target.value; save("navApp"); };
   $("m-alerts").onclick = async () => { S.alerts = !S.alerts; if (S.alerts && "Notification" in window && Notification.permission === "default") await Notification.requestPermission().catch(() => {}); save("alerts"); renderMore(); };
 }
@@ -928,7 +1101,9 @@ const TABS = [["find", "Ⓟ", ["Find Parking", "搵車位"]], ["map", "🗺", ["
 function renderTabs() {
   $("tabs").innerHTML = TABS.map(([id, ic, [en, tc]]) => `<button data-tab="${id}" aria-current="${S.tab === id ? "page" : "false"}"><span class="ic" aria-hidden="true">${ic}</span>${esc(id === "vehicle" ? L_("Vehicle", "車輛") : L_(en, tc))}</button>`).join("");
 }
-function setTab(id) { S.tab = id; for (const p of document.querySelectorAll(".panel")) p.classList.toggle("on", p.id === "panel-" + id); history.replaceState(null, "", "#" + id); render(); if (id === "map") setTimeout(() => { map && map.invalidateSize(); paintMarkers(); }, 60); }
+// The body carries the screen as data-screen, never data-tab: the click handler
+// looks for [data-tab] on every ancestor of what was tapped, and would find the body.
+function setTab(id) { S.tab = id; document.body.dataset.screen = id; for (const p of document.querySelectorAll(".panel")) p.classList.toggle("on", p.id === "panel-" + id); history.replaceState(null, "", "#" + id); render(); if (id === "map") setTimeout(() => { map && map.invalidateSize(); paintMarkers(); }, 60); }
 function render() {
   renderTabs();
   if (S.tab === "find") renderFind(); else if (S.tab === "map") renderMap(); else if (S.tab === "saved") renderSaved(); else if (S.tab === "vehicle") renderVehicle(); else renderMore();
@@ -960,21 +1135,18 @@ document.addEventListener("click", async (e) => {
       fields: [{ id: "floor", label: L_("Floor / zone / spot (optional)", "樓層／區域／車位（可選）"), placeholder: L_("e.g. P2 · B12", "例如 P2 · B12") },
         { id: "hrs", label: L_("Remind me before paid time ends", "收費時間完結前提醒"), type: "select", value: "0", options: [["0", L_("No reminder", "唔提醒")], ["1", L_("After 1 hour", "1 小時後")], ["2", L_("After 2 hours", "2 小時後")], ["3", L_("After 3 hours", "3 小時後")], ["4", L_("After 4 hours", "4 小時後")], ["8", L_("After 8 hours", "8 小時後")]] }], ok: L_("Start", "開始") });
     if (!v) return; startSession(x.dataset.park, v.floor.trim(), parseFloat(v.hrs) || 0); closeSheet(); setTab("saved"); return; }
-  if ((x = b("[data-report]"))) {
-    const id = x.dataset.report;
-    const v = await dialog({ title: L_("Report an issue", "報告問題"), fields: [
-      { id: "kind", label: L_("What is wrong?", "有咩問題？"), type: "select", value: "availability", options: [["availability", L_("Availability count wrong", "空位數目唔準")], ["entrance", L_("Entrance in the wrong place", "入口位置錯")], ["price", L_("Fee wrong or outdated", "收費錯或過時")], ["height", L_("Height limit wrong", "限高錯")], ["closed", L_("Car park closed or gone", "停車場已關閉／唔存在")], ["other", L_("Other", "其他")]] },
-      { id: "details", label: L_("Details (optional)", "詳情（可選）"), type: "textarea", placeholder: L_("What did you see on site?", "現場見到啲咩？") }], ok: L_("Save", "儲存") });
-    if (!v) return;
-    const rep = { id, kind: v.kind, details: v.details.trim(), at: Date.now() }; S.reports.unshift(rep); save("reports");
-    const send = await dialog({ title: L_("Saved on this device", "已存喺本機"), text: L_("Send it to the developer too? This opens GitHub with the report filled in; posting needs a free GitHub account.", "同時傳送給開發者？會開啟 GitHub 並填好報告，發佈需要免費 GitHub 帳戶。"), ok: L_("Send", "傳送"), cancel: L_("Not now", "暫時唔要") });
-    if (send) sendReport(rep); return; }
+  if ((x = b("[data-report]"))) { openChat({ report: x.dataset.report }); return; }
+  if ((x = b("#chat-fab"))) { openChat(); return; }
+  if ((x = b("#chat-close"))) { closeChat(); return; }
+  if ((x = b("#chat-reset"))) { chatReset(); return; }
+  if ((x = b("#chat-send"))) { chatSend(); return; }
+  if ((x = b("[data-chat-act]"))) { const fn = chat.acts.get(x.dataset.chatAct); if (fn) { const label = x.textContent.trim(); if (x.classList.contains("chip")) chatUserSaid(label); try { fn(); } catch (e) { logError("assistant", e.message || String(e)); chatUnknown(""); } } return; }
   if ((x = b("[data-sendreport]"))) { sendReport(S.reports[+x.dataset.sendreport]); return; }
   if ((x = b("[data-close]"))) { closeSheet(); return; }
   if ((x = b("[data-cp]"))) { openDetail(x.dataset.cp); return; }
   if ((x = b("[data-pick]"))) { pickSearch(x.dataset.pick); return; }
   if ((x = b("[data-act]"))) { const a = x.dataset.act;
-    if (a === "search") openSearch("dest"); else if (a === "locate") { S.onboarded = true; save("onboarded"); startGeo(); } else if (a === "retry") refresh("all");
+    if (a === "chat") openChat(); else if (a === "search") openSearch("dest"); else if (a === "locate") { S.onboarded = true; save("onboarded"); startGeo(); } else if (a === "retry") refresh("all");
     else if (a === "clearBand") { S.filter = C.applyBand(S.filter, "all"); save("filter"); rerank(); render(); }
     else if (a === "backup") backupCode(); else if (a === "restore") restoreCode(); else if (a === "clearErrors") { S.errors = []; save("errors"); render(); }
     else if (a === "resetFilters") { S.filter = { ...C.DEFAULT_FILTER(), vehicleType: S.filter.vehicleType }; save("filter"); rerank(); render(); }   // the sort is its own row: Nearest stays Nearest
@@ -1000,8 +1172,8 @@ document.addEventListener("click", async (e) => {
   if ((x = b("#map-locate"))) { const o = originPoint(); if (o && map) mapCentreOn(o, 16); else startGeo(); return; }
 });
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") { if (!$("dlg").hidden) closeDialog(null); else if ($("search").classList.contains("on")) closeSearch(); else if (!$("sheet").hidden) closeSheet(); return; }
-  if (e.key === "Tab") { if (!$("dlg").hidden) trapTab($("dlg"), e); else if (!$("sheet").hidden) trapTab($("sheet"), e); }
+  if (e.key === "Escape") { if (!$("dlg").hidden) closeDialog(null); else if (chat.open) closeChat(); else if ($("search").classList.contains("on")) closeSearch(); else if (!$("sheet").hidden) closeSheet(); return; }
+  if (e.key === "Tab") { if (!$("dlg").hidden) trapTab($("dlg"), e); else if (chat.open) trapTab($("chat"), e); else if (!$("sheet").hidden) trapTab($("sheet"), e); }
 });
 window.addEventListener("online", () => { S.online = true; toast(L_("Back online", "已重新連線")); refresh(true); });
 window.addEventListener("offline", () => { S.online = false; render(); });
@@ -1017,6 +1189,8 @@ for (const ev of ["gesturestart", "gesturechange"]) document.addEventListener(ev
   const h = location.hash.slice(1);
   if (TABS.some(t => t[0] === h)) S.tab = h;
   for (const p of document.querySelectorAll(".panel")) p.classList.toggle("on", p.id === "panel-" + S.tab);
+  document.body.dataset.screen = S.tab; chatLabels();
+  $("chat-in").addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); chatSend(); } });   // Enter sends; an IME's Enter commits the characters instead
   render();
   if (S.origin.type === "current" && !S.fixed && S.onboarded) startGeo();   // first run explains before the permission prompt
   if (S.session) scheduleReminder();

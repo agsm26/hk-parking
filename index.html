@@ -53,7 +53,7 @@ a{color:var(--accent)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 
 #app{display:flex;flex-direction:column;min-height:100dvh}
-.panel{flex:1;display:none;padding:0 16px calc(84px + env(safe-area-inset-bottom));max-width:640px;width:100%;margin:0 auto}
+.panel{flex:1;display:none;padding:0 16px calc(140px + env(safe-area-inset-bottom));max-width:640px;width:100%;margin:0 auto}
 .panel.on{display:block}
 .panel h1{font-size:30px;margin:14px 0 10px;letter-spacing:-.3px;padding-top:env(safe-area-inset-top)}
 #panel-map{padding:0;max-width:none}
@@ -231,6 +231,31 @@ footer.attr{padding:20px 0 12px;font-size:12px;color:var(--ink-soft);text-align:
 .cluster b{font-size:13px} .cluster small{font-size:9px;font-weight:600}
 .cluster.available{background:#0d7a52} .cluster.limited{background:#b36b00} .cluster.full{background:#b82f2f} .cluster.unknown{background:#6b7379}
 .pin.me{color:#1f70eb}
+
+/* ---- assistant (💬): a chat panel over the data already here ---- */
+.chat-fab{position:fixed;right:14px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:35;width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 14px rgba(0,0,0,.3)}
+body[data-screen="map"] .chat-fab{right:auto;left:12px}
+.chat{position:fixed;inset:0;z-index:58;background:var(--bg);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);opacity:0;transform:translateY(12px);transition:opacity .18s,transform .18s}
+.chat.on{opacity:1;transform:none}
+.chat:focus{outline:none}
+.chat-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--surface)}
+.chat-head h2{margin:0;font-size:17px;flex:1;text-align:center}
+.chat-head .quiet{min-width:56px;min-height:44px}
+.chat-log{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 12px 4px;display:flex;flex-direction:column;gap:10px;max-width:640px;width:100%;margin:0 auto}
+.msg{display:flex;flex-direction:column;align-items:flex-start;max-width:88%}
+.msg.user{align-self:flex-end;align-items:flex-end}
+.bubble{padding:10px 14px;border-radius:16px;background:var(--surface);border:1px solid var(--line);font-size:15px;line-height:1.45;white-space:pre-line;word-break:break-word}
+.msg.bot .bubble{border-bottom-left-radius:4px}
+.msg.user .bubble{background:var(--accent);color:#fff;border-color:var(--accent);border-bottom-right-radius:4px}
+.msg-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chat-btn{min-height:40px;padding:0 12px;border-radius:12px;border:1px solid var(--accent);color:var(--accent);background:var(--surface);font-size:14px;font-weight:600}
+.chat-chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:8px 12px 2px;max-width:640px;width:100%;margin:0 auto}
+.chat-chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;min-height:40px;padding:0 14px;border-radius:20px;background:var(--accent-soft);color:var(--accent);font-size:14px;font-weight:600;white-space:nowrap}
+.chat-bar{display:flex;gap:8px;padding:8px 12px calc(10px + env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line)}
+.chat-bar input{flex:1;min-width:0;min-height:48px;border:1px solid var(--line);background:var(--bg);border-radius:14px;padding:0 14px;font-size:16px}
+.chat-send{flex:0 0 48px;width:48px;height:48px;border-radius:50%;background:var(--accent);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center}
+@media (prefers-reduced-motion:reduce){.chat{transition:none}}
 </style>
 </head>
 <body>
@@ -252,6 +277,13 @@ footer.attr{padding:20px 0 12px;font-size:12px;color:var(--ink-soft);text-align:
 <div class="scrim" id="scrim"></div>
 <section class="sheet" id="sheet" role="dialog" aria-modal="true" hidden></section>
 <div class="dlg" id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title" hidden></div>
+<button class="chat-fab" id="chat-fab" aria-label="Assistant">💬</button>
+<section class="chat" id="chat" role="dialog" aria-modal="true" aria-labelledby="chat-title" tabindex="-1" hidden>
+  <div class="chat-head"><button class="quiet" id="chat-close">Close</button><h2 id="chat-title">💬 Assistant</h2><button class="quiet" id="chat-reset" aria-label="New conversation">↺</button></div>
+  <div class="chat-log" id="chat-log" aria-live="polite"></div>
+  <div class="chat-chips" id="chat-chips"></div>
+  <div class="chat-bar"><input id="chat-in" type="text" autocomplete="off" autocapitalize="sentences" enterkeyhint="send" placeholder="Ask about a car park…" aria-label="Message"><button class="chat-send" id="chat-send" aria-label="Send">➤</button></div>
+</section>
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <script src="vendor/leaflet.js"></script>

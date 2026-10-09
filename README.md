@@ -121,6 +121,23 @@ then hours after it aren't tried. In October 2026 this covered 254 text
 tariffs; 4 had no private-car price and 165 OpenStreetMap car parks say only
 "paid parking".
 
+## Assistant (💬)
+
+The chat button on every tab (and More ▸ Ask or report) opens an assistant
+that answers plain questions about a car park and takes error reports. There
+is no model and no server behind it: `chatIntents` in `core.js` reads the
+message for what is asked (fees, height limit, hours, EV charging, spaces now,
+typical hour, nearest spaces, or one of twenty questions about the app) in
+English or Cantonese, `chatPickCarPark` finds the car park named (one clear
+winner, or a short list to choose from, never a guess), and `chatFacts`
+composes the answer from the record already on the phone, so it works offline.
+A question without a name is taken to be about the car park last discussed or
+the one open on screen. An error report walks through which car park, what is
+wrong, details and confirm, then is saved under More ▸ My issue reports and,
+if the user chooses, opened as the usual prefilled GitHub issue (label `bug`;
+unanswered questions go the same way with label `question`). The detail
+sheet's Report button starts the same flow with the car park filled in.
+
 ## Test locally
 
 ```bash
@@ -172,5 +189,6 @@ files stay under ODbL, Leaflet is BSD, government data follows DATA.GOV.HK terms
 - Favourites and vehicles live in one browser on one phone. More ▸ Backup
   produces a code that Restore reads on another device, or in the Home Screen
   app after saving in Safari.
-- Issue reports are saved on the phone and can be sent as a prefilled GitHub
-  issue on the repository; nothing is sent automatically.
+- Issue reports and questions are saved on the phone and can be sent as a
+  prefilled GitHub issue on the repository; nothing is sent automatically. The
+  assistant answers only from the data on the phone; it is not a language model.

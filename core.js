@@ -1551,3 +1551,185 @@ function hourRanges(hours) {
   return runs.sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]) || a[0] - b[0]).slice(0, 2).sort((a, b) => a[0] - b[0])
     .map(([s, e]) => s === e ? hh(s) : `${hh(s)}–${hh(e + 1)}`).join(", ");
 }
+
+// ====================================================================
+// Assistant (💬): plain questions and error reports. No model and no
+// server: keyword intents in English and Cantonese over the data already on
+// the phone. app.js draws the conversation; everything that decides is here.
+// ====================================================================
+
+// English entries match whole words in the lower-cased text; Chinese entries
+// match anywhere in the traditional form. Order is priority when a message
+// hits several intents (a report beats a question about the same fact).
+export const CHAT_INTENTS = [
+  { id: "report", words: ["report", "wrong", "wrongly", "incorrect", "error", "errors", "bug", "bugs", "broken", "not working", "doesn't work", "doesnt work", "mistake", "outdated", "out of date", "no longer", "doesn't exist", "doesnt exist", "closed down", "demolished", "complain", "complaint", "報告", "舉報", "有問題", "出錯", "錯誤", "錯咗", "錯左", "唔啱", "唔準", "不準", "不對", "唔對", "壞咗", "壞左", "冇用", "用唔到", "過時", "唔存在", "不存在", "執笠", "已關閉", "已經關", "投訴"] },
+  { id: "nearest", words: ["nearest", "near me", "nearby", "closest", "around me", "around here", "close by", "where can i park", "where to park", "附近", "最近", "就近", "邊度有位", "邊度可以泊", "邊度泊", "哪裡有", "哪裏有", "周圍"] },
+  { id: "ev", words: ["ev", "evs", "charger", "chargers", "charging", "electric", "tesla", "充電", "電動車", "叉電", "充電樁"] },
+  { id: "height", words: ["height", "heights", "clearance", "headroom", "tall", "high", "fit", "fits", "限高", "高度", "淨高", "入唔入到", "入得", "車高", "幾高", "多高", "入到"] },
+  { id: "hours", words: ["hours", "open", "opens", "opening", "close", "closes", "closing", "closed", "24 hours", "24h", "overnight", "開放時間", "營業時間", "幾點", "開門", "關門", "開到", "幾時開", "幾時關", "閂門", "閂咗", "開放", "營業", "通宵"] },
+  { id: "fee", words: ["fee", "fees", "price", "prices", "cost", "costs", "rate", "rates", "charge", "charges", "how much", "tariff", "tariffs", "expensive", "cheap", "cheaper", "hourly", "per hour", "day park", "night park", "monthly", "free parking", "for free", "is it free", "收費", "幾錢", "幾多錢", "多少錢", "價錢", "價格", "費用", "貴唔貴", "泊車費", "停車費", "時租", "日泊", "夜泊", "月租", "每小時", "一個鐘", "一小時", "幾蚊", "免費"] },
+  { id: "pattern", words: ["usually", "typical", "typically", "best time", "busy", "busiest", "quiet", "quietest", "easier", "pattern", "通常", "平時", "幾時去", "最好時間", "繁忙", "最旺", "最靜", "鬆啲", "易泊", "難泊"] },
+  { id: "spaces", words: ["space", "spaces", "vacancy", "vacancies", "available", "availability", "full", "empty", "free spaces", "free space", "any spaces", "how many", "spots", "slots", "空位", "有冇位", "有沒有位", "幾多個位", "多少個位", "爆滿", "滿咗", "有位", "吉位", "得唔得", "車位"] },
+  { id: "navigate", words: ["navigate", "directions", "how do i get", "how to get", "take me", "route", "drive to", "導航", "點去", "帶我去", "怎麼去", "路線"] },
+  // About the app itself. `faq` is the answer.
+  { id: "install", words: ["install", "installed", "home screen", "homescreen", "add to home", "app store", "download", "安裝", "主畫面", "加到", "加入主畫面", "下載"],
+    faq: lt("Open the app in Safari (iPhone) or Chrome (Android), then Share ▸ Add to Home Screen (Chrome: menu ▸ Install app). It then opens full screen and works offline. It is not in an app store: it is a web app, with no account and nothing to pay.", "用 Safari（iPhone）或 Chrome（Android）開 app，然後 分享 ▸ 加入主畫面（Chrome：選單 ▸ 安裝應用程式）。之後會全屏開啟，離線亦可用。App Store 冇得搵：佢係網頁 app，唔使登入、唔使錢。") },
+  { id: "backup", words: ["backup", "back up", "restore", "transfer", "another phone", "new phone", "other phone", "move my", "sync", "備份", "還原", "轉去", "另一部", "新手機", "搬去", "同步"],
+    faq: lt("More ▸ Backup & restore. \"Copy backup code\" makes a code holding your favourites, vehicles, places and parking history; \"Restore\" on the other phone reads it. On iPhone, Safari and the Home Screen app keep separate storage, so back up in one and restore in the other.", "更多 ▸ 備份與還原。「複製備份代碼」會產生一段代碼，包含常用、車輛、地點同泊車紀錄；喺另一部機撳「還原」貼上就得。iPhone 嘅 Safari 同主畫面 app 係分開儲存嘅，所以要喺一邊備份、另一邊還原。") },
+  { id: "privacy", words: ["privacy", "private", "tracking", "track me", "my data", "upload", "collect", "collects", "私隱", "追蹤", "個人資料", "上傳", "收集"],
+    faq: lt("Your location is used only while the app is open, only to rank car parks by distance, and never leaves the phone. Favourites, vehicles, parking sessions and reports stay in this browser. No account, no analytics, no ads.", "定位只會喺 app 開啟時使用，用嚟按距離排列停車場，唔會離開呢部手機。常用、車輛、泊車紀錄同報告只存喺呢個瀏覽器。唔使登入、冇分析追蹤、冇廣告。") },
+  { id: "data", words: ["where does the data", "data come", "data from", "source", "sources", "accurate", "accuracy", "reliable", "trust", "資料來源", "邊度嚟", "準唔準", "可靠", "資料嚟自", "數據"],
+    faq: lt("Live counts come from the Transport Department through DATA.GOV.HK (car parks every 60 s, street meters every 2 min). Other car parks and vehicle entrances come from OpenStreetMap. Tariffs for the big malls were copied from the operators' own pages, with the date checked. Counts can lag, and a reading older than an hour shows as \"no live data\". Always check the signs on site.", "即時空位來自運輸署（經資料一線通）：停車場每 60 秒、路邊咪錶每 2 分鐘更新。其他停車場同入口來自 OpenStreetMap。大型商場嘅收費係由營運商網頁抄錄，並記錄核對日期。數字可能有延遲，超過一小時嘅讀數會顯示為「冇即時資料」。請以現場標示為準。") },
+  { id: "refresh", words: ["refresh", "how often", "update", "updates", "updated", "updating", "stale", "old data", "frozen", "更新", "幾耐", "刷新", "太舊", "唔更新", "冇更新"],
+    faq: lt("Live counts refresh every 60 s while the app is open (street meters every 2 min); the car park list itself every 6 hours. \"Find Parking Now\" refreshes at once. If counts look frozen, More ▸ Diagnostics lists the last feed errors.", "App 開啟時，即時空位每 60 秒更新（路邊咪錶每 2 分鐘），停車場名單每 6 小時更新。撳「即刻搵位」會即時更新。如果數字似乎停咗，更多 ▸ 診斷 會列出最近嘅資料錯誤。") },
+  { id: "meters", words: ["meter", "meters", "on-street", "on street", "street parking", "hkemeter", "咪錶", "路邊", "泊車錶", "街邊"],
+    faq: lt("Street meters are grouped by street section; the count is bays whose sensor reports vacant, refreshed every 2 minutes. Pay at the meter or with the HKeMeter app. The Meters tile under Show hides or shows them.", "路邊咪錶按路段分組；數字係感應器報「吉」嘅泊位數，每 2 分鐘更新。可喺咪錶或 HKeMeter app 付款。「篩選」列嘅「咪錶」方格可以隱藏或顯示佢哋。") },
+  { id: "reminder", words: ["reminder", "reminders", "remind", "alert", "alerts", "notify", "notification", "notifications", "push", "提醒", "通知", "推送"],
+    faq: lt("Open a car park, tap \"I parked here\" and choose when to be reminded. The reminder fires only while the app is open: iPhone gives web apps no background timers. \"Alert when a watched car park has spaces\" (More) works the same way, for saved car parks with the bell switched on.", "打開停車場，撳「我泊咗喺度」再揀幾時提醒。提醒只會喺 app 開啟時發出：iPhone 唔俾網頁 app 喺背景計時。「常用停車場有位時提醒」（更多）都係一樣，適用於開咗鈴鐺嘅常用停車場。") },
+  { id: "vehicle", words: ["vehicle", "vehicles", "my car", "car height", "add a car", "van", "motorcycle", "車輛", "我架車", "加車", "客貨車", "電單車"],
+    faq: lt("Vehicle tab ▸ Add vehicle: type, height, length and width. The app then warns about low clearances, hides car parks with no spaces for your type, and can keep to an hourly budget.", "「車輛」分頁 ▸ 加入車輛：車種、車高、車長、車闊。之後 app 會提醒限高、隱藏冇你車種車位嘅停車場，仲可以設定每小時預算。") },
+  { id: "favourites", words: ["favourite", "favourites", "favorite", "favorites", "saved", "star", "pin", "pinned", "常用", "儲存", "星星", "置頂", "收藏"],
+    faq: lt("Tap the star on any car park. Saved car parks live in the Saved tab; pin one to keep it on top, or tap the bell to be alerted when it has spaces (while the app is open).", "喺任何停車場撳星星。常用停車場喺「已儲存」分頁；撳圖釘可以置頂，撳鈴鐺就會喺有位時提醒（app 開啟時）。") },
+  { id: "session", words: ["parked", "where did i park", "find my car", "my parking", "session", "timer", "泊咗", "搵返架車", "泊車紀錄", "計時", "我架車喺邊"],
+    faq: lt("Open the car park and tap \"I parked here\" (floor and reminder optional). The Saved tab then shows a timer and \"Take me back to my car\". Where you park is remembered on this phone and nudges the ranking next time.", "打開停車場撳「我泊咗喺度」（樓層同提醒可選）。「已儲存」分頁會顯示計時器同「帶我返去架車度」。你泊過嘅地方會記喺呢部機，下次排名會優先啲。") },
+  { id: "offline", words: ["offline", "no internet", "no signal", "no connection", "離線", "冇網絡", "冇訊號", "冇網", "無網絡"],
+    faq: lt("Offline, the app shows the last data it received, with its age; counts may be out of date. The map needs a connection.", "離線時 app 會顯示最後收到嘅資料同埋幾耐前收到，數字可能已過時。地圖需要網絡。") },
+  { id: "language", words: ["language", "english", "chinese", "cantonese", "語言", "中文", "英文", "廣東話"],
+    faq: lt("More ▸ Language switches between English and 繁體中文 at once.", "更多 ▸ 語言 可以即時轉換 English 同繁體中文。") },
+  { id: "licence", words: ["licence", "license", "commercial", "copyright", "open source", "使用條款", "版權", "商業", "開源"],
+    faq: lt("Free for personal, non-commercial use. The source is public on GitHub (agsm26/hk-parking) under LICENSE.md; OpenStreetMap data stays ODbL.", "只限個人非商業用途。原始碼公開喺 GitHub（agsm26/hk-parking），條款見 LICENSE.md；OpenStreetMap 資料維持 ODbL。") },
+  { id: "contact", words: ["contact", "developer", "email", "e-mail", "feedback", "suggest", "suggestion", "feature", "request", "github", "聯絡", "開發者", "意見", "建議", "電郵", "新功能"],
+    faq: lt("There is no e-mail address or account behind the app. Reports and questions reach the developer as a GitHub issue: say \"report an error\" here, or type a question and tap \"Send to developer\" when I cannot answer it. Posting needs a free GitHub account.", "App 背後冇電郵地址或帳戶。報告同問題會以 GitHub issue 傳送給開發者：喺度講「報告錯誤」，或者打你嘅問題，我答唔到時撳「傳送給開發者」。發佈需要免費 GitHub 帳戶。") },
+  { id: "filters", words: ["filter", "filters", "hide", "hidden", "malls", "district", "districts", "distance", "sort", "sorting", "篩選", "隱藏", "商場", "地區", "距離", "排序"],
+    faq: lt("The Find tab has three rows: Sort, Show (Meters, EV, Height OK, Open now, Malls) and Within (distance). A district chosen in search lasts for that search only. When filters hide spaces much nearer than anything shown, the list says so with a \"Show them\" button.", "「搵車位」有三行：排序、篩選（咪錶、充電、啱車高、開放中、商場）同距離。搜尋時揀嘅地區只限該次搜尋。如果篩選隱藏咗比顯示結果近得多嘅車位，清單會話你知，並有「顯示」按鈕。") },
+  { id: "stay", words: ["cheapest", "cost for", "whole stay", "total cost", "最平", "全程", "總共幾錢"],
+    faq: lt("Sort by Cheapest and pick how long you'll stay (1–8 h). Each car park's page shows what that stay costs from now; \"about\" means it was read from the operator's price text.", "揀「最平」排序再揀停泊幾耐（1–8 小時）。每個停車場嘅詳情會顯示而家泊要幾錢；「約」表示係由營運商嘅收費文字讀出嚟。") },
+  { id: "navapp", words: ["waze", "google maps", "apple maps", "navigation app", "導航 app", "地圖 app"],
+    faq: lt("More ▸ Navigate with: Apple Maps, Google Maps or Waze. Navigate opens the mapped vehicle entrance when one is known.", "更多 ▸ 導航 app：Apple Maps、Google Maps 或 Waze。有入口資料嘅話，導航會直接去車輛入口。") },
+  { id: "greeting", words: ["hi", "hello", "hey", "hihi", "yo", "你好", "哈囉", "早晨", "午安", "晚安"] },
+  { id: "thanks", words: ["thanks", "thank you", "thx", "cheers", "唔該", "多謝", "謝謝", "感謝"] },
+  { id: "help", words: ["help", "what can you do", "how do i use", "how to use", "幫手", "幫幫", "可以做咩", "點用", "怎麼用", "教我", "功能"] },
+];
+export const CHAT_FACT_INTENTS = ["spaces", "fee", "height", "hours", "ev", "pattern", "navigate"];
+const chatFaqOf = (id) => CHAT_INTENTS.find(i => i.id === id)?.faq || null;
+export const chatFAQ = (id, lang) => { const f = chatFaqOf(id); return f ? t(lang, f) : null; };
+
+// What a report can be about, shown as choices. A fact intent in the same
+// message picks the kind ("wrong fee at IFC" → price).
+export const REPORT_KINDS = [
+  ["availability", lt("Availability count wrong", "空位數目唔準")],
+  ["entrance", lt("Entrance in the wrong place", "入口位置錯")],
+  ["price", lt("Fee wrong or outdated", "收費錯或過時")],
+  ["height", lt("Height limit wrong", "限高錯")],
+  ["hours", lt("Opening hours wrong", "開放時間錯")],
+  ["closed", lt("Car park closed or gone", "停車場已關閉／唔存在")],
+  ["app", lt("App not working properly", "App 唔正常")],
+  ["other", lt("Other", "其他")],
+];
+export const reportKindFor = (ids) => ({ spaces: "availability", fee: "price", height: "height", hours: "hours", ev: "other", navigate: "entrance" })[ids.find(i => i !== "report" && CHAT_FACT_INTENTS.includes(i))] || null;
+
+const CHAT_STOP_EN = ["a", "an", "the", "is", "are", "was", "were", "be", "it", "its", "it's", "at", "in", "on", "of", "for", "to", "from", "and", "or", "do", "does", "did", "have", "has", "there", "this", "that", "what", "whats", "what's", "which", "where", "when", "how", "can", "could", "i", "me", "my", "we", "you", "your", "please", "pls", "now", "today", "tonight", "tomorrow", "car", "park", "parks", "carpark", "carparks", "parking", "garage", "tell", "about", "know", "want", "need", "find", "show", "get", "go", "going", "with", "any", "some", "much", "many", "still", "right", "just", "also", "so", "ok", "okay", "question", "ask", "info", "information", "details", "detail", "near", "here", "will", "would", "should", "isn't", "isnt", "yes", "no", "not", "there's", "theres", "by", "up", "into", "inside", "again", "between", "than", "if", "but", "later", "tonight", "am", "pm"];
+const CHAT_STOP_TC = ["請問", "我想知道", "我想知", "想知道", "想知", "可唔可以", "可以嗎", "係咪", "是不是", "是否", "點樣", "點解", "為什麼", "怎麼", "怎樣", "告訴我", "話我知", "幫我搵", "幫我", "搵下", "搵一下", "查下", "查一下", "一下", "唔該", "多謝", "謝謝", "而家", "現在", "今日", "今天", "今晚", "聽日", "明天", "嗰個", "呢個", "這個", "那個", "泊車", "停車場", "停車", "車場", "車位", "泊位", "有冇", "有沒有", "幾多", "多少", "可以", "地方", "邊度", "哪裡", "哪裏", "嘅", "喺", "係", "呀", "啊", "嗎", "呢", "啦", "吖", "咩", "咗", "噃", "喎", "囉", "嘛", "哦", "吓", "個", "去", "到", "我", "你", "佢", "的", "了", "呀"];
+const esc_ = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const ASCII_WORD = /^[a-z0-9' -]+$/;
+const hitsWord = (lower, trad, w) => ASCII_WORD.test(w) ? new RegExp(`(^|[^a-z0-9])${esc_(w)}(?![a-z0-9])`).test(lower) : trad.includes(w);
+
+/** What a message asks for: the matched intent ids in priority order, and what
+ *  is left once intent words and filler are removed (the car park's name, if any). */
+export function chatIntents(text) {
+  const raw = String(text || "").replace(/[’‘]/g, "'").trim();
+  const lower = raw.toLowerCase(), trad = toTrad(raw);
+  const ids = CHAT_INTENTS.filter(i => i.words.some(w => hitsWord(lower, trad, w))).map(i => i.id);
+  // Strip every intent word (not only the matched ones: they are all generic),
+  // then the filler, leaving what could be a name.
+  let q = trad.toLowerCase();
+  const phrases = [...CHAT_INTENTS.flatMap(i => i.words), ...CHAT_STOP_TC].sort((a, b) => b.length - a.length);
+  for (const w of phrases) q = ASCII_WORD.test(w) ? q.replace(new RegExp(`(^|[^a-z0-9])${esc_(w)}(?![a-z0-9])`, "g"), "$1") : q.split(w).join(" ");
+  q = q.replace(/[?？!！。，,.;；:：、"“”'()（）]+/g, " ");
+  q = q.split(/\s+/).filter(w => w && !CHAT_STOP_EN.includes(w)).join(" ").trim();
+  return { ids, query: q };
+}
+
+/** The car park a message names: one clear winner, or a short list to choose from. */
+export function chatPickCarPark(query, carparks) {
+  if (!query || normText(query).length < 2) return { best: null, hits: [] };
+  const hits = searchCarParks(query, carparks, 5).filter(h => h.score >= 55);
+  const best = hits.length && hits[0].score >= 70 && (hits.length === 1 || hits[0].score > hits[1].score) ? hits[0].cp : null;
+  return { best, hits: hits.slice(0, 4).map(h => h.cp) };
+}
+
+// ---- answers about one car park, from an evaluated record (rank/evaluate) ----
+const money = (v) => Number.isInteger(v) ? `$${v}` : `$${Number(v).toFixed(1)}`;
+function chatSpaces(r, ctx, lang) {
+  const en = lang === "en", c = r.reading?.count, cap = r.cp.capacity?.privateCar?.total;
+  const fresh = freshnessText(r.fresh, r.reading?.updatedAt, ctx.now, lang);
+  const of = cap ? (en ? ` of ${cap}` : `／${cap}`) : "";
+  if (r.level === "available") return c != null ? (en ? `✓ ${c} space${c === 1 ? "" : "s"} now${of} (${fresh})` : `✓ 而家有 ${c} 個位${of}（${fresh}）`) : (en ? `✓ Spaces available now (${fresh})` : `✓ 而家有位（${fresh}）`);
+  if (r.level === "limited") return en ? `! Only ${c} left${of} (${fresh})` : `! 淨返 ${c} 個位${of}（${fresh}）`;
+  if (r.level === "full") return en ? `✕ Full right now (${fresh})` : `✕ 而家爆滿（${fresh}）`;
+  if (isInfoOnly(r.cp)) return en ? "ⓘ No live counts: this operator does not publish them. Location and facts only." : "ⓘ 冇即時空位：呢個營運商冇公開數字，只有位置同資料。";
+  return en ? `? No live data right now (${fresh})` : `? 而家冇即時資料（${fresh}）`;
+}
+function chatFee(r, ctx, lang) {
+  const en = lang === "en", cp = r.cp, type = ctx.vehicle?.type || "privateCar";
+  const fee = cp.fees?.[type] || cp.fees?.privateCar, out = [];
+  if (!fee || feeIsEmpty(fee)) return [en ? "$ No fee information. Check the sign at the entrance." : "$ 未有收費資料，請留意入口標示。"];
+  const unit = (x) => x.unitMinutes === 30 ? (en ? "/30 min" : "/半小時") : (en ? "/hr" : "/小時");
+  const when = (w) => windowIsAllDay(w) && w.weekdays.length >= 7 ? "" : ` (${weekdaysText(w, lang)} ${windowText(w, lang)})`;
+  const now = hourlyRateAt(fee, ctx.now, ctx.isPH);
+  if (now) out.push(`$ ${en ? "Now" : "而家"} ${now.isEstimate ? (en ? "about " : "約 ") : ""}${money(now.price)}${unit(now)}${when(now.window)}${now.remark ? " · " + now.remark : ""}`);
+  for (const x of fee.hourly.filter(x => x !== now).slice(0, 3)) out.push(`· ${money(x.price)}${unit(x)}${when(x.window)}`);
+  const kind = { dayPark: en ? "day park" : "日泊", nightPark: en ? "night park" : "夜泊", twentyFourHours: en ? "24-hour" : "24 小時", monthly: en ? "monthly" : "月租", other: en ? "flat rate" : "定額" };
+  for (const x of fee.flat.slice(0, 3)) out.push(`· ${kind[x.kind] || x.kind} ${money(x.price)}${x.window ? when(x.window) : ""}`);
+  if (!fee.hourly.length && !fee.flat.length && fee.note) { const n = fee.note.replace(/\s+/g, " "); out.push("$ " + (n.length > 220 ? n.slice(0, 219).trimEnd() + "…" : n)); }
+  if (type === "privateCar" && ctx.holidays !== undefined) {
+    const stays = [60, 120, 180].map(m => stayText(stayCost(cp, ctx.now, m, ctx.holidays), m, lang)).filter(Boolean);
+    if (stays.length) out.push((en ? "If you park now: " : "如果而家泊：") + stays.join(" · "));
+  }
+  if (fee.privileges.length) out.push("🎁 " + fee.privileges[0]);
+  return out;
+}
+function chatHeight(r, ctx, lang) {
+  const en = lang === "en", cp = r.cp;
+  if (cp.kind === "onStreetMeter") return en ? "↕ On-street bays, no height limit." : "↕ 路邊泊位，冇高度限制。";
+  if (cp.height?.metres == null) return en ? "↕ Height limit not confirmed by any source. Check the sign at the entrance." : "↕ 冇資料確認限高，請留意入口標示。";
+  let s = "↕ " + heightText(cp.height, lang) + (cp.height.note ? ` (${cp.height.note})` : "");
+  if (ctx.vehicle?.heightMetres) s += ` · ${ctx.vehicle.nickname || (en ? "your vehicle" : "你架車")}: ${fitText(fit(ctx.vehicle, cp), lang)}`;
+  return s;
+}
+function chatHours(r, lang) {
+  const en = lang === "en", cp = r.cp;
+  const status = r.isOpen === true ? (en ? " · open now" : "・開放中") : r.isOpen === false ? (en ? " · closed now" : "・而家閂咗") : "";
+  if (cp.openingHours.length) return "🕒 " + cp.openingHours.map(w => `${weekdaysText(w, lang)} ${windowText(w, lang)}`).join("; ") + status;
+  if (cp.kind === "onStreetMeter" && cp.fees?.privateCar?.note) return "🕒 " + (en ? "Charging hours: " : "收費時段：") + cp.fees.privateCar.note;
+  const note = cp.infoNote ? t(lang, cp.infoNote) : "";
+  const m = note.match(/(?:Hours|開放時間)[:：]\s*([^·]+)/); if (m) return "🕒 " + m[1].trim() + status;
+  return en ? "🕒 Opening hours not published for this car park." + status : "🕒 呢個停車場未有公佈開放時間。" + status;
+}
+function chatEV(r, lang) {
+  const en = lang === "en", cp = r.cp, bays = cp.capacity?.privateCar?.ev, free = r.reading?.evCount;
+  if (cp.facilities.includes("evCharger") || bays > 0 || free > 0) {
+    const bits = []; if (bays > 0) bits.push(en ? `${bays} EV bays` : `${bays} 個充電位`); if (free != null) bits.push(en ? `${free} free now` : `而家 ${free} 個空置`);
+    return `⚡ ${en ? "EV charging: yes" : "有電動車充電"}${bits.length ? ` (${bits.join(", ")})` : ""}`;
+  }
+  return en ? `⚡ No EV charging listed${cp.sources.includes("openStreetMap") && isInfoOnly(cp) ? " (OpenStreetMap may simply not record it)" : ""}.` : `⚡ 未列出充電設施${cp.sources.includes("openStreetMap") && isInfoOnly(cp) ? "（OpenStreetMap 可能只係未記錄）" : ""}。`;
+}
+/** Lines answering the asked facts about one car park; every fact when none is asked. */
+export function chatFacts(ids, r, ctx, lang) {
+  const en = lang === "en", want = ids.filter(i => CHAT_FACT_INTENTS.includes(i) && i !== "navigate"), all = !want.length;
+  const has = (k) => all || want.includes(k), lines = [];
+  if (has("spaces")) lines.push(chatSpaces(r, ctx, lang));
+  if (has("pattern")) { const pt = patternText(ctx.pattern, lang); if (pt) lines.push("📈 " + pt); const later = pt ? betterLater(ctx.pattern, ctx.later || [], lang) : null; if (later) lines.push("↻ " + later); else if (!pt && want.includes("pattern")) lines.push(en ? "📈 No typical-hour history for this car park yet." : "📈 呢個停車場暫時未有時段參考。"); }
+  if (has("fee")) lines.push(...chatFee(r, ctx, lang));
+  if (has("height")) lines.push(chatHeight(r, ctx, lang));
+  if (has("hours")) lines.push(chatHours(r, lang));
+  if (has("ev")) lines.push(chatEV(r, lang));
+  if (all && r.dist != null) lines.push(`➤ ${fmtDist(r.dist, lang)}${en ? " away (straight line)" : "（直線距離）"}`);
+  return lines.filter(Boolean);
+}
+/** The nearest places with spaces right now, nearest first. */
+export function chatNearest(all, lang, n = 3) {
+  const en = lang === "en";
+  return all.filter(r => r.dist != null && (r.level === "available" || r.level === "limited") && r.score > 0).sort((a, b) => a.dist - b.dist).slice(0, n)
+    .map(r => ({ id: r.id, text: `${t(lang, r.cp.name)} · ${fmtDist(r.dist, lang)} · ${r.reading?.count != null ? (en ? `${r.reading.count} space${r.reading.count === 1 ? "" : "s"}` : `${r.reading.count} 個位`) : (en ? "spaces" : "有位")}` }));
+}
